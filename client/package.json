@@ -10,31 +10,18 @@
   },
   "dependencies": {
     "axios": "^1.7.7",
-<<<<<<< HEAD
-    "next": "14.2.8",
-=======
     "next": "14.2.10",
->>>>>>> f8160d0 (first init)
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
-<<<<<<< HEAD
-    "@types/node": "^20",
-    "@types/react": "^18",
-=======
->>>>>>> f8160d0 (first init)
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.2.8",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-<<<<<<< HEAD
-    "typescript": "^5"
-=======
     "@types/node": "22.5.4",
     "@types/react": "18.3.5",
     "typescript": "5.6.2"
->>>>>>> f8160d0 (first init)
   }
 }
