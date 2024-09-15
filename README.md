@@ -22,7 +22,6 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
   ├── README.md                      # Project documentation
   ├── docker-compose.yml             # Docker Compose file for containerization (optional)
   ├── requirements.txt               # Python dependencies for FastAPI
-  ├── pyproject.toml                 # Python project configuration (optional, if using Poetry)
   ├── client/                        # Next.js frontend
   │   ├── .next/                     # Next.js build directory (ignored)
   │   ├── node_modules/              # Node.js dependencies (ignored)
