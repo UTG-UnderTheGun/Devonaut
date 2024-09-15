@@ -15,4 +15,5 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 # 👥 CONTRIBUTING
 คู่มือและแนวทางการทำงานโดยใช้ Github ร่วมกันฮ้าฟฟู่ววว [CONTRIBUTING](CONTRIBUTING.md).
 
+# 🎯 Goals
 ![Class Excercise](https://github.com/user-attachments/assets/e1820560-bcfb-4562-83a0-78a2626d1199)
