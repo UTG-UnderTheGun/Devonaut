@@ -4,7 +4,7 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 หัวข้อไทย: ระบบช่วยอธิบาย แปล สอนโค้ด และแก้ไขข้อผิดพลาด (Debug)
 เทคโนโลยีซอฟต์แวร์ที่เกี่ยวข้อง: การประมวลผลภาษา (Natural Language Processing), การเรียนรู้ของเครื่อง (Machine Learning), การวิเคราะห์โค้ด (Code Analysis), การสอนและการเรียนรู้ (Teaching and Learning Technologies), และเครื่องมือการดีบัก (Debugging Tools)
 
-# ✔️ TODO 
+# ✅ TODO 
 - [ ] Login page.
 - [ ] Register page.
 - [ ] Logout page.
