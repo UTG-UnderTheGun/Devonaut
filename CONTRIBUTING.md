@@ -5,46 +5,46 @@ We welcome contributions from everyone. To maintain a healthy and collaborative 
 ## How to Contribute
 
 ### 1. Fork the Repository
-- Use the GitHub interface to fork the repository to your account.
-- Clone the forked repository to your local machine:
+- ใช้อินเทอร์เฟซของ GitHub เพื่อ fork repository ไปยังบัญชีของคุณ
+- Clone repository ที่ fork แล้วไปยังเครื่องคอมพิวเตอร์ของคุณ:
   ```
   git clone https://github.com/your-username/project-name.git
   ```
 
 ### 2. Create a New Branch
-- Always create a new branch for your work:
+- สร้าง branch ใหม่เสมอสำหรับการทำงานของคุณ:
   ```
   git checkout -b feature/your-feature-name
   ```
   
-Use descriptive names for your branches (e.g., fix/bug-issue, feature/add-new-function).
+ใช้ชื่อที่สื่อความหมายสำหรับ branch ของคุณ (เช่น fix/bug-issue, feature/add-new-function)
 
 3. Make Your Changes
-- Follow the project's coding style and conventions.
-- Ensure that your code works and passes all tests (if applicable).
-- If you've added code that should be tested, add appropriate test cases.
+- ปฏิบัติตามสไตล์การเขียนโค้ดและมาตรฐานของโครงการ
+- ตรวจสอบให้แน่ใจว่าโค้ดของคุณทำงานได้และผ่านการทดสอบทั้งหมด (ถ้ามี)
+- หากคุณเพิ่มโค้ดที่ควรทดสอบ ให้เพิ่มกรณีทดสอบที่เหมาะสม
 
 4. Commit Your Changes
-- Make small, incremental commits.
-- Write meaningful and concise commit messages:
+- ทำ commit ทีละน้อย ๆ และเป็นลำดับ
+- เขียนข้อความ commit ที่มีความหมายและกระชับ:
   ```
   git commit -m "Short summary of changes"
   ```
 
 5. Push to Your Fork
-Push your branch to your forked repository:
+Push branch ของคุณไปยัง repository ที่ fork:
   ```
   git push origin feature/your-feature-name
   ```
 
 6. Open a Pull Request
-- Go to the original repository and create a pull request (PR) from your branch.
-- Provide a clear description of the changes and why they are needed.
-- Link any relevant issues or discussions (e.g., Fixes #123).
-- Be prepared to address feedback from reviewers and make further changes if necessary.
+- ไปที่ repository ต้นฉบับและสร้าง pull request (PR) จาก branch ของคุณ
+- ให้คำอธิบายที่ชัดเจนเกี่ยวกับการเปลี่ยนแปลงและเหตุผลที่จำเป็น
+- ลิงก์กับปัญหาหรือการอภิปรายที่เกี่ยวข้อง (เช่น Fixes #123)
+- เตรียมพร้อมที่จะตอบกลับความคิดเห็นจากผู้ตรวจสอบและทำการเปลี่ยนแปลงเพิ่มเติมหากจำเป็น
 
 7. Keep Your Fork Updated
-Regularly sync your fork with the upstream repository to stay up-to-date:
+ซิงค์ fork ของคุณกับ repository ต้นฉบับอย่างสม่ำเสมอเพื่อให้อัปเดต:
   ```
   git remote add upstream https://github.com/AbilityJLR/Devonaut.git
   git fetch upstream
@@ -53,14 +53,14 @@ Regularly sync your fork with the upstream repository to stay up-to-date:
   ```
 
 Pull Request Guidelines
-- Ensure that your code is well-formatted and adheres to project standards.
-- Document any new features or breaking changes.
-- Write unit tests for any new functionality or changes.
-- PRs should be focused on a single issue or feature.
-- Don’t include unrelated changes in the same PR.
-- Communicate with maintainers if your PR is not getting feedback in a reasonable time.
+- ตรวจสอบให้แน่ใจว่าโค้ดของคุณมีการจัดรูปแบบที่ดีและเป็นไปตามมาตรฐานของโครงการ
+- จัดทำเอกสารคุณลักษณะใหม่หรือการเปลี่ยนแปลงที่ทำให้โค้ดก่อนหน้าใช้งานไม่ได้
+- เขียน unit tests สำหรับคุณลักษณะใหม่หรือการเปลี่ยนแปลงที่คุณทำ
+- PR ควรมุ่งเน้นไปที่ปัญหาหรือฟีเจอร์เดียว
+- อย่าใส่การเปลี่ยนแปลงที่ไม่เกี่ยวข้องใน PR เดียวกัน
+- สื่อสารกับผู้ดูแลหาก PR ของคุณไม่ได้รับ feedback ในเวลาที่เหมาะสม
 
 Issues and Discussions
-- Before submitting a new issue, please search existing issues to avoid duplicates.
-- When opening an issue, provide a clear description of the problem, steps to reproduce, and expected behavior.
-- For feature requests, explain the use case and benefits of the feature.
+- ก่อนที่จะส่งปัญหาใหม่ กรุณาค้นหาปัญหาที่มีอยู่แล้วเพื่อหลีกเลี่ยงการซ้ำซ้อน
+- เมื่อเปิดปัญหา ให้ให้คำอธิบายที่ชัดเจนเกี่ยวกับปัญหา ขั้นตอนการทำซ้ำ และพฤติกรรมที่คาดหวัง
+- สำหรับคำขอฟีเจอร์ โปรดอธิบายกรณีการใช้งานและประโยชน์ของฟีเจอร์นั้น
