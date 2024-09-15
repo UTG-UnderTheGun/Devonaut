@@ -1,0 +1,65 @@
+# Global ignores
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Virtual environments for Python (FastAPI backend)
+venv/
+env/
+.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.sqlite3  # Local SQLite DB files
+
+# FastAPI-specific log files
+*.log
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Node.js dependencies (for Next.js frontend)
+client/node_modules/
+
+# Next.js build output
+client/.next/
+client/.out/
+client/out/
+
+# Next.js environment files (store sensitive API keys, secrets, etc.)
+client/.env.local
+client/.env.development.local
+client/.env.production.local
+client/.env.test.local
+
+# Next.js cache
+client/.cache/
+
+# Next.js build static files
+client/dist/
+
+# Ignore lock files if using npm or yarn
+client/package-lock.json
+client/yarn.lock
+
+# Ignore VSCode and JetBrains IDE settings
+.vscode/
+.idea/
