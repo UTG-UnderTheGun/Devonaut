@@ -12,4 +12,7 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 - [ ] Register API.
 - [ ] Logout API.
 
+# 👥 CONTRIBUTING
+[CONTRIBUTING](CONTRIBUTING.md)
+
 ![Class Excercise](https://github.com/user-attachments/assets/e1820560-bcfb-4562-83a0-78a2626d1199)
