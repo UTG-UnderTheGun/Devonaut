@@ -7,14 +7,16 @@ We welcome contributions from everyone. To maintain a healthy and collaborative 
 ### 1. Fork the Repository
 - Use the GitHub interface to fork the repository to your account.
 - Clone the forked repository to your local machine:
-  ```bash
+  ```
   git clone https://github.com/your-username/project-name.git
+  ```
 
 ### 2. Create a New Branch
 - Always create a new branch for your work:
-'''
+  ```
   git checkout -b feature/your-feature-name
-'''
+  ```
+  
 Use descriptive names for your branches (e.g., fix/bug-issue, feature/add-new-function).
 
 3. Make Your Changes
@@ -25,15 +27,15 @@ Use descriptive names for your branches (e.g., fix/bug-issue, feature/add-new-fu
 4. Commit Your Changes
 - Make small, incremental commits.
 - Write meaningful and concise commit messages:
-'''
+  ```
   git commit -m "Short summary of changes"
-'''
+  ```
 
 5. Push to Your Fork
 Push your branch to your forked repository:
-'''
+  ```
   git push origin feature/your-feature-name
-'''
+  ```
 
 6. Open a Pull Request
 - Go to the original repository and create a pull request (PR) from your branch.
@@ -43,12 +45,12 @@ Push your branch to your forked repository:
 
 7. Keep Your Fork Updated
 Regularly sync your fork with the upstream repository to stay up-to-date:
-'''
-  git remote add upstream https://github.com/original-repo/project-name.git
+  ```
+  git remote add upstream https://github.com/AbilityJLR/Devonaut.git
   git fetch upstream
   git checkout main
   git merge upstream/main
-'''
+  ```
 
 Pull Request Guidelines
 - Ensure that your code is well-formatted and adheres to project standards.
