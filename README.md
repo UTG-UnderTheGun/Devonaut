@@ -13,6 +13,6 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 - [ ] Logout API.
 
 # 👥 CONTRIBUTING
-[CONTRIBUTING](CONTRIBUTING.md)
+คู่มือและแนวทางการทำงานโดยใช้ Github ร่วมกันฮ้าฟฟู่ววว [CONTRIBUTING](CONTRIBUTING.md).
 
 ![Class Excercise](https://github.com/user-attachments/assets/e1820560-bcfb-4562-83a0-78a2626d1199)
