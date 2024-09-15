@@ -20,7 +20,6 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
   my_project/
   ├── .gitignore                     # Ignored files for both FastAPI and Next.js
   ├── README.md                      # Project documentation
-  ├── docker-compose.yml             # Docker Compose file for containerization (optional)
   ├── requirements.txt               # Python dependencies for FastAPI
   ├── client/                        # Next.js frontend
   │   ├── .next/                     # Next.js build directory (ignored)
@@ -33,11 +32,8 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
   │   │   └── utils/                 # Utility functions
   │   ├── .env.local                 # Environment variables (ignored)
   │   ├── next.config.js             # Next.js configuration
-  │   ├── package.json               # Node.js dependencies and scripts
-  │   ├── yarn.lock                  # Yarn lockfile (if using Yarn)
-  │   └── tsconfig.json              # TypeScript configuration (if using TypeScript)
+  │   └── package.json               # Node.js dependencies and scripts
   ├── server/                        # FastAPI backend
-  │   ├── alembic/                   # Database migrations (if using Alembic with SQLAlchemy)
   │   ├── app/                       # Application logic
   │   │   ├── api/                   # API routes
   │   │   │   └── v1/                # Version 1 of the API
