@@ -1,4 +1,4 @@
-# Contributing to Devonaut
+# 👥 Contributing to Devonaut
 
 We welcome contributions from everyone. To maintain a healthy and collaborative environment, please follow these guidelines.
 
