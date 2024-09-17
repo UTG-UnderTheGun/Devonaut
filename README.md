@@ -5,7 +5,7 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 เทคโนโลยีซอฟต์แวร์ที่เกี่ยวข้อง: การประมวลผลภาษา (Natural Language Processing), การเรียนรู้ของเครื่อง (Machine Learning), การวิเคราะห์โค้ด (Code Analysis), การสอนและการเรียนรู้ (Teaching and Learning Technologies), และเครื่องมือการดีบัก (Debugging Tools)
 
 # ✅ TODO 
-- [ ] Login page.
+- [x] Login page.
 - [ ] Register page.
 - [ ] Logout page.
 - [ ] Login API.
