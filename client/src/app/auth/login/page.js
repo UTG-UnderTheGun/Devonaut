@@ -1,5 +1,6 @@
 import GlassBox from "@/components/glass-box";
 import './login.css'
+import Link from "next/link";
 
 export default function Login() {
   return (
@@ -39,6 +40,9 @@ export default function Login() {
                 </div>
                 <div className="login-btn">
                   <button>Login</button>
+                </div>
+                <div className="link-register">
+                  or&nbsp;<Link style={{ color: "#398EE9" }} href='signup'>register</Link>
                 </div>
                 <hr />
               </div>
