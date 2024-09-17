@@ -1,7 +1,8 @@
 .glass-box{
   display: flex;
   justify-content: center;
-  padding-top: 5rem;
+  align-items: center;
+  padding-top: 1.5rem;
   background-color: transparent;
   backdrop-filter: blur(13px);
   border: 1px solid rgba(255,255,255, 0.2);
