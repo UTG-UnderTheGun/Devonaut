@@ -6,8 +6,8 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 
 # ✅ TODO 
 - [x] Login page.
-- [ ] Register page.
-- [ ] Logout page.
+- [x] Register page.
+- [x] Logout page.
 - [ ] Login API.
 - [ ] Register API.
 - [ ] Logout API.
