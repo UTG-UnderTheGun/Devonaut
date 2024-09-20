@@ -1,8 +1,43 @@
+"use client";
 import GlassBox from "@/components/glass-box";
-import './register.css'
+import './register.css';
 import Link from "next/link";
+import { useState } from "react";
+import axios from 'axios';
+import { useRouter } from "next/navigation";
 
-export default function register() {
+export default function Register() {
+  const router = useRouter();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await axios.post('http://localhost:8000/register', {
+        username,
+        password,
+      });
+
+      setSuccess('Registration successful! You can now log in.');
+      setError('');
+      setUsername('');
+      setPassword('');
+
+      router.push('login');
+
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.detail || 'Registration failed');
+      } else {
+        setError('No response from server');
+      }
+    }
+  };
+
   return (
     <div className="bg-cover bg-center min-h-screen flex items-center justify-center"
       style={{ backgroundImage: `url('/login.png')` }}>
@@ -20,22 +55,19 @@ export default function register() {
             <h1><strong>Register</strong></h1>
           </div>
           <div className="register-form">
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="register-container">
-                <div className="register-email">
-                  <div>
-                    <label>Email</label>
-                  </div>
-                  <div>
-                    <input type="email" name="email" required />
-                  </div>
-                </div>
                 <div className="register-username">
                   <div>
                     <label>Username</label>
                   </div>
                   <div>
-                    <input type="text" name="username" required />
+                    <input
+                      type="text"
+                      name="username"
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="register-password">
@@ -43,14 +75,19 @@ export default function register() {
                     <label>Password</label>
                   </div>
                   <div>
-                    <input type="password" name="password" required />
+                    <input
+                      type="password"
+                      name="password"
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="register-btn">
-                  <button>register</button>
+                  <button type="submit">Register</button>
                 </div>
                 <div className="link-login">
-                  go to&nbsp;<Link style={{ color: "#398EE9" }} href='login'>Login</Link>
+                  Go to&nbsp;<Link style={{ color: "#398EE9" }} href='login'>Login</Link>
                 </div>
                 <hr />
               </div>
@@ -58,12 +95,12 @@ export default function register() {
           </div>
           <div className="authgmail-container">
             <div className="register-gmail">
-              <img src='/gmaillogo.png' />
-              <button>register with Gmail</button>
+              <img src='/gmaillogo.png' alt="Gmail Logo" />
+              <button>Register with Gmail</button>
             </div>
           </div>
         </div>
       </GlassBox>
-    </div >
-  )
+    </div>
+  );
 }
