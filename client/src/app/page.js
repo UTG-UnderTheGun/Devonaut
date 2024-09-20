@@ -3,47 +3,48 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
-export default function HomePage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+const HomePage = () => {
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        router.push('/auth/login');
-        return;
-      }
-
+    const fetchUser = async () => {
       try {
         const response = await axios.get('http://localhost:8000/users/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          withCredentials: true,
         });
-
-        if (response.status === 200) {
-          setIsAuthenticated(true);
-        } else {
-          router.push('/auth/login');
-        }
-      } catch (error) {
-        console.error("Error checking authentication:", error);
+        setUser(response.data);
+      } catch (err) {
+        console.error('Error fetching user:', err);
+        setError('Not authenticated');
         router.push('/auth/login');
       }
     };
 
-    checkAuth();
+    fetchUser();
   }, [router]);
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  const handleLogout = async () => {
+    try {
+      await axios.post('http://localhost:8000/logout', {}, {
+        withCredentials: true,
+      });
+      setUser(null); // Clear user state
+      router.push('/auth/login'); // Redirect after logout
+    } catch (err) {
+      console.error('Error during logout:', err);
+      setError('Logout failed, please try again.');
+    }
+  };
 
   return (
     <div>
-      <h1>Welcome to the Home Page!</h1>
+      {error && <p>{error}</p>} {/* Display error message if any */}
+      <h1>Welcome, {user?.username}!</h1>
+      <button onClick={handleLogout}>Logout</button>
     </div>
   );
-}
+};
+
+export default HomePage;

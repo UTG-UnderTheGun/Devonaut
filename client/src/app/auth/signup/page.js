@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 export default function Register() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false)
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,6 +16,7 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true)
 
     try {
       const response = await axios.post('http://localhost:8000/register', {
@@ -35,7 +37,10 @@ export default function Register() {
       } else {
         setError('No response from server');
       }
+    } finally {
+      setLoading(false)
     }
+
   };
 
   return (
@@ -86,6 +91,7 @@ export default function Register() {
                 <div className="register-btn">
                   <button type="submit">Register</button>
                 </div>
+                {error}
                 <div className="link-login">
                   Go to&nbsp;<Link style={{ color: "#398EE9" }} href='login'>Login</Link>
                 </div>

@@ -1,4 +1,4 @@
-"use client";
+"use client"
 import GlassBox from "@/components/glass-box";
 import './login.css';
 import Link from "next/link";
@@ -11,28 +11,33 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const router = useRouter()
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/token', new URLSearchParams({
+      const response = await axios.post('http://localhost:8000/token', {
         username,
         password,
-      }), {
+      }, {
+        withCredentials: true,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
       });
 
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token); // Save the token
       setSuccess('Login successful!');
       setError('');
 
-      const { access_token } = response.data;
-      localStorage.setItem('token', access_token);
-      router.push('/')
-
+      // Redirect to home page after a short delay
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
     } catch (err) {
       console.error('Error during login:', err);
       if (err.response) {
@@ -40,6 +45,8 @@ export default function Login() {
       } else {
         setError('No response from server');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,7 +86,9 @@ export default function Login() {
                   </div>
                 </div>
                 <div className="login-btn">
-                  <button type="submit">Login</button>
+                  <button type="submit">
+                    {loading ? 'Loading...' : 'Login'}
+                  </button>
                 </div>
                 <div className="link-register">
                   or&nbsp;<Link style={{ color: "#398EE9" }} href='signup'>register</Link>
@@ -96,7 +105,6 @@ export default function Login() {
           </div>
         </div>
       </GlassBox>
-    </div >
+    </div>
   );
 }
-
