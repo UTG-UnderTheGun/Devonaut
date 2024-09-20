@@ -8,9 +8,9 @@ Devonaut: Navigate the coding cosmos with our all-in-one IDE for writing, debugg
 - [x] Login page.
 - [x] Register page.
 - [x] Logout page.
-- [ ] Login API.
-- [ ] Register API.
-- [ ] Logout API.
+- [x] Login API.
+- [x] Register API.
+- [x] Logout API.
 
 # 👥 CONTRIBUTING
 คู่มือและแนวทางการทำงานโดยใช้ Github ร่วมกันฮ้าฟฟู่ววว [CONTRIBUTING](CONTRIBUTING.md).
