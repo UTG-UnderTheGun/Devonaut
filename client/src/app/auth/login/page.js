@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/token', {
+      const response = await axios.post('http://localhost:8000/auth/token', {
         username,
         password,
       }, {

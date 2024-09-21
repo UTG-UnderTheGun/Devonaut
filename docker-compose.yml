@@ -14,7 +14,8 @@ services:
       - mongo
     environment:
       - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - SECRET_KEY=SDflkjsdS:DLKFJ
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   mongo:
     image: mongo:latest

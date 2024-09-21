@@ -27,7 +27,7 @@ const HomePage = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:8000/logout', {}, {
+      await axios.post('http://localhost:8000/auth/logout', {}, {
         withCredentials: true,
       });
       setUser(null); // Clear user state
