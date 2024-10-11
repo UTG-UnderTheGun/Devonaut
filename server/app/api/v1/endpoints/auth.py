@@ -16,3 +16,4 @@ async def login_user(response: Response, user: User):
 @router.post("/logout")
 async def logout_user(response: Response):
     return await logout(response)
+

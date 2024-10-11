@@ -3,6 +3,11 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
+import HeadQuestion from '@/components/head-question';
+import GlassBox from '@/components/glass-box';
+import './home.css'
+import CodeQuestion from '@/components/code-question';
+
 const HomePage = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -43,6 +48,16 @@ const HomePage = () => {
       {error && <p>{error}</p>} {/* Display error message if any */}
       <h1>Welcome, {user?.username}!</h1>
       <button onClick={handleLogout}>Logout</button>
+      <div className='home-container'>
+        <div>
+          <GlassBox size={{ minWidth: '1350px' }}>
+            <div className='inner-home-container'>
+              <HeadQuestion>test</HeadQuestion>
+              <CodeQuestion>thanagrith</CodeQuestion>
+            </div>
+          </GlassBox>
+        </div>
+      </div>
     </div>
   );
 };

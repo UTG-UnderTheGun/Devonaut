@@ -6,6 +6,7 @@
 .login-image-container{
   display: flex;
   justify-content: center;
+  margin-top: 2rem;
 }
 
 .login-text{

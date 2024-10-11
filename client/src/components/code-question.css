@@ -1,0 +1,49 @@
+.home-question-container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.inner-codequestion-container{
+  text-align: center;
+  width: 95%;
+  margin-bottom: 2rem;
+}
+
+.question-content{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.input-question{
+  width: 100%;
+  height: 70px;
+  border-radius: 10px;
+  color: green;
+  padding: 0 2rem 0 2rem;
+}
+
+.content{
+  width: 100%;
+  border: 1px solid red;
+}
+
+.content-container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.code-question-content{
+  margin: 1rem 0;
+  width: 100%;
+  height: 100%;
+}
+
+.editor{
+  height: 100%;
+}
+
