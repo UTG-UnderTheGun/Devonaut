@@ -8,7 +8,7 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false 
 export default function CodeQuestion({ children }) {
   const [question, setQuestion] = useState('');
   const [code, setCode] = useState('// write code here');
-  const [editorHeight, setEditorHeight] = useState(100); // Initial height in pixels
+  const [editorHeight, setEditorHeight] = useState(100);
 
   const handleEditorDidMount = (editor, monaco) => {
     monaco.editor.defineTheme('transparentTheme', {
@@ -28,17 +28,16 @@ export default function CodeQuestion({ children }) {
   };
 
   const calculateEditorHeight = (lineCount) => {
-    const lineHeight = 18; // Average line height in pixels
+    const lineHeight = 18;
     const calculatedHeight = lineCount * lineHeight;
 
-    // Set the editor height based on calculated height or max height
     setEditorHeight(calculatedHeight);
   };
 
   useEffect(() => {
-    const lineCount = code.split('\n').length; // Count lines based on the current code
+    const lineCount = code.split('\n').length;
     calculateEditorHeight(lineCount);
-  }, [code]); // Recalculate height when code changes
+  }, [code]);
 
   return (
     <div className="home-question-container">
@@ -56,14 +55,15 @@ export default function CodeQuestion({ children }) {
               <div className="editor" style={{ height: `${editorHeight}px`, overflow: 'hidden' }}>
                 <MonacoEditor
                   className='editor'
-                  height="100%" // Keep this 100% to fill the container
+                  height="100%"
                   language="python"
                   theme="transparentTheme"
                   value={code}
                   onChange={(value) => setCode(value)}
                   options={{
                     automaticLayout: true,
-                    scrollBeyondLastLine: false, // Disable scrolling beyond the last line
+                    scrollBeyondLastLine: false,
+                    contextmenu: false
                   }}
                   onMount={handleEditorDidMount}
                 />

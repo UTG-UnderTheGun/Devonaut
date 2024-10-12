@@ -1,0 +1,48 @@
+.dropdown {
+  position: relative;
+  width: 130px; /* Set width of dropdown */
+  cursor: pointer;
+  user-select: none;
+  color: black;
+}
+
+.selected {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-radius: 30px;
+  height: 100%;
+  background-color: #f9f9f9; /* Background color for selected option */
+  display: flex;
+  align-items: center;
+}
+
+.selected:hover {
+  background-color: #f0f0f0; /* Background on hover */
+}
+
+.options {
+  margin-top: .5rem;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1000;
+  max-height: 200px; /* Limit the height of options */
+  overflow-y: auto; /* Scroll if options exceed max-height */
+}
+
+.option {
+  padding: 10px;
+  border-radius: 5px;
+  margin: 10px 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.option:hover {
+  background-color: #eaeaea; /* Background on hover for options */
+}

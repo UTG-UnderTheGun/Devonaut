@@ -8,3 +8,30 @@
 .inner-home-container{
   width: 100%;
 }
+
+.add-more-quiz{
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: black;
+  background: white;
+  width: 120px;
+  border-radius: 30px;
+}
+
+.remove-last-quiz{
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: red;
+  background: white;
+  width: 120px;
+  border-radius: 30px;
+}
+
+.action-button{
+  display: flex;
+  justify-content: right;
+  margin-right: 3rem;
+  margin-bottom: 1rem;
+}
