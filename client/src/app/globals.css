@@ -32,3 +32,8 @@ textarea:focus,
 button:focus {
     outline: none;
 }
+
+main {
+  margin-left: 280px;
+  padding: 20px;
+}
