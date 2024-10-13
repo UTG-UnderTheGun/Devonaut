@@ -36,13 +36,14 @@
 }
 
 .option {
-  padding: 10px;
+  text-align: center;
+  padding: 5px;
   border-radius: 5px;
-  margin: 10px 5px;
+  margin: 5px 5px;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 .option:hover {
-  background-color: #eaeaea; 
+  background-color: #E1E1E1; 
 }

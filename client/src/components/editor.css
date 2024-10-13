@@ -18,3 +18,29 @@
 .run-button:hover, .test-button:hover{
   background-color: grey;
 }
+
+.output-example{
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.example-content-container{
+  width: 100%;
+  text-align: left;
+}
+
+.example-terminal, .example-content{
+  margin-left: 1rem;
+  font-weight: bold;
+}
+
+.example-input{
+  margin-top: .5rem;
+  box-sizing: border-box;
+  height: auto;
+  overflow: hidden;
+  resize: none;
+  background-color: transparent;
+  width: 100%;
+}

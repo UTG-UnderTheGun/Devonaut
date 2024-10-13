@@ -23,22 +23,39 @@ const HomePage = () => {
   const [quiz, setQuiz] = useState([])
   const router = useRouter();
 
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const response = await axios.get('http://localhost:8000/users/me', {
+  //         withCredentials: true,
+  //       });
+  //       setUser(response.data);
+  //     } catch (err) {
+  //       console.error('Error fetching user:', err);
+  //       setError('Not authenticated');
+  //       router.push('/auth/login');
+  //     }
+  //   };
+  //
+  //   fetchUser();
+  // }, [router]);
+
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await axios.get('http://localhost:8000/users/me', {
-          withCredentials: true,
-        });
-        setUser(response.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        setError('Not authenticated');
-        router.push('/auth/login');
+    const handleKeyDown = (e) => {
+      if (e.metaKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
+        e.preventDefault();
+      }
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
+        e.preventDefault();
       }
     };
 
-    fetchUser();
-  }, [router]);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [])
 
   const handleLogout = async () => {
     try {
