@@ -1,0 +1,18 @@
+.xterm {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 16px;
+  background-color: #1e1e1e; /* Dark background */
+  color: #00ff00; /* Green text color */
+}
+
+.xterm-viewport {
+  background-color: #1e1e1e; /* Ensures the background stays dark */
+}
+
+.xterm-cursor {
+  background-color: white; /* White cursor */
+}
+
+.xterm .xterm-selection {
+  background-color: #333333; /* Darker selection background */
+}

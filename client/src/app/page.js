@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import './home.css'
+
 import HeadQuestion from '@/components/head-question';
 import GlassBox from '@/components/glass-box';
 import CodeQuestion from '@/components/code-question';
@@ -11,29 +12,31 @@ import Dropdown from '@/components/dropdown';
 import ExplainQuestion from '@/components/explain-question';
 import FillInQuestion from '@/components/FillIn-Question';
 import Sidebar from '@/components/sidebar';
+import Terminal from '../components/Terminal'
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [terminalData, setTerminalData] = useState('')
   const [quiz, setQuiz] = useState([])
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await axios.get('http://localhost:8000/users/me', {
-          withCredentials: true,
-        });
-        setUser(response.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        setError('Not authenticated');
-        router.push('/auth/login');
-      }
-    };
-
-    fetchUser();
-  }, [router]);
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const response = await axios.get('http://localhost:8000/users/me', {
+  //         withCredentials: true,
+  //       });
+  //       setUser(response.data);
+  //     } catch (err) {
+  //       console.error('Error fetching user:', err);
+  //       setError('Not authenticated');
+  //       router.push('/auth/login');
+  //     }
+  //   };
+  //
+  //   fetchUser();
+  // }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -88,6 +91,9 @@ const HomePage = () => {
         </div>
       </div >
       <Sidebar user={user?.username || "Not Auth User"} onLogout={handleLogout} />
+      <div>
+        <Terminal />
+      </div>
     </div >
   );
 };
