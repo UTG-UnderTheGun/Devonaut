@@ -39,13 +39,15 @@
 }
 
 .code-question-content{
-  margin: 1rem 0;
+  position: relative;
+  margin: 0 0 1rem 0;
   width: 100%;
   height: 100%;
 }
 
 .editor{
   height: 100%;
+  margin-bottom: 1.5rem;
 }
 
 .score-container{
@@ -64,4 +66,14 @@
   border-radius: 5px;
   height: 30px;
   width: 90px;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
 }

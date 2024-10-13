@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react';
 import GlassBox from './glass-box';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
+import './editor.css'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 export default function Editor({ style }) {
-  const [code, setCode] = useState('// write code here');
+  const [code, setCode] = useState('# write code here');
   const [editorHeight, setEditorHeight] = useState(100);
 
-  const { setOutput, setError } = useCodeContext()
+  const { setOutput, setError, setOpenTerm } = useCodeContext()
 
   const handleEditorDidMount = (editor, monaco) => {
     monaco.editor.defineTheme('transparentTheme', {
@@ -30,13 +31,12 @@ export default function Editor({ style }) {
   };
 
   const handleRunCode = async () => {
+    setOpenTerm(true);
     try {
-      // Send the code to the backend
       const response = await axios.post('http://localhost:8000/code/run-code', {
         code,
       });
 
-      // Display the output or error
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
@@ -64,8 +64,12 @@ export default function Editor({ style }) {
 
   return (
     <div className="content-container">
-      <GlassBox size={{ width: '95%', borderRadius: '0 0 0.5rem 0.5rem', backgroundColor: "#222222" }}>
+      <GlassBox size={{ width: '95%', borderRadius: '0 0 0.5rem 0.5rem', backgroundColor: "#2B2B2B" }}>
         <div className="code-question-content">
+          <div className='run-test-container'>
+            <button className='run-button' onClick={handleRunCode}>Run</button>
+            <button className='test-button'>Test</button>
+          </div>
           <div className="editor" style={{ height: `${editorHeight}px`, overflow: 'hidden' }}>
             <MonacoEditor
               className='editor'
@@ -86,7 +90,6 @@ export default function Editor({ style }) {
               onMount={handleEditorDidMount}
             />
           </div>
-          <button onClick={handleRunCode}>run</button>
         </div>
       </GlassBox>
     </div>

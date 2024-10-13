@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import './dropdown.css'; // Assuming you have a CSS file named dropdown.css
+import './dropdown.css';
 
 const Dropdown = ({ options, onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);

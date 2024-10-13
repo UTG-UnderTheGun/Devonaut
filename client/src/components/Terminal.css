@@ -1,18 +1,126 @@
-.xterm {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 16px;
-  background-color: #1e1e1e; /* Dark background */
-  color: #00ff00; /* Green text color */
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(50px); 
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-10px); 
+  }
+  100% {
+    transform: translateY(0); 
+  }
 }
 
-.xterm-viewport {
-  background-color: #1e1e1e; /* Ensures the background stays dark */
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0); 
+  }
+  40% {
+    transform: translateY(-5px); 
+  }
+  60% {
+    transform: translateY(-2px); 
+  }
 }
 
-.xterm-cursor {
-  background-color: white; /* White cursor */
+.terminal-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: transparent;
+  backdrop-filter: blur(13px);
+  color: #00FF00; 
+  border-radius: 10px;
+  height: 250px;
+  overflow-y: hidden;
+  border: 2px solid grey;
+  animation: slideIn 0.7s ease-out; 
+  box-shadow: 0px -5px 20px rgba(0, 0, 0, 0.5); 
+  transition: border-color 0.3s ease; 
 }
 
-.xterm .xterm-selection {
-  background-color: #333333; /* Darker selection background */
+.terminal-container:hover {
+  border-color: rgba(0, 255, 0, 1); 
 }
+
+.terminal-container.error:hover {
+  border-color: rgba(255, 0, 0, 1);
+}
+
+.terminal-tab {
+  border: none;
+  background-color: white; 
+  height: 5px;
+  animation: bounce 0.6s ease; 
+  transition: transform 0.3s ease, background-color 0.3s ease; 
+}
+
+.terminal-tab:hover {
+  background-color: #e0e0e0; 
+}
+
+.terminal-container p {
+  padding: 10px;
+  margin: 0;
+}
+
+.term-tabs{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 1rem;
+}
+
+.close-term {
+    width: 12px; 
+    height: 12px; 
+    background-color: #ff605c; 
+    border-radius: 50%; 
+    top: 50%;
+    right: 10px; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer; 
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); 
+    transition: background-color 0.2s; 
+}
+
+.close-term:hover {
+    background-color: #ff3b30; 
+}
+
+.close-term::before,
+.close-term::after {
+    content: '';
+    position: absolute; 
+    width: 8px; 
+    height: 2px; 
+    background-color: white; 
+}
+
+.close-term::before {
+    transform: rotate(45deg); 
+}
+
+.close-term::after {
+    transform: rotate(-45deg); 
+}
+
+@keyframes slideOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(50px); 
+  }
+}
+
+.terminal-container.closing {
+  animation: slideOut 0.3s ease forwards; 
+}
+

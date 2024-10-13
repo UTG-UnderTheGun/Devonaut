@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import './home.css'
 
+import { useCodeContext } from './context/CodeContext';
 import HeadQuestion from '@/components/head-question';
 import GlassBox from '@/components/glass-box';
 import CodeQuestion from '@/components/code-question';
@@ -15,28 +16,29 @@ import Sidebar from '@/components/sidebar';
 import Terminal from '../components/Terminal'
 
 const HomePage = () => {
+  const { openTerm } = useCodeContext();
+
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-  const [terminalData, setTerminalData] = useState('')
   const [quiz, setQuiz] = useState([])
   const router = useRouter();
 
-  // useEffect(() => {
-  //   const fetchUser = async () => {
-  //     try {
-  //       const response = await axios.get('http://localhost:8000/users/me', {
-  //         withCredentials: true,
-  //       });
-  //       setUser(response.data);
-  //     } catch (err) {
-  //       console.error('Error fetching user:', err);
-  //       setError('Not authenticated');
-  //       router.push('/auth/login');
-  //     }
-  //   };
-  //
-  //   fetchUser();
-  // }, [router]);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/users/me', {
+          withCredentials: true,
+        });
+        setUser(response.data);
+      } catch (err) {
+        console.error('Error fetching user:', err);
+        setError('Not authenticated');
+        router.push('/auth/login');
+      }
+    };
+
+    fetchUser();
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -77,8 +79,8 @@ const HomePage = () => {
         <div>
           <GlassBox size={{ minWidth: '1350px' }}>
             <div className='inner-home-container'>
-              <HeadQuestion>test</HeadQuestion>
-              <CodeQuestion>thanagrith</CodeQuestion>
+              <HeadQuestion>Create</HeadQuestion>
+              <CodeQuestion />
               {quiz.map((quiz) => (
                 createByType(quiz.selected)
               ))}
@@ -92,7 +94,7 @@ const HomePage = () => {
       </div >
       <Sidebar user={user?.username || "Not Auth User"} onLogout={handleLogout} />
       <div>
-        <Terminal />
+        {openTerm && <Terminal />}
       </div>
     </div >
   );

@@ -1,0 +1,14 @@
+.hr-container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.hr-seperate-question{
+  border: none;
+  background-color: white;
+  height: 3px;
+  border-radius: 20px;
+  width: 95%;
+}

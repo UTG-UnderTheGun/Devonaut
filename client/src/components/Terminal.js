@@ -1,24 +1,28 @@
-import React from 'react';
 import { useCodeContext } from '@/app/context/CodeContext';
+import './Terminal.css';
+import { useState } from 'react';
 
 const Terminal = () => {
-  const { output, error } = useCodeContext(); // Access the output and error from context
+  const { output, error, setOpenTerm } = useCodeContext();
+  const [isClosing, setIsClosing] = useState(false);
+
+  const hasError = Boolean(error);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => setOpenTerm(false), 300);
+  };
 
   return (
-    <div
-      style={{
-        backgroundColor: '#000',
-        color: '#00FF00',
-        padding: '20px',
-        fontFamily: 'monospace',
-        borderRadius: '5px',
-        height: '200px',
-        overflowY: 'scroll',
-      }}
-    >
-      <h2 style={{ color: '#00FF00' }}>Terminal Output</h2>
-      <pre style={{ color: error ? 'red' : 'lime' }}>
-        {error || output || 'No output yet...'}
+    <div className={`terminal-container ${hasError ? 'error' : ''} ${isClosing ? 'closing' : ''}`}>
+      <hr className='terminal-tab' />
+      <div className='term-tabs'>
+        <h2 style={{ color: 'white', fontWeight: 'bold', marginTop: '.5rem', marginBottom: '.5rem' }}>Terminal</h2>
+        <button onClick={handleClose} className='close-term'></button>
+      </div>
+      <hr />
+      <pre style={{ color: hasError ? 'red' : 'lime', marginLeft: '1rem', marginTop: '1rem' }}>
+        {error || output || ''}
       </pre>
     </div>
   );

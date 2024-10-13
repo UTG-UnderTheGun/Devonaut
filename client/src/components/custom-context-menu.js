@@ -5,24 +5,20 @@ const CustomContextMenu = () => {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showMenu, setShowMenu] = useState(false);
 
-  // Function to handle right-click (context menu) event
   const handleContextMenu = (event) => {
-    event.preventDefault(); // Prevent the default context menu
+    event.preventDefault();
     setMenuPosition({ x: event.pageX, y: event.pageY });
     setShowMenu(true);
   };
 
-  // Hide the menu when clicking outside
   const handleClick = () => {
     setShowMenu(false);
   };
 
-  // Attach event listeners when component mounts
   useEffect(() => {
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('click', handleClick);
 
-    // Cleanup event listeners when component unmounts
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('click', handleClick);
