@@ -1,0 +1,157 @@
+.modal-create-container {
+  position: fixed;
+  top: 0;
+  left: 0; 
+  z-index: 1999;
+  background: transparent;
+  backdrop-filter: blur(13px);
+  width: 100vw;
+  height: 100vh;
+  opacity: 0; 
+  visibility: hidden; 
+  transition: opacity 0.5s ease, visibility 0.5s ease; 
+}
+
+.modal-create-container.active {
+  opacity: 1; 
+  visibility: visible; 
+}
+
+.create-box {
+  padding-top: 2rem;
+  text-align: center;
+  position: absolute;
+  top: -100%; 
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 20px;
+  color: black;
+  width: 70%;
+  min-height: 25vh;
+  z-index: 2000;
+  opacity: 0;
+  animation: slideDown 0.5s forwards; 
+}
+
+.close-create-modal {
+  position: absolute;
+  top: 10px;
+  width: 12px;
+  height: 12px;
+  background-color: #ff605c;
+  border-radius: 50%;
+  right: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s, transform 0.2s ease;
+}
+
+.close-create-modal:hover {
+  background-color: #ff3b30;
+  transform: rotate(90deg) scale(1.2); 
+}
+
+.close-create-modal::before,
+.close-create-modal::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 2px;
+  background-color: white;
+}
+
+.close-create-modal::before {
+  transform: rotate(45deg);
+}
+
+.close-create-modal::after {
+  transform: rotate(-45deg);
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  0% {
+    top: -100%; 
+    opacity: 0;
+  }
+  100% {
+    top: 50%;
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    top: 50%; 
+    opacity: 1;
+  }
+  100% {
+    top: -100%; 
+    opacity: 0;
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.5s forwards; 
+}
+
+.create-title{
+  color: #656565;
+  font-size:24px;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.create-datetime-container{
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2rem;
+}
+
+.datetime{
+  display: flex;
+  justify-content: space-around;
+}
+
+.datetime-content{
+  text-align: left;
+  color: #656565;
+}
+
+.datetime-text{
+  font-weight: bold;
+}
+
+.datetime-input{
+  width: 350px;
+  border-radius: 5px;
+  background-color: #E6E6E6;
+  padding: .1rem .25rem .1rem 1rem;
+  transition: border-color 0.3s;
+}
+
+.create-confirm-container{
+  margin-bottom: 1.5rem;
+  margin-right: 2rem;
+  text-align: right;
+}
+
+.create-confirm-button{
+  color: white;
+  background-color: lightgreen;
+  border-radius: 20px;
+  width: 125px;
+  height: 35px;
+}

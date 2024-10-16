@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import './custom-context-menu.css'
+import { useCodeContext } from '@/app/context/CodeContext';
 
 const CustomContextMenu = () => {
+  const { setOpenChat } = useCodeContext()
+
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showMenu, setShowMenu] = useState(false);
 
@@ -38,11 +41,11 @@ const CustomContextMenu = () => {
             zIndex: 1000
           }}
         >
-          <li className='ask-teacher'><div>Ask teacher</div><div className='describe-context'>Ai</div></li>
+          <li onClick={(() => setOpenChat(true))} className='ask-teacher'><div>Ask teacher</div><div className='describe-context'>Ai</div></li>
           <hr className='hr-context' />
           <li>Teacher contact</li>
           <li>Help</li>
-        </ul>
+        </ul >
       )}
     </>
   );

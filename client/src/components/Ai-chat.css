@@ -1,0 +1,135 @@
+.chat-container {
+  position: fixed;
+  text-align: center;
+  padding: 1rem;
+  background-color: white;
+  box-shadow: 5px 5px 25px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  color: black;
+  width: 400px;
+  z-index: 1000;
+  min-height: 80vh;
+  right: 100px;
+  animation: slideIn 0.5s ease-in-out; 
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.display-message {
+  padding-top: 1rem;
+  min-height: 800px;
+  border: 1px solid grey;
+  border-radius: 10px;
+  opacity: 0;
+  animation: fadeIn 0.6s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.chat-box-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 10%;
+}
+
+.chat-box-input {
+  background-color: white;
+  color: black;
+  border-radius: 5px;
+  height: 40px;
+  width: 70%;
+  padding-left: 1rem;
+  border: 1px solid grey;
+  transition: box-shadow 0.3s ease; 
+}
+
+.chat-box-input:focus {
+  box-shadow: 0 0 5px rgba(0, 128, 0, 0.5);
+}
+
+.chat-box-send {
+  background-color: lightgreen;
+  width: 25%;
+  height: 30px;
+  border-radius: 10px;
+}
+
+.chat-box-send:hover {
+  background-color: green;
+}
+
+.close-chat {
+  position: absolute;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  background-color: #ff605c;
+  border-radius: 50%;
+  right: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s, transform 0.2s ease;
+}
+
+.close-chat:hover {
+  background-color: #ff3b30;
+  transform: rotate(90deg); 
+}
+
+.close-chat::before,
+.close-chat::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 2px;
+  background-color: white;
+}
+
+.close-chat::before {
+  transform: rotate(45deg);
+}
+
+.close-chat::after {
+  transform: rotate(-45deg);
+}
+
+.chat-container.slide-out {
+  animation: slideOut 0.5s ease-in-out forwards;
+}
+
+.chat-box-input{
+  margin-top: .5rem;
+  box-sizing: border-box;
+  height: auto;
+  overflow: hidden;
+  resize: none;
+  background-color: transparent;
+}
