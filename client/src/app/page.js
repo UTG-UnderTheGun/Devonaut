@@ -26,22 +26,22 @@ const HomePage = () => {
   const [quiz, setQuiz] = useState([])
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await axios.get('http://localhost:8000/users/me', {
-          withCredentials: true,
-        });
-        setUser(response.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        setError('Not authenticated');
-        router.push('/auth/login');
-      }
-    };
-
-    fetchUser();
-  }, [router]);
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const response = await axios.get('http://localhost:8000/users/me', {
+  //         withCredentials: true,
+  //       });
+  //       setUser(response.data);
+  //     } catch (err) {
+  //       console.error('Error fetching user:', err);
+  //       setError('Not authenticated');
+  //       router.push('/auth/login');
+  //     }
+  //   };
+  //
+  //   fetchUser();
+  // }, [router]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
