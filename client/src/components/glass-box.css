@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: center;
   background-color: transparent;
-  backdrop-filter: blur(13px);
+  backdrop-filter: blur(18px);
   border: 1px solid rgba(255,255,255, 0.2);
   border-radius: 30px;
 }
