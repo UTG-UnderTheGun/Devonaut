@@ -10,12 +10,15 @@ services:
       - ./server/.env
     ports:
       - "8000:8000"
+    volumes:
+      - ./server:/app  # Mount source code for hot reload
+      - /app/__pycache__  # Avoid caching issues during development
     depends_on:
       - mongo
     environment:
       - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
       - SECRET_KEY=SDflkjsdS:DLKFJ
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload  # Enable hot reload
 
   mongo:
     image: mongo:latest
@@ -34,9 +37,12 @@ services:
     container_name: devonaut-client
     ports:
       - "3000:3000"
+    volumes:
+      - ./client:/app  # Mount source code for hot reload
+      - /app/node_modules  # Ensure node_modules is not overwritten
     depends_on:
       - server
     environment:
-      - NODE_ENV=development # Set to development for live reloading
-      - SERVER_API=http://server:8000 # Use the service name here
-    command: npm run dev
+      - NODE_ENV=development
+      - SERVER_API=http://server:8000  # Use the service name here
+    command: npm run dev  # Development mode with hot reload

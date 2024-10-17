@@ -10,7 +10,7 @@ const Sidebar = ({ user, onLogout }) => {
             <Link href="/" className="navLink">{user}</Link>
           </li>
           <li className="navItem">
-            <Link href="/exercises" className="navLink">Exercises</Link>
+            <Link href="/exercise" className="navLink">Exercises</Link>
           </li>
           <li className="navItem">
             <Link href="/submitted" className="navLink">Success</Link>
