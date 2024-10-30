@@ -4,3 +4,5 @@ pymongo
 uvicorn
 python-jose[cryptography]
 passlib[bcrypt]
+anthropic
+python-dotenv
