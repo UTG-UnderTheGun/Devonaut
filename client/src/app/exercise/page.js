@@ -5,6 +5,7 @@ import axios from "axios";
 import "./exercise.css";
 import GlassBox from "@/components/glass-box";
 import { useRouter } from "next/navigation";
+import Sidebar from '@/components/sidebar';
 
 const Exercise = () => {
   const router = useRouter();
