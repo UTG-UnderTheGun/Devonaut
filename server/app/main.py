@@ -1,5 +1,5 @@
 import os
-from app.api.v1.endpoints import auth, user, code
+from app.api.v1.endpoints import auth, user, code, ai
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,3 +16,4 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(code.router, prefix="/code", tags=["api"])
+app.include_router(ai.router, prefix="/ai", tags=["ai"])
