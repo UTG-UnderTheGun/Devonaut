@@ -24,9 +24,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def get_current_user(request: Request):
-    print(request.cookies)
     token = request.cookies.get("access_token")  
-    print(token)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -42,4 +40,6 @@ async def get_current_user(request: Request):
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    return user
+    user_id = str(user["_id"])  # Convert ObjectId to string if necessary
+
+    return user, user_id

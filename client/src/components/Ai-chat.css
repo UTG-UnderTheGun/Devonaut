@@ -1,6 +1,5 @@
 .chat-container {
   position: fixed;
-  text-align: center;
   padding: 1rem;
   background-color: white;
   box-shadow: 5px 5px 25px rgba(0, 0, 0, 0.3);
@@ -37,7 +36,8 @@
 
 .display-message {
   padding-top: 1rem;
-  min-height: 800px;
+  height: 80vh;
+  overflow-y: auto;
   border: 1px solid grey;
   border-radius: 10px;
   opacity: 0;
@@ -132,4 +132,76 @@
   overflow: hidden;
   resize: none;
   background-color: transparent;
+}
+
+.display-container{
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.user-prompt{
+  text-align: right;
+  width: 100%;
+}
+
+.ai-response{
+  text-align: left;
+  width: 100%;
+}
+
+.user-prompt-content{
+  display: inline-block;
+  margin-right: .5rem;
+  margin-bottom: .5rem;
+  background-color: #CBC3E3;
+  padding: .5rem;
+  border-radius: 10px;
+}
+
+.ai-response-content{
+  display: inline-block;
+  margin-left: .5rem;
+  margin-bottom: .5rem;
+  /*background-color: #CBC3E3;*/
+  padding: .5rem;
+  border-radius: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.ai-response-content h1,
+.ai-response-content h2,
+.ai-response-content h3 {
+  margin: 0.5rem 0;
+}
+
+.ai-response-content p {
+  margin: 0.5rem 0;
+}
+
+.ai-response-content ul {
+  padding-left: 20px;
+}
+
+.ai-response-content li {
+  margin-bottom: 0.2rem;
+}
+
+code {
+  background-color: #282a2e; 
+  color: #c5c8c6; 
+  padding: 2px; 
+  border-radius: 4px; 
+}
+
+pre {
+  background-color: #1d1f21; 
+  color: #c5c8c6; 
+  padding: 10px; 
+  margin-left: -.5rem;
+  border-radius: 4px; 
+  width: 100%; 
+  max-width: 600px; 
+  overflow-x: auto;
+  white-space: pre;
 }
