@@ -23,7 +23,11 @@ const HomePage = () => {
 
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-  const [quiz, setQuiz] = useState([])
+  const [quiz, setQuiz] = useState([]);
+  const [heartCount, setHeartCount] = useState(4); // Initialize heart count at 4
+  const [showContextMenu, setShowContextMenu] = useState(false); // Show/Hide custom context menu
+  const [contextPosition, setContextPosition] = useState({ x: 0, y: 0 });
+  const [hasRequested, setHasRequested] = useState(false); // Prevent double-counting
   const router = useRouter();
 
   useEffect(() => {
@@ -43,22 +47,34 @@ const HomePage = () => {
     fetchUser();
   }, [router]);
 
+  // Close context menu on click outside
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.metaKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
-        e.preventDefault();
-      }
-      if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
-        e.preventDefault();
-      }
+    const handleClickOutside = () => {
+      setShowContextMenu(false);
+      setHasRequested(false); // Reset flag on menu close
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleClickOutside);
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('click', handleClickOutside);
     };
-  }, [])
+  }, []);
+
+  const handleRightClick = (e) => {
+    e.preventDefault();
+    setContextPosition({ x: e.pageX, y: e.pageY });
+    setShowContextMenu(true);
+  };
+
+  // Decrease hearts only once per right-click action
+  const requestAiHelp = () => {
+    if (heartCount > 0 && !hasRequested) {
+      setHeartCount(heartCount - 1);
+      setHasRequested(true); // Set flag to prevent double-counting
+      setShowContextMenu(false); // Close context menu after request
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -74,29 +90,39 @@ const HomePage = () => {
   };
 
   const addQuiz = (selected) => {
-    setQuiz([...quiz, { id: quiz.length + 1, selected: selected }])
-  }
+    setQuiz([...quiz, { id: quiz.length + 1, selected: selected }]);
+  };
 
   const createByType = (type) => {
     if (type === "Code") {
-      return <CodeQuestion key={quiz.id} id={quiz.id} />
+      return <CodeQuestion key={quiz.id} id={quiz.id} />;
     } else if (type === "Explain") {
-      return <ExplainQuestion />
+      return <ExplainQuestion />;
     } else if (type === "Fill in") {
-      return <FillInQuestion />
+      return <FillInQuestion />;
     }
-  }
+  };
 
   const removeLastQuiz = () => {
-    setQuiz(quiz.slice(0, -1))
-  }
+    setQuiz(quiz.slice(0, -1));
+  };
 
   return (
-    <div className='homepage-container'>
+    <div className='homepage-container' onContextMenu={handleRightClick}>
       {error && <p>{error}</p>}
       <CustomContextMenu />
-      {openChat && <AiChat />}
+
+      {/* Display hearts with visual feedback */}
+      {/* <div className="heart-container">
+        {Array.from({ length: 4 }, (_, i) => (
+          <span key={i} className={`heart ${i < heartCount ? 'filled' : 'broken'}`}>❤️</span>
+        ))}
+      </div> */}
+
+      {/* Only allow AiChat if heart count is greater than 0 */}
+      {openChat && heartCount > 0 && <AiChat onRequest={requestAiHelp} />}
       {openCreate && <ModalCreate />}
+
       <div className='home-container'>
         <div>
           <GlassBox size={{ minWidth: '1350px' }}>
@@ -107,7 +133,10 @@ const HomePage = () => {
                 createByType(quiz.selected)
               ))}
               <div className='action-button'>
-                <button className="remove-last-quiz" onClick={removeLastQuiz} disabled={quiz.length === 0}><div style={{ fontSize: "26px", fontWeight: "bold" }}>-</div><div>Remove</div></button>
+                <button className="remove-last-quiz" onClick={removeLastQuiz} disabled={quiz.length === 0}>
+                  <div style={{ fontSize: "26px", fontWeight: "bold" }}>-</div>
+                  <div>Remove</div>
+                </button>
                 <Dropdown options={['Code', 'Explain', 'Fill in']} onSelect={addQuiz} />
               </div>
             </div>
@@ -118,6 +147,17 @@ const HomePage = () => {
       <div>
         {openTerm && <Terminal />}
       </div>
+
+      {/* Custom context menu */}
+      {showContextMenu && (
+        <div
+          className="context-menu"
+          style={{ top: `${contextPosition.y}px`, left: `${contextPosition.x}px` }}
+          onClick={requestAiHelp}
+        >
+          <p>Ask Teacher</p>
+        </div>
+      )}
     </div >
   );
 };

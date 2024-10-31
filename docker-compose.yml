@@ -15,7 +15,10 @@ services:
     environment:
       - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
       - SECRET_KEY=SDflkjsdS:DLKFJ
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} 
+    volumes:
+      - ./server:/app               # Mount server code for hot reload
+      - /app/__pycache__             # Avoid caching issues during development
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Enable hot reload
 
   mongo:
@@ -40,4 +43,7 @@ services:
     environment:
       - NODE_ENV=development
       - SERVER_API=http://server:8000 # Use the service name here
+    volumes:
+      - ./client:/app               # Mount client code for hot reload
+      - /app/node_modules            # Prevent overwriting node_modules
     command: npm run dev # Development mode with hot reload

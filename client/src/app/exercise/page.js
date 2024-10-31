@@ -99,9 +99,11 @@ const Exercise = () => {
       className="bg-cover bg-center min-h-screen flex items-center justify-center"
       style={{ backgroundImage: `url('/Login.png')` }}
     >
+      <div className="mt-24">
+      <Sidebar/>
       <GlassBox size={{ minWidth: "1800px" }}>
-        <div className="min-h-full w-full py-10 px-6">
-          <h1 className="text-white text-4xl font-bold mb-6">
+        <div className="min-h-full w-full py-10 px-6 ">
+          <h1 className="text-white text-4xl font-bold mb-6 ">
             Class Assignments
           </h1>
 
@@ -137,13 +139,21 @@ const Exercise = () => {
             >
               Finished
             </button>
+           
+          </div>
+          <div className="flex justify-end mb-5 mr-12">
             <button
               onClick={addExercise}
-              className="py-2 px-4  text-black bg-white rounded-lg hover:bg-blue-700 transition-colors duration-300"
+              className={`create-button ${
+                activeTab === "upcoming"
+                ? "text-black bg-white rounded-lg hover:bg-gray-700 hover:text-white py-2 px-4  transition-colors duration-300"
+                : "hidden"
+              }`}
             >
               Add New Assignment
             </button>
           </div>
+
 
           {/* Button to add new exercise */}
 
@@ -181,9 +191,9 @@ const Exercise = () => {
                   {exercise.status === "upcoming" && !exercise.submitted && (
                     <button
                       onClick={() => submitAssignment(index)}
-                      className="mt-4 py-1 px-3 text-white bg-green-500 rounded hover:bg-green-600 transition-colors duration-300"
+                      className="mt-4 py-1 px-3 text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors duration-300"
                     >
-                      Submit Assignment
+                      Submit Assignments
                     </button>
                   )}
                 </div>
@@ -191,7 +201,9 @@ const Exercise = () => {
           </div>
         </div>
       </GlassBox>
+      </div>
     </div>
+    
   );
 };
 

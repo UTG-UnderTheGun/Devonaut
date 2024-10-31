@@ -6,8 +6,11 @@ const Sidebar = ({ user, onLogout }) => {
     <div className="sidebar-container">
       <nav className="sidebar">
         <ul className="navList">
+          <li className="navItem userItem">
+            <span className="userName">{user}</span>
+          </li>
           <li className="navItem">
-            <Link href="/" className="navLink">{user}</Link>
+            <Link href="/" className="navLink">Home</Link>
           </li>
           <li className="navItem">
             <Link href="/exercise" className="navLink">Exercises</Link>
@@ -19,7 +22,6 @@ const Sidebar = ({ user, onLogout }) => {
             <Link href="/contact" className="navLink">Contact</Link>
           </li>
         </ul>
-        {/* Logout Button */}
         <div className="logout-container">
           <button className="logout-button" onClick={onLogout}>
             Logout

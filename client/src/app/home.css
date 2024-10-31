@@ -1,19 +1,59 @@
-.home-container{
+/* Heart container for visual feedback */
+.heart-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.heart {
+  font-size: 24px;
+  margin: 0 5px;
+  transition: color 0.3s ease;
+}
+
+.filled {
+  color: red; /* Full heart */
+}
+
+.broken {
+  color: lightgray; /* Broken heart */
+}
+
+
+/* Custom context menu */
+.context-menu {
+  position: absolute;
+  background-color: #333;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  transition: opacity 0.3s ease;
+}
+
+.context-menu p {
+  margin: 0;
+}
+
+/* Existing Styles */
+.home-container {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
 }
 
-.homepage-container{
+.homepage-container {
   margin-top: 2rem;
 }
 
-.inner-home-container{
+.inner-home-container {
   width: 100%;
 }
 
-.add-more-quiz{
+.add-more-quiz {
   display: flex;
   justify-content: space-around;
   align-items: center;
@@ -23,7 +63,7 @@
   border-radius: 30px;
 }
 
-.remove-last-quiz{
+.remove-last-quiz {
   display: flex;
   justify-content: space-around;
   align-items: center;
@@ -33,7 +73,7 @@
   border-radius: 30px;
 }
 
-.action-button{
+.action-button {
   display: flex;
   justify-content: right;
   margin-right: 3rem;
