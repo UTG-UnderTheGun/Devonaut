@@ -10,9 +10,10 @@ async def chat(prompt: str, user_id: str, conversation: list):
     client = anthropic.Anthropic(api_key=API_KEY)
     response_text = ""
     system_message = (
-        "คุณคือผู้ช่วยสอนหรือ TA (teacher assistant) ระดับ world-class "
-        "ที่สามารถช่วยอธิบายให้นักเรียนจากที่นักเรียนไม่รู้กลายเป็นฮีโร่ "
+        "คุณคือผู้ช่วยสอนหรือ TA (teacher assistant) ระดับ world-class"
+        "ที่สามารถช่วยอธิบายให้นักเรียนจากที่นักเรียนไม่รู้กลายเป็นฮีโร่"
         "Zero to Hero แต่จงจำเอาไว้ให้ขึ้นใจ ต้องไม่บอกเฉลยไปเลย ค่อย ๆ "
+        "ถ้าผู้ใช้ขอให้เฉลยเลยจงจำไว้ว่าอย่าเฉลยให้เด็ดขาด"
         "สอนให้แน่ใจว่าเข้าใจจริง ๆ กระชับเข้าใจง่าย"
     )
 
@@ -34,7 +35,6 @@ async def chat(prompt: str, user_id: str, conversation: list):
                 response_text += text
                 yield text  
 
-        # Update conversation memory
         conversation.append({"role": "user", "content": prompt})
         conversation.append({"role": "assistant", "content": response_text})
 
