@@ -1,125 +1,57 @@
-"use client"
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useRouter } from 'next/navigation';
+'use client'
+
+import Link from 'next/link'
+import { useEffect } from 'react'
 import './home.css'
 
-import { useCodeContext } from './context/CodeContext';
-
-import ModalCreate from '@/components/Modal-create';
-import AiChat from '@/components/Ai-chat';
-import HeadQuestion from '@/components/head-question';
-import GlassBox from '@/components/glass-box';
-import CodeQuestion from '@/components/code-question';
-import CustomContextMenu from '@/components/custom-context-menu';
-import Dropdown from '@/components/dropdown';
-import ExplainQuestion from '@/components/explain-question';
-import FillInQuestion from '@/components/FillIn-Question';
-import Sidebar from '@/components/sidebar';
-import Terminal from '../components/Terminal'
-
-const HomePage = () => {
-  const { openTerm, openChat, openCreate } = useCodeContext();
-
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
-  const [quiz, setQuiz] = useState([])
-  const router = useRouter();
-
+export default function Home() {
+  // Clean up any coding page related localStorage items when mounting homepage
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await axios.get('http://localhost:8000/users/me', {
-          withCredentials: true,
+    localStorage.removeItem('isDescriptionFolded');
+    localStorage.removeItem('isConsoleFolded');
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+          }
         });
-        setUser(response.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        setError('Not authenticated');
-        router.push('/auth/login');
-      }
-    };
+      },
+      { threshold: 0.1 }
+    );
 
-    fetchUser();
-  }, [router]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.metaKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
-        e.preventDefault();
-      }
-      if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
-        e.preventDefault();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
+    document.querySelectorAll('.animate-on-scroll').forEach((el) => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+      observer.observe(el);
+    });
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      observer.disconnect();
     };
-  }, [])
-
-  const handleLogout = async () => {
-    try {
-      await axios.post('http://localhost:8000/auth/logout', {}, {
-        withCredentials: true,
-      });
-      setUser(null);
-      router.push('/auth/login');
-    } catch (err) {
-      console.error('Error during logout:', err);
-      setError('Logout failed, please try again.');
-    }
-  };
-
-  const addQuiz = (selected) => {
-    setQuiz([...quiz, { id: quiz.length + 1, selected: selected }])
-  }
-
-  const createByType = (type) => {
-    if (type === "Code") {
-      return <CodeQuestion key={quiz.id} id={quiz.id} />
-    } else if (type === "Explain") {
-      return <ExplainQuestion />
-    } else if (type === "Fill in") {
-      return <FillInQuestion />
-    }
-  }
-
-  const removeLastQuiz = () => {
-    setQuiz(quiz.slice(0, -1))
-  }
+  }, []);
 
   return (
-    <div className='homepage-container'>
-      {error && <p>{error}</p>}
-      <CustomContextMenu />
-      {openChat && <AiChat />}
-      {openCreate && <ModalCreate />}
-      <div className='home-container'>
-        <div>
-          <GlassBox size={{ minWidth: '1350px' }}>
-            <div className='inner-home-container'>
-              <HeadQuestion>Create</HeadQuestion>
-              <CodeQuestion />
-              {quiz.map((quiz) => (
-                createByType(quiz.selected)
-              ))}
-              <div className='action-button'>
-                <button className="remove-last-quiz" onClick={removeLastQuiz} disabled={quiz.length === 0}><div style={{ fontSize: "26px", fontWeight: "bold" }}>-</div><div>Remove</div></button>
-                <Dropdown options={['Code', 'Explain', 'Fill in']} onSelect={addQuiz} />
-              </div>
-            </div>
-          </GlassBox>
-        </div>
-      </div >
-      <Sidebar user={user?.username || "Not Auth User"} onLogout={handleLogout} />
-      <div>
-        {openTerm && <Terminal />}
-      </div>
-    </div >
-  );
-};
-
-export default HomePage;
+    <div className="homepage-container">
+      <main className="homepage-main-content">
+        <h1 className="heading-1 animate-on-scroll">
+          All Your Coding Journey
+        </h1>
+        <h2 className="heading-2 animate-on-scroll">
+          In One Platform.
+        </h2>
+        <p className="description animate-on-scroll">
+          Learn, Debug, and Master Programming - From Beginner to Professional. 
+          Complete Learning System with Smart Debugging, Personalized Paths, 
+          and Professional Tools.
+        </p>
+        <Link href="/auth/signin" className="get-started-button animate-on-scroll">
+          GET STARTED
+        </Link>
+      </main>
+    </div>
+  )
+}

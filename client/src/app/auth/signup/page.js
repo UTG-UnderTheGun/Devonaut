@@ -1,112 +1,154 @@
 "use client";
-import GlassBox from "@/components/glass-box";
+import Loading from "@/app/loading";
 import './register.css';
 import Link from "next/link";
 import { useState } from "react";
 import axios from 'axios';
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function Register() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false)
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    termsAccepted: false
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
 
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true)
+    
+    // Validate form
+    if (!formData.termsAccepted) {
+      setError('Please accept the terms and conditions');
+      return;
+    }
+
+    // Show loading screen
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
 
     try {
       const response = await axios.post('http://localhost:8000/auth/register', {
-        username,
-        password,
+        username: formData.username,
+        password: formData.password,
       });
 
       setSuccess('Registration successful! You can now log in.');
-      setError('');
-      setUsername('');
-      setPassword('');
-
-      router.push('login');
+      setFormData({ username: '', password: '', termsAccepted: false });
+      
+      // Add a slight delay before redirect for better UX
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1500);
 
     } catch (err) {
-      if (err.response) {
-        setError(err.response.data.detail || 'Registration failed');
-      } else {
-        setError('No response from server');
-      }
-    } finally {
-      setLoading(false)
+      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      setIsLoading(false);
     }
-
   };
 
+  // Show loading screen
+  if (isLoading) {
+    return <Loading />;
+  }
+
   return (
-    <div className="bg-cover bg-center min-h-screen flex items-center justify-center"
-      style={{ backgroundImage: `url('/login.png')` }}>
-      <GlassBox size={{ minWidth: '450px' }}>
-        <div className="register-form-container">
-          <div className="register-image-container">
-            <img
-              src="https://res.cloudinary.com/dstl8qazf/image/upload/f_auto,q_auto/v1/underthegun/hxvq5wvnp4xbxtnl7rrn"
-              alt="Profile"
-              width={100}
-              height={100}
+    <div className="container">
+
+      <main className="signin-card">
+        <div className="progress-steps">
+          <div className={`step ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
+          <div className="progress-line"></div>
+          <div className={`step ${currentStep >= 2 ? 'active' : 'inactive'}`}>2</div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input
+              type="text"
+              name="username"
+              className="form-input"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              placeholder="Enter your Email"
+              disabled={isLoading}
             />
           </div>
-          <div className="register-text">
-            <h1><strong>Register</strong></h1>
+
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <input
+              type="password"
+              name="password"
+              className="form-input"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              placeholder="Enter your password"
+              disabled={isLoading}
+            />
           </div>
-          <div className="register-form">
-            <form onSubmit={handleSubmit}>
-              <div className="register-container">
-                <div className="register-username">
-                  <div>
-                    <label>Username</label>
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      name="username"
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="register-password">
-                  <div>
-                    <label>Password</label>
-                  </div>
-                  <div>
-                    <input
-                      type="password"
-                      name="password"
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="register-btn">
-                  <button type="submit">Register</button>
-                </div>
-                {error}
-                <div className="link-login">
-                  Go to&nbsp;<Link style={{ color: "#398EE9" }} href='login'>Login</Link>
-                </div>
-                <hr />
-              </div>
-            </form>
+
+          <div className="remember-me">
+            <input 
+              type="checkbox" 
+              id="terms"
+              name="termsAccepted"
+              checked={formData.termsAccepted}
+              onChange={handleChange}
+              disabled={isLoading}
+            />
+            <label htmlFor="terms">I agree to the Terms and Conditions</label>
           </div>
-          <div className="authgmail-container">
-            <div className="register-gmail">
-              <img src='/gmaillogo.png' alt="Gmail Logo" />
-              <button>Register with Gmail</button>
-            </div>
+
+          <button 
+            type="submit" 
+            className="btn btn-primary"
+            disabled={isLoading}
+          >
+            {isLoading ? 'REGISTERING...' : 'REGISTER'}
+          </button>
+
+          <button 
+            type="button" 
+            className="btn btn-google"
+            disabled={isLoading}
+          >
+            <img 
+              className="google-icon" 
+              src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738324966/7123025_logo_google_g_icon_1_apq8zk.png"
+              alt="Google"
+            />
+            <span>REGISTER WITH GOOGLE</span>
+          </button>
+
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
+
+          <div className="signin-link">
+            Already have an account?{' '}
+            <Link href="/auth/signin">Sign In</Link>
           </div>
-        </div>
-      </GlassBox>
+        </form>
+      </main>
     </div>
-  );
-}
+  )
+};
