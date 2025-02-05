@@ -9,7 +9,7 @@ const Stats = ({ stats, onStatClick }) => {
         {stats.map((stat, index) => (
           <div 
             key={index} 
-            className={`stat-card ${stat.highlighted ? 'highlighted' : ''} ${stat.id === 'students' || stat.id === 'assignments' ? 'clickable' : ''}`}
+            className={`stat-card clickable ${stat.highlighted ? 'highlighted' : ''}`}
             onClick={() => onStatClick(stat.id)}
           >
             <h3 className="stat-title">{stat.title}</h3>

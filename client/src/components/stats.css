@@ -33,13 +33,10 @@
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-  }
-  
-  .stat-card.clickable {
     cursor: pointer;
   }
   
-  .stat-card.clickable:hover {
+  .stat-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 20px -8px rgba(124, 58, 237, 0.2);
   }

@@ -2,7 +2,7 @@
 'use client'
 
 import React from 'react';
-import './PendingAssignment.css';
+import './pendingassignment.css';
 
 const PendingAssignments = () => {
   const assignments = [
