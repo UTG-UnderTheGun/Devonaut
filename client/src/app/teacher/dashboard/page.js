@@ -1,12 +1,13 @@
 // page.js
 'use client'
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Stats from '@/components/stats.js';
 import StudentTable from '@/components/student-table.js';
 import AssignmentTable from '@/components/assignment-table.js';
 import TableControls from '@/components/table-control.js';
 import Pagination from '@/components/pagination.js';
+import PendingAssignments from '@/components/pendingassignment.js';
+import SectionView from '@/components/section.js';
 import { 
   students, 
   assignments, 
@@ -14,13 +15,8 @@ import {
   sectionDetails,
   stats, 
   ITEMS_PER_PAGE 
-} from '@/data/mockData';
-import PendingAssignments from '@/components/pendingassignment.js';
-import SectionView from '@/components/section.js';
-
-
+} from '@/data/mockData.js';
 import './dashboard.css';
-
 
 const TeacherDashboard = () => {
   const [activeView, setActiveView] = useState('students');
@@ -47,6 +43,11 @@ const TeacherDashboard = () => {
     setTimeout(() => setIsLoading(false), 300);
   };
 
+  const handleCreateAssignment = () => {
+    // Handle create assignment logic here
+    console.log('Create new assignment');
+  };
+
   const getViewData = () => {
     switch (activeView) {
       case 'students':
@@ -59,6 +60,70 @@ const TeacherDashboard = () => {
         return sectionDetails;
       default:
         return [];
+    }
+  };
+
+  const getViewTitle = () => {
+    switch (activeView) {
+      case 'students':
+        return 'Student Management';
+      case 'assignments':
+        return 'Assignment Management';
+      case 'pending':
+        return 'Pending Assignments';
+      case 'sections':
+        return 'Section Overview';
+      default:
+        return '';
+    }
+  };
+
+  const getSortedAndFilteredData = () => {
+    const data = getViewData();
+    let filtered = data;
+
+    if (searchTerm) {
+      filtered = data.filter(item => {
+        const searchableText = getSearchableText(item);
+        return searchableText.toLowerCase().includes(searchTerm.toLowerCase());
+      });
+    }
+
+    if (selectedSection !== 'all' && (activeView === 'students' || activeView === 'pending')) {
+      filtered = filtered.filter(item => item.section === selectedSection);
+    }
+
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  };
+
+  const getCurrentPageData = () => {
+    const filteredData = getSortedAndFilteredData();
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  };
+
+  const getSearchableText = (item) => {
+    switch (activeView) {
+      case 'students':
+        return `${item.name} ${item.id}`;
+      case 'assignments':
+        return `${item.title} ${item.chapter}`;
+      case 'pending':
+        return `${item.studentName} ${item.assignmentTitle}`;
+      case 'sections':
+        return `Section ${item.id}`;
+      default:
+        return '';
     }
   };
 
@@ -107,73 +172,6 @@ const TeacherDashboard = () => {
     }
   };
 
-  const getSortedAndFilteredData = () => {
-    const data = getViewData();
-    let filtered = data;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = data.filter(item => {
-        const searchableText = getSearchableText(item);
-        return searchableText.toLowerCase().includes(searchTerm.toLowerCase());
-      });
-    }
-
-    // Apply section filter if applicable
-    if (selectedSection !== 'all' && (activeView === 'students' || activeView === 'pending')) {
-      filtered = filtered.filter(item => item.section === selectedSection);
-    }
-
-    // Apply sorting
-    if (sortConfig.key) {
-      filtered.sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
-  };
-
-  const getSearchableText = (item) => {
-    switch (activeView) {
-      case 'students':
-        return `${item.name} ${item.id}`;
-      case 'assignments':
-        return `${item.title} ${item.chapter}`;
-      case 'pending':
-        return `${item.studentName} ${item.assignmentTitle}`;
-      case 'sections':
-        return `Section ${item.id}`;
-      default:
-        return '';
-    }
-  };
-
-  const getCurrentPageData = () => {
-    const filteredData = getSortedAndFilteredData();
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  };
-
-  const getViewTitle = () => {
-    switch (activeView) {
-      case 'students':
-        return 'Student Management';
-      case 'assignments':
-        return 'Assignment Management';
-      case 'pending':
-        return 'Pending Assignments';
-      case 'sections':
-        return 'Section Overview';
-      default:
-        return '';
-    }
-  };
-
   return (
     <div className="dashboard-container">
       <Stats 
@@ -187,10 +185,20 @@ const TeacherDashboard = () => {
       <main className="main-content">
         <div className="table-container">
           <div className="table-header">
-            <h2 className="table-title">{getViewTitle()}</h2>
-            <p className="table-subtitle">
-              {`View and manage ${activeView} information`}
-            </p>
+            <div className="header-content">
+              <div>
+                <h2 className="table-title">{getViewTitle()}</h2>
+                <p className="table-subtitle">
+                  {`View and manage ${activeView} information`}
+                </p>
+              </div>
+              {activeView === 'assignments' && (
+                <button className="create-assignment-btn" onClick={handleCreateAssignment}>
+                  <span className="plus-icon">+</span>
+                  Create Assignment
+                </button>
+              )}
+            </div>
           </div>
 
           <TableControls 
