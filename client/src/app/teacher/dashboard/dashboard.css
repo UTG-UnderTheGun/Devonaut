@@ -1,0 +1,104 @@
+/* styles/dashboard.css */
+
+/* Main container styles */
+.dashboard-container {
+  width: 100%;
+  min-height: 100vh;
+  background: radial-gradient(92.73% 100% at 50% 0%, #000 40.5%, #7C3AED 63.5%, #9A69EF 78.5%, #D7C7F3 100%);
+  padding: 2rem 0;
+  margin-top: 30px;
+}
+
+.dashboard-header {
+  max-width: 1150px;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+}
+
+.welcome-text {
+  color: white;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.date-text {
+  color: #D7C7F3;
+  font-size: 1rem;
+}
+
+
+/* Main content area */
+.main-content {
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  
+}
+
+/* Table container */
+.table-container {
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.table-subtitle {
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+/* Loading animation */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #F3F4F6;
+  border-top-color: #7C3AED;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive utilities */
+@media (min-width: 640px) {
+  .table-controls {
+    flex-direction: row;
+  }
+}
+
+@media (min-width: 1024px) {
+  .table-controls {
+    padding: 1.5rem;
+  }
+}
