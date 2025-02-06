@@ -6,3 +6,12 @@ python-jose[cryptography]
 passlib[bcrypt]
 anthropic
 python-dotenv
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+authlib
+docker
+fastapi-limiter
+redis
+aioredis
+motor
