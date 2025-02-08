@@ -4,10 +4,10 @@
   background: white;
   border-radius: 1rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 1000px;
-  margin: 2rem auto;
-  overflow: hidden;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 8rem); /* Account for padding and margin */
 }
 
 .student-detail-header {
@@ -15,13 +15,40 @@
   padding: 1.5rem;
   color: white;
   position: relative;
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
-.student-detail-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+.student-detail-content {
+  padding: 2rem;
+  overflow-y: auto; /* Enable scrolling for content */
+  flex-grow: 1; /* Allow content to grow */
 }
+
+/* Add custom scrollbar for modal content */
+.student-detail-content {
+  scrollbar-width: thin;
+  scrollbar-color: #7C3AED #F3F4F6;
+}
+
+.student-detail-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.student-detail-content::-webkit-scrollbar-track {
+  background: #F3F4F6;
+}
+
+.student-detail-content::-webkit-scrollbar-thumb {
+  background-color: #7C3AED;
+  border-radius: 3px;
+}
+
+/* Prevent body scrolling when modal is open */
+body.modal-open {
+  overflow: hidden;
+}
+
+
 
 .close-button {
   position: absolute;
@@ -204,16 +231,7 @@
   background-color: #E5E7EB;
 }
 
-@media (max-width: 768px) {
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .progress-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .actions {
-    flex-direction: column;
-  }
+/* Prevent body scrolling when modal is open */
+body.modal-open {
+  overflow: hidden;
 }

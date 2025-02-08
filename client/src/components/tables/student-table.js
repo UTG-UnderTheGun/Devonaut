@@ -1,6 +1,4 @@
-// components/StudentTable.js
-'use client'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import "./student-table.css";
 import StudentDetail from './student-detail';
 
@@ -11,6 +9,15 @@ const StudentTable = ({
   loading 
 }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  useEffect(() => {
+    if (selectedStudent) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [selectedStudent]);
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {

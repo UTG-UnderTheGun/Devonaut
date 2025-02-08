@@ -1,13 +1,13 @@
 // page.js
 'use client'
 import { useState } from 'react';
-import Stats from '@/components/stats.js';
-import StudentTable from '@/components/student-table.js';
-import AssignmentTable from '@/components/assignment-table.js';
-import TableControls from '@/components/table-control.js';
-import Pagination from '@/components/pagination.js';
-import PendingAssignments from '@/components/pendingassignment.js';
-import SectionView from '@/components/section.js';
+import Stats from '@/components/stats/stats.js';
+import StudentTable from '@/components/tables/student-table.js';
+import AssignmentTable from '@/components/tables/assignment-table.js';
+import TableControls from '@/components/controls/table-control.js';
+import Pagination from '@/components/controls/pagination.js';
+import PendingAssignments from '@/components/tables/pendingassignment.js';
+import SectionView from '@/components/sections/section.js';
 import { 
   students, 
   assignments, 
