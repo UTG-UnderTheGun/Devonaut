@@ -144,3 +144,20 @@
   .view-details-btn:hover {
     background-color: #6D28D9;
   }
+
+  .back-btn {
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #7C3AED;
+  color: #7C3AED;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: #7C3AED;
+  color: white;
+}

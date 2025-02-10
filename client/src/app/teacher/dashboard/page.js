@@ -1,6 +1,5 @@
-// page.js
 'use client'
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import Stats from '@/components/stats/stats.js';
 import StudentTable from '@/components/tables/student-table.js';
 import AssignmentTable from '@/components/tables/assignment-table.js';
@@ -8,6 +7,8 @@ import TableControls from '@/components/controls/table-control.js';
 import Pagination from '@/components/controls/pagination.js';
 import PendingAssignments from '@/components/tables/pendingassignment.js';
 import SectionView from '@/components/sections/section.js';
+import StudentAssignment from '@/components/assignment/student-assignment';
+import { useSearchParams } from 'next/navigation';
 import { 
   students, 
   assignments, 
@@ -19,18 +20,28 @@ import {
 import './dashboard.css';
 
 const TeacherDashboard = () => {
-  const [activeView, setActiveView] = useState('students');
+  const searchParams = useSearchParams();
+  const [activeView, setActiveView] = useState(searchParams.get('view') || 'students');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+
+  useEffect(() => {
+    const view = searchParams.get('view');
+    if (view) {
+      setActiveView(view);
+    }
+  }, [searchParams]);
 
   const handleStatClick = (statId) => {
     setActiveView(statId);
     setCurrentPage(1);
     setSortConfig({ key: null, direction: 'asc' });
     setSearchTerm('');
+    setSelectedAssignment(null);
   };
 
   const handleSort = (key) => {
@@ -44,37 +55,34 @@ const TeacherDashboard = () => {
   };
 
   const handleCreateAssignment = () => {
-    // Handle create assignment logic here
     console.log('Create new assignment');
+  };
+
+  const handleAssignmentSelect = (assignmentId, studentId) => {
+    setSelectedAssignment({ assignmentId, studentId });
+  };
+
+  const handleBackToList = () => {
+    setSelectedAssignment(null);
   };
 
   const getViewData = () => {
     switch (activeView) {
-      case 'students':
-        return students;
-      case 'assignments':
-        return assignments;
-      case 'pending':
-        return pendingAssignments;
-      case 'sections':
-        return sectionDetails;
-      default:
-        return [];
+      case 'students': return students;
+      case 'assignments': return assignments;
+      case 'pending': return pendingAssignments;
+      case 'sections': return sectionDetails;
+      default: return [];
     }
   };
 
   const getViewTitle = () => {
     switch (activeView) {
-      case 'students':
-        return 'Student Management';
-      case 'assignments':
-        return 'Assignment Management';
-      case 'pending':
-        return 'Pending Assignments';
-      case 'sections':
-        return 'Section Overview';
-      default:
-        return '';
+      case 'students': return 'Student Management';
+      case 'assignments': return 'Assignment Management';
+      case 'pending': return 'Pending Assignments';
+      case 'sections': return 'Section Overview';
+      default: return '';
     }
   };
 
@@ -114,16 +122,11 @@ const TeacherDashboard = () => {
 
   const getSearchableText = (item) => {
     switch (activeView) {
-      case 'students':
-        return `${item.name} ${item.id}`;
-      case 'assignments':
-        return `${item.title} ${item.chapter}`;
-      case 'pending':
-        return `${item.studentName} ${item.assignmentTitle}`;
-      case 'sections':
-        return `Section ${item.id}`;
-      default:
-        return '';
+      case 'students': return `${item.name} ${item.id}`;
+      case 'assignments': return `${item.title} ${item.chapter}`;
+      case 'pending': return `${item.studentName} ${item.assignmentTitle}`;
+      case 'sections': return `Section ${item.id}`;
+      default: return '';
     }
   };
 
@@ -156,6 +159,7 @@ const TeacherDashboard = () => {
             sortConfig={sortConfig}
             onSort={handleSort}
             loading={isLoading}
+            onAssignmentSelect={handleAssignmentSelect}
           />
         );
       case 'sections':
@@ -172,16 +176,18 @@ const TeacherDashboard = () => {
     }
   };
 
-  return (
-    <div className="dashboard-container">
-      <Stats 
-        stats={stats.map(stat => ({
-          ...stat,
-          highlighted: stat.id === activeView
-        }))} 
-        onStatClick={handleStatClick} 
-      />
+  const renderContent = () => {
+    if (selectedAssignment) {
+      return (
+        <StudentAssignment 
+          studentId={selectedAssignment.studentId}
+          assignmentId={selectedAssignment.assignmentId}
+          onBack={handleBackToList}
+        />
+      );
+    }
 
+    return (
       <main className="main-content">
         <div className="table-container">
           <div className="table-header">
@@ -219,6 +225,19 @@ const TeacherDashboard = () => {
           />
         </div>
       </main>
+    );
+  };
+
+  return (
+    <div className="dashboard-container">
+      <Stats 
+        stats={stats.map(stat => ({
+          ...stat,
+          highlighted: stat.id === activeView
+        }))} 
+        onStatClick={handleStatClick} 
+      />
+      {renderContent()}
     </div>
   );
 };

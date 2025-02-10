@@ -3,22 +3,12 @@
 import { useState, useEffect } from 'react';
 import './coding.css';
 
-export default function CodingPage() {
+const CodingPage = ({ assignment, onBack }) => {
   const [code, setCode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('editorCode') || `# Definition for singly-linked list.
-# class ListNode(object):
-#     def __init__(self, val=0, next=None):
-#         self.val = val
-#         self.next = next
-class Solution(object):
-    def addTwoNumbers(self, l1, l2):
-        """
-        :type l1: Optional[ListNode]
-        :type l2: Optional[ListNode]
-        :rtype: Optional[ListNode]
-        """
-        # Your solution here`;
+      return localStorage.getItem('editorCode') || assignment?.starterCode || `def solve():
+    # Your solution here
+    pass`;
     }
     return '';
   });
@@ -52,67 +42,70 @@ class Solution(object):
   };
 
   const runCode = () => {
-    setConsoleOutput(`> python solution.py
-Input: [2,4,3], [5,6,4]
-Output: [7,0,8]
-Explanation: 342 + 465 = 807`);
+    setConsoleOutput(`> python solution.py\nRunning test cases...\nAll tests passed!`);
   };
-
-  const handleSubmit = () => {
-    console.log('Code submitted');
-  };
-
-  useEffect(() => {
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
 
   return (
     <div className="coding-container">
       <div className="main-content">
         <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
           <div className="panel-header">
-                <div className="description-tabs">
-                    <button 
-                    className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
-                    onClick={() => setSelectedDescriptionTab('Description')}
-                    >
-                    Description
-                    </button>
-                    <button 
-                    className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
-                    onClick={() => setSelectedDescriptionTab('ASK AI')}
-                    >
-                    ASK AI
-                    </button>
-                </div>
-                    <button 
-                    className="fold-button"
-                    onClick={() => setIsDescriptionFolded(!isDescriptionFolded)}
-                    >
-                    {isDescriptionFolded ? '►' : '◄'}
-                    </button>
+            <div className="description-tabs">
+              <button 
+                className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
+                onClick={() => setSelectedDescriptionTab('Description')}
+              >
+                Description
+              </button>
+              <button 
+                className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
+                onClick={() => setSelectedDescriptionTab('ASK AI')}
+              >
+                ASK AI
+              </button>
             </div>
+            <button 
+              className="back-button"
+              onClick={onBack}
+            >
+              Back
+            </button>
+            <button 
+              className="fold-button"
+              onClick={() => setIsDescriptionFolded(!isDescriptionFolded)}
+            >
+              {isDescriptionFolded ? '►' : '◄'}
+            </button>
+          </div>
           
           <div className="panel-content">
             {selectedDescriptionTab === 'Description' ? (
               <>
-                <h2>Add Two Numbers</h2>
-                <br></br>
-                <p>You are given two <strong>non-empty</strong> linked lists representing two non-negative integers. The digits are stored in <strong>reverse order</strong>, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.</p>
-                <p>You may assume the two numbers do not contain any leading zero, except the number 0 itself.</p>
+                <h2>{assignment.title}</h2>
+                <div className="assignment-metadata">
+                  <span>Chapter: {assignment.chapter}</span>
+                  <span>Due Date: {assignment.dueDate}</span>
+                  <span>Points: {assignment.points}</span>
+                </div>
+                <div className="description-text">
+                  <p>{assignment.description || "Complete the following programming exercise."}</p>
+                </div>
                 
                 <div className="example">
-                  <div>Input: l1 = [2,4,3], l2 = [5,6,4]</div>
-                  <div>Output: [7,0,8]</div>
-                  <div>Explanation: 342 + 465 = 807.</div>
+                  <div>Example Input/Output:</div>
+                  <pre>{assignment.examples || "Example test cases will be shown here."}</pre>
                 </div>
               </>
             ) : (
               <div className="ask-ai-content">
                 <p>Ask questions about this problem and get AI assistance!</p>
-                {/* Add AI chat interface here */}
+                <div className="chat-container">
+                  <div className="chat-messages"></div>
+                  <div className="chat-input">
+                    <input type="text" placeholder="Type your question..." />
+                    <button>Send</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -126,17 +119,14 @@ Explanation: 342 + 465 = 807`);
                   className="tab"
                   aria-selected={selectedTab === 'solution'}
                   role="tab"
-                  tabIndex={0}
                   onClick={() => setSelectedTab('solution')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      setSelectedTab('solution');
-                    }
-                  }}
                 >
-                  Solution.py
+                  solution.py
                 </div>
               </div>
+              <button onClick={runCode} className="run-button">
+                Run Code
+              </button>
             </div>
             <textarea
               value={code}
@@ -164,4 +154,6 @@ Explanation: 342 + 465 = 807`);
       </div>
     </div>
   );
-}
+};
+
+export default CodingPage;

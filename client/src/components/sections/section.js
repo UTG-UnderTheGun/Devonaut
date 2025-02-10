@@ -1,21 +1,28 @@
-// components/SectionView.js
 'use client'
 
-import React from 'react';
+import React, { useState } from 'react';
 import './section.css';
+import SectionDetail from './section-detail';
 
-const SectionView = ({ 
-  data, 
-  sortConfig, 
-  onSort, 
-  loading 
-}) => {
-  const getSortIcon = (key) => {
-    if (sortConfig.key === key) {
-      return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
-    }
-    return '';
+const SectionView = ({ data, sortConfig, onSort, loading }) => {
+  const [selectedSection, setSelectedSection] = useState(null);
+
+  const handleSectionClick = (section) => {
+    setSelectedSection(section);
   };
+
+  const handleBackClick = () => {
+    setSelectedSection(null);
+  };
+
+  if (selectedSection) {
+    return (
+      <div className="sections-container">
+        <button onClick={handleBackClick} className="back-btn">← Back to Sections</button>
+        <SectionDetail section={selectedSection} />
+      </div>
+    );
+  }
 
   return (
     <div className="sections-container">
@@ -27,7 +34,12 @@ const SectionView = ({
       
       <div className="sections-grid">
         {data.map((section) => (
-          <div key={section.id} className="section-card">
+          <div 
+            key={section.id} 
+            className="section-card"
+            onClick={() => handleSectionClick(section)}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="section-header">
               <h3 className="section-title">Section {section.id}</h3>
               <span className="student-count">{section.totalStudents} Students</span>

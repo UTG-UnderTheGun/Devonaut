@@ -2,9 +2,11 @@
 'use client'
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import './pendingassignment.css';
 
 const PendingAssignments = () => {
+  const router = useRouter();
   const assignments = [
     {
       id: "Ex.6",
@@ -46,15 +48,12 @@ const PendingAssignments = () => {
           score: '10/10'
         }
       ]
-    },
-    {
-      id: "Ex.7",
-      title: "While Loop Assignment",
-      students: [
-        // Similar structure for while loop assignment
-      ]
     }
   ];
+
+  const handleRowClick = (assignmentId, studentId) => {
+    router.push(`/assignments/${studentId}/${assignmentId}`);
+  };
 
   return (
     <div className="assignments-container">
@@ -77,8 +76,12 @@ const PendingAssignments = () => {
               </thead>
               <tbody>
                 {assignment.students.map((student, index) => (
-                  <tr key={`${student.studentId}-${index}`} 
-                      className={student.status.toLowerCase().replace(' ', '-')}>
+                  <tr 
+                    key={`${student.studentId}-${index}`} 
+                    className={student.status.toLowerCase().replace(' ', '-')}
+                    onClick={() => handleRowClick(assignment.id, student.studentId)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td>{student.studentId}</td>
                     <td>{student.studentName}</td>
                     <td>{student.submissionTime}</td>

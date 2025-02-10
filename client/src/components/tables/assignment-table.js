@@ -1,6 +1,7 @@
-// components/AssignmentTable.js
 'use client'
-import "./assignment-table.css"
+import { useState } from 'react';
+import "./assignment-table.css";
+import AssignmentDetail from '@/components/assignment/assignment-detail';
 
 const AssignmentTable = ({ 
   data, 
@@ -8,12 +9,26 @@ const AssignmentTable = ({
   onSort, 
   loading 
 }) => {
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
       return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
     }
     return '';
   };
+
+  const handleRowClick = (assignment) => {
+    setSelectedAssignment(assignment);
+  };
+
+  // If an assignment is selected, show the detail view
+  if (selectedAssignment) {
+    return <AssignmentDetail 
+      assignment={selectedAssignment}
+      onBack={() => setSelectedAssignment(null)}
+    />;
+  }
 
   return (
     <div className="table-wrapper">
@@ -41,7 +56,12 @@ const AssignmentTable = ({
         </thead>
         <tbody>
           {data.map((assignment, index) => (
-            <tr key={assignment.id} className={index % 2 === 1 ? 'alternate' : ''}>
+            <tr 
+              key={assignment.id} 
+              className={index % 2 === 1 ? 'alternate' : ''} 
+              onClick={() => handleRowClick(assignment)}
+              style={{ cursor: 'pointer' }}
+            >
               <td>{assignment.title}</td>
               <td>{assignment.chapter}</td>
               <td>{assignment.dueDate}</td>

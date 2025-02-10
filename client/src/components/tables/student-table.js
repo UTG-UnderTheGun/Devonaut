@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import "./student-table.css";
-import StudentDetail from './student-detail';
+import StudentDetailModal from './student-detail'; // Make sure path is correct
 
 const StudentTable = ({ 
   data, 
@@ -9,15 +11,16 @@ const StudentTable = ({
   loading 
 }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (selectedStudent) {
+    if (showModal) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
     }
     return () => document.body.classList.remove('modal-open');
-  }, [selectedStudent]);
+  }, [showModal]);
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
@@ -26,12 +29,24 @@ const StudentTable = ({
     return '';
   };
 
+
   const handleRowClick = (student) => {
     setSelectedStudent(student);
+    setShowModal(true);
   };
 
   return (
     <div className="table-container">
+      {showModal && (
+        <StudentDetailModal 
+          student={selectedStudent}
+          onClose={() => {
+            setShowModal(false);
+            setSelectedStudent(null);
+          }}
+        />
+      )}
+      
       <div className="table-wrapper">
         {loading && (
           <div className="loading-overlay">
@@ -74,18 +89,6 @@ const StudentTable = ({
           </tbody>
         </table>
       </div>
-
-      {/* Student Detail Modal */}
-      {selectedStudent && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <StudentDetail 
-              student={selectedStudent} 
-              onClose={() => setSelectedStudent(null)} 
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

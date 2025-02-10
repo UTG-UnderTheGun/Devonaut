@@ -1,5 +1,4 @@
-/* styles/components/student-table.css */
-
+/* Table Styles */
 .table-container {
   position: relative;
   width: 100%;
@@ -76,14 +75,6 @@
   background: white;
 }
 
-/* Remove individual cell hover effects */
-.student-table td:hover {
-  background-color: transparent;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Enhanced row hover effect */
 .student-table tbody tr:hover {
   background: linear-gradient(to right, #F3E8FF, #EDE9FE);
   cursor: pointer;
@@ -122,42 +113,253 @@
   min-width: 3rem;
 }
 
-.modal-overlay {
+/* Modal Styles */
+.student-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background-color: rgba(91, 33, 182, 0.4);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
   padding: 2rem;
 }
 
-.modal-content {
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: modalSlideIn 0.3s ease-out;
+.student-modal-container {
   background: white;
   border-radius: 12px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 2rem;
   box-shadow: 0 8px 32px rgba(124, 58, 237, 0.2);
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.3s ease-out;
 }
 
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.student-modal-header {
+  background: linear-gradient(to right, #7C3AED, #9A69EF);
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
+.student-modal-title {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.student-modal-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  line-height: 1;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.student-modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.student-modal-content {
+  padding: 2rem;
+}
+
+/* Modal Content Styles */
+.student-info-section {
+  margin-bottom: 2.5rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease-out;
+}
+
+.student-info-section h3 {
+  font-size: 1.25rem;
+  color: #111827;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+}
+
+.student-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.student-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.student-info-item label {
+  font-size: 0.875rem;
+  color: #6B7280;
+}
+
+.student-info-item span {
+  font-size: 1rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.student-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.student-stat-card {
+  background: #F9FAFB;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.student-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #7C3AED;
+  margin-bottom: 0.5rem;
+}
+
+.student-stat-label {
+  font-size: 0.875rem;
+  color: #6B7280;
+}
+
+/* Table in Modal Styles */
+.student-table-wrapper {
+  overflow-x: auto;
+  margin: 0 -2rem;
+  padding: 0 2rem;
+}
+
+.student-history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.student-history-table th {
+  background: #F9FAFB;
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  color: #6B7280;
+  font-weight: 500;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.student-history-table td {
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: #374151;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+/* Status Badge Styles */
+.student-status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background-color: #DCFCE7;
+  color: #15803D;
+}
+
+.badge-warning {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.badge-error {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+/* Button Styles */
+.student-modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease-out;
+}
+
+.student-btn-primary,
+.student-btn-secondary,
+.student-btn-tertiary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.student-btn-primary {
+  background-color: #7C3AED;
+  color: white;
+  border: none;
+}
+
+.student-btn-primary:hover {
+  background-color: #6D28D9;
+}
+
+.student-btn-secondary {
+  background-color: white;
+  color: #7C3AED;
+  border: 1px solid #7C3AED;
+}
+
+.student-btn-secondary:hover {
+  background-color: #F5F3FF;
+}
+
+.student-btn-tertiary {
+  background-color: #F3F4F6;
+  color: #374151;
+  border: 1px solid #E5E7EB;
+}
+
+.student-btn-tertiary:hover {
+  background-color: #E5E7EB;
+}
+
+/* Loading State */
 .loading-overlay {
   position: absolute;
   top: 0;
@@ -180,12 +382,73 @@
   animation: spin 1s linear infinite;
 }
 
+/* Animation Classes */
+.modal-enter {
+  opacity: 1;
+}
+
+.modal-content-enter {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.content-enter {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.modal-exit {
+  opacity: 0;
+}
+
+.modal-content-exit {
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+.table-row-enter {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-body.modal-open {
-  overflow: hidden;
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .student-info-grid,
+  .student-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .student-modal-actions {
+    flex-direction: column;
+  }
+  
+  .student-modal-container {
+    margin: 1rem;
+  }
+  
+  .student-table-wrapper {
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+  
+  .student-modal-overlay {
+    padding: 1rem;
+  }
 }
