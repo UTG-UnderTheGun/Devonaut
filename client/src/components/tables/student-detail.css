@@ -1,0 +1,138 @@
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Apply animations to modal components */
+.student-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.student-modal-container {
+  background: white;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation for modal elements */
+.student-info-section,
+.student-stats-grid,
+.student-history-table {
+  animation: scaleIn 0.5s ease-out;
+  animation-fill-mode: both;
+}
+
+.student-history-table tr:hover {
+  background: linear-gradient(to right, #F3E8FF, #EDE9FE);
+  cursor: pointer;
+}
+
+.student-history-table tr:hover td {
+  color: #6D28D9;
+}
+
+/* Staggered animations for grid items */
+.student-info-item,
+.student-stat-card {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.student-info-item:nth-child(1) { animation-delay: 0.1s; }
+.student-info-item:nth-child(2) { animation-delay: 0.2s; }
+.student-info-item:nth-child(3) { animation-delay: 0.3s; }
+.student-info-item:nth-child(4) { animation-delay: 0.4s; }
+
+.student-stat-card:nth-child(1) { animation-delay: 0.2s; }
+.student-stat-card:nth-child(2) { animation-delay: 0.3s; }
+.student-stat-card:nth-child(3) { animation-delay: 0.4s; }
+
+/* Exit animations */
+.student-modal-closing {
+  animation: fadeOut 0.3s ease-out;
+}
+
+.student-modal-container.closing {
+  animation: slideOut 0.3s ease-out;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+/* Add smooth transitions for interactive elements */
+.student-modal-close,
+.student-btn-primary,
+.student-btn-secondary,
+.student-btn-tertiary {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Optional: Add hover animation for table rows */
+.student-history-table tr {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.student-history-table tr:hover {
+  background-color: #F9FAFB;
+}
+
+
+

@@ -1,0 +1,74 @@
+/* styles/components/TableControls.css */
+
+.table-controls {
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background-color: #F9FAFB;
+  }
+  
+  .search-box {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    flex: 1;
+    min-width: 250px;
+    transition: border-color 0.2s ease;
+  }
+  
+  .search-box:focus-within {
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+  }
+  
+  .search-icon {
+    margin-right: 0.5rem;
+    color: #9CA3AF;
+  }
+  
+  .search-box input {
+    border: none;
+    background: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+  
+  .search-box input::placeholder {
+    color: #9CA3AF;
+  }
+  
+  .filters {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  
+  .section-filter {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    background-color: white;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+  
+  .section-filter:hover {
+    border-color: #7C3AED;
+  }
+  
+  .section-filter:focus {
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+  }

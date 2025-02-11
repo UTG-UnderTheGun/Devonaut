@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import './coding.css';
+import AIChatInterface from './ai-interface/ai-interface';
 
 export default function CodingPage() {
   const [code, setCode] = useState(() => {
@@ -112,7 +113,7 @@ Explanation: 342 + 465 = 807`);
             ) : (
               <div className="ask-ai-content">
                 <p>Ask questions about this problem and get AI assistance!</p>
-                {/* Add AI chat interface here */}
+                <AIChatInterface />
               </div>
             )}
           </div>

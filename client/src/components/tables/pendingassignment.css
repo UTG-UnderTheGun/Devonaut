@@ -1,0 +1,104 @@
+/* styles/components/PendingAssignments.css */
+
+.assignments-container {
+    padding: 1rem;
+  }
+  
+  .assignment-section {
+    background: white;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .assignment-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .assignment-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    color: #111827;
+  }
+  
+  .table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .student-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .student-table th {
+    text-align: left;
+    padding: 0.75rem 1.5rem;
+    background-color: #f9fafb;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .student-table td {
+    padding: 1rem 1.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  
+  .status-badge.submitted {
+    background-color: #e0f2fe;
+    color: #0369a1;
+  }
+  
+  .status-badge.late-submitted {
+    background-color: #fef3c7;
+    color: #d97706;
+  }
+  
+  .status-badge.not-submitted {
+    background-color: #fee2e2;
+    color: #dc2626;
+  }
+  
+  .status-badge.completed {
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+  
+  tr.submitted {
+    background-color: #f0f9ff;
+  }
+  
+  tr.late-submitted {
+    background-color: #fffbeb;
+  }
+  
+  tr.not-submitted {
+    background-color: #fef2f2;
+  }
+  
+  tr.completed {
+    background-color: #f0fdf4;
+  }
+  
+  tr:hover {
+    background-color: #f9fafb !important;
+  }
+  
+  .empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: #6b7280;
+  }

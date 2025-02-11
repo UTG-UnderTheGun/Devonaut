@@ -1,0 +1,43 @@
+/* styles/components/Pagination.css */
+
+
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background-color: #F9FAFB;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .pagination-info {
+    font-size: 0.875rem;
+    color: #6B7280;
+  }
+  
+  .pagination-controls {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .pagination-button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    background-color: white;
+    color: #374151;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .pagination-button:hover:not(:disabled) {
+    border-color: #7C3AED;
+    color: #7C3AED;
+  }
+  
+  .pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #F3F4F6;
+  }

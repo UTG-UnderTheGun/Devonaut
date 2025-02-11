@@ -158,7 +158,7 @@ export default function Dashboard() {
 function AssignmentCard({ assignment, timeStatus }) {
   return (
     <Link href={assignment.link || '#'} className="assignment-link">
-      <div className={`assignment-card ${timeStatus}`}>
+      <div className={`assignment-card-dashboard ${timeStatus}`}>
         <div className="assignment-header">
           <div className="assignment-info">
             <div className="title-row">
