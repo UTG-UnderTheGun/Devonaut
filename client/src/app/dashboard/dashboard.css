@@ -157,7 +157,7 @@
     display: block;
 }
 
-.assignment-card {
+.assignment-card-dashboard {
     background: white;
     border-radius: 12px;
     padding: 1rem;
@@ -166,7 +166,7 @@
     border: 1px solid transparent;
 }
 
-.assignment-card:hover {
+.assignment-card-dashboard:hover {
     transform: translateY(-1px);
     box-shadow: var(--card-shadow-hover);
     border-color: var(--primary-light);

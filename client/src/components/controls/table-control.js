@@ -17,6 +17,8 @@ const TableControls = ({
           type="text"
           placeholder={activeView === 'students' 
             ? "Search students..." 
+            : activeView === 'sections'
+            ? "Search sections..."
             : "Search assignments..."}
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
