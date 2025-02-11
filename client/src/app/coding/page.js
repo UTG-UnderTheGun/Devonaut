@@ -111,8 +111,7 @@ Explanation: 342 + 465 = 807`);
                 </div>
               </>
             ) : (
-              <div className="ask-ai-content">
-                <p>Ask questions about this problem and get AI assistance!</p>
+              <div className="">
                 <AIChatInterface />
               </div>
             )}
