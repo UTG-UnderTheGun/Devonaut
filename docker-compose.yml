@@ -85,11 +85,11 @@ services:
       - SERVER_API=http://server:8000
     networks:
       - app-network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.3'
-          memory: 512M
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.3'
+    #       memory: 512M
     command: npm run dev
 
 networks:
