@@ -18,7 +18,6 @@ export default function Login() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -26,6 +25,18 @@ export default function Login() {
       [name]: type === 'checkbox' ? checked : value
     }));
   };
+
+  const googleSignin = async (e) => {
+    e.preventDefault();
+    console.log("This is google sign in")
+
+    try {
+      window.location.href = 'http://localhost:8000/auth/google'
+    } catch (err) {
+      console.error('Error during google login request')
+    }
+
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,8 +56,7 @@ export default function Login() {
       });
 
       const { access_token } = response.data;
-      
-      // Handle remember me
+
       if (formData.rememberMe) {
         localStorage.setItem('token', access_token);
       } else {
@@ -54,8 +64,7 @@ export default function Login() {
       }
 
       setSuccess('Login successful! Redirecting...');
-      
-      // Add a slight delay before redirect for better UX
+
       setTimeout(() => {
         router.push('/auth/level');
       }, 1500);
@@ -67,7 +76,6 @@ export default function Login() {
     }
   };
 
-  // Show loading screen during the process
   if (isLoading) {
     return <Loading />;
   }
@@ -84,14 +92,14 @@ export default function Login() {
         <form onSubmit={handleSubmit}>
           {error && <div className="error-message">{error}</div>}
           {success && <div className="success-message">{success}</div>}
-          
+
           <div className="form-group">
             <label className="form-label">Email</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="username"
-              className="form-input" 
-              required 
+              className="form-input"
+              required
               placeholder="Enter your Email"
               value={formData.username}
               onChange={handleChange}
@@ -101,11 +109,11 @@ export default function Login() {
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input 
+            <input
               type="password"
-              name="password" 
-              className="form-input" 
-              required 
+              name="password"
+              className="form-input"
+              required
               placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
@@ -114,8 +122,8 @@ export default function Login() {
           </div>
 
           <div className="remember-me">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               id="remember-me"
               name="rememberMe"
               checked={formData.rememberMe}
@@ -125,20 +133,21 @@ export default function Login() {
             <label htmlFor="remember-me">Remember Me</label>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="btn btn-primary"
             disabled={isLoading}
           >
             {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
           </button>
 
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn btn-google"
             disabled={isLoading}
+            onClick={googleSignin}
           >
-            <Image 
+            <Image
               className="google-icon"
               src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738324966/7123025_logo_google_g_icon_1_apq8zk.png"
               alt="Google"

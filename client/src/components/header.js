@@ -1,4 +1,6 @@
 'use client'
+import { useCodeContext } from '@/app/context/CodeContext';
+import StorageManager from './StorageManager';
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -7,14 +9,14 @@ import './header.css'
 import './user-menu.css'
 
 const ChevronDown = () => (
-  <svg 
-    width="16" 
-    height="16" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
     strokeLinejoin="round"
     className="chevron-icon"
   >
@@ -22,18 +24,19 @@ const ChevronDown = () => (
   </svg>
 )
 
+
 const Header = () => {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
   const profileRef = useRef(null)
-  
+
   const isHomePage = pathname === '/'
   const isCodingPage = pathname === '/coding'
   const shouldShowProfile = !isHomePage && pathname !== '/auth/signin' && pathname !== '/auth/signup'
 
-  const handleRunCode = () => {
-    console.log('Running code...')
+  const handleImport = (importedData) => {
+    console.log('Imported data:', importedData);
   }
 
   const handleSubmitCode = () => {
@@ -42,9 +45,9 @@ const Header = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && profileRef.current && 
-          !menuRef.current.contains(event.target) && 
-          !profileRef.current.contains(event.target)) {
+      if (menuRef.current && profileRef.current &&
+        !menuRef.current.contains(event.target) &&
+        !profileRef.current.contains(event.target)) {
         setIsMenuOpen(false)
       }
     }
@@ -53,9 +56,40 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSignOut = () => {
-    console.log('Signing out...')
-  }
+  // const handleRunCode = async () => {
+  //   try {
+  //     const response = await axios.post('http://localhost:8000/code/run-code', {
+  //       code,
+  //     }, { withCredentials: true });
+  //
+  //     if (response.data.error) {
+  //       setError(response.data.error);
+  //       setOutput('');
+  //     } else {
+  //       setOutput(response.data.output);
+  //       setError('');
+  //     }
+  //   } catch (err) {
+  //     console.log(err);
+  //     setError('Error connecting to the server');
+  //     setOutput('');
+  //   }
+  // };
+
+  const handleSignOut = async () => {
+    try {
+      await axios.post('http://localhost:8000/auth/logout', {}, {
+        withCredentials: true,
+      });
+      setUser(null); // Clear user state
+      router.push('/auth/login'); // Redirect after logout
+      setUser(null);
+      router.push('/auth/login');
+    } catch (err) {
+      console.error('Error during logout:', err);
+      setError('Logout failed, please try again.');
+    }
+  };
 
   return (
     <header className="header">
@@ -77,7 +111,8 @@ const Header = () => {
         <div className="header-center">
           {isCodingPage && (
             <div className="toolbar">
-              <button onClick={handleRunCode} className="button run">
+              <StorageManager onImport={handleImport} />
+              <button className="button run">
                 Run Code
               </button>
               <button onClick={handleSubmitCode} className="button submit">
@@ -96,7 +131,7 @@ const Header = () => {
 
           {shouldShowProfile && (
             <div className="user-menu-container">
-              <div 
+              <div
                 className="user-info"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 ref={profileRef}
@@ -110,7 +145,7 @@ const Header = () => {
                 </div>
               </div>
 
-              <div 
+              <div
                 ref={menuRef}
                 className={`user-menu ${isMenuOpen ? 'active' : ''}`}
               >
@@ -118,7 +153,7 @@ const Header = () => {
                   <div className="user-full-name">Nattakit Ngamsanga</div>
                   <div className="user-email">nattakit.nga@example.com</div>
                 </div>
-                
+
                 <div className="menu-items">
                   <Link href="/profile" className="menu-item">
                     Profile
@@ -126,8 +161,8 @@ const Header = () => {
                   <Link href="/settings" className="menu-item">
                     Settings
                   </Link>
-                  <button 
-                    onClick={handleSignOut} 
+                  <button
+                    onClick={handleSignOut}
                     className="menu-item sign-out"
                   >
                     Sign Out

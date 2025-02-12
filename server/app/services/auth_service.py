@@ -1,6 +1,8 @@
 import os
+import json
 import httpx
 from urllib.parse import urlencode
+from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 from typing import Optional
 from fastapi import HTTPException, status, Response, Request
@@ -126,9 +128,11 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     jwt_token = create_access_token(
         data={"sub": email}, expires_delta=timedelta(hours=2)
     )
+    data = {"message": "Login successful", "token": jwt_token}
 
-    response = JSONResponse(content={"message": "Login successful", "token": jwt_token})
-    response.set_cookie(
+    redirect = RedirectResponse(url="http://localhost:3000/coding")
+
+    redirect.set_cookie(
         key="access_token",
         value=jwt_token,
         httponly=True,
@@ -137,7 +141,10 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
         max_age=7200,
     )
 
-    return response
+    # Add the data to headers
+    redirect.headers["X-Data"] = json.dumps(data)
+
+    return redirect
 
 
 async def logout(response: Response):

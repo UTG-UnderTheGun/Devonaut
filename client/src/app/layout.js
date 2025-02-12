@@ -1,8 +1,9 @@
 import './globals.css'
 import { Work_Sans } from 'next/font/google'
 import Header from '@/components/header.js'
+import { CodeProvider } from './context/CodeContext'
 
-const workSans = Work_Sans({ 
+const workSans = Work_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700']
 })
@@ -20,7 +21,9 @@ export default function RootLayout({ children }) {
           <Header />
           <div className='after-header'>
           </div>
-          {children}
+          <CodeProvider>
+            {children}
+          </CodeProvider>
 
         </div>
       </body>

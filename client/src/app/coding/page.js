@@ -1,119 +1,232 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import Data from '@/api/data';
 import './coding.css';
-import AIChatInterface from './ai-interface/ai-interface';
+import Editor from '@/components/editor';
+import Terminal from '@/components/Terminal';
 
 export default function CodingPage() {
-  const [code, setCode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('editorCode') || `# Definition for singly-linked list.
-# class ListNode(object):
-#     def __init__(self, val=0, next=None):
-#         self.val = val
-#         self.next = next
-class Solution(object):
-    def addTwoNumbers(self, l1, l2):
-        """
-        :type l1: Optional[ListNode]
-        :type l2: Optional[ListNode]
-        :rtype: Optional[ListNode]
-        """
-        # Your solution here`;
-    }
-    return '';
-  });
-  
-  const [consoleOutput, setConsoleOutput] = useState('');
-  const [isConsoleFolded, setIsConsoleFolded] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('isConsoleFolded') === 'true';
-    }
-    return false;
-  });
-  
-  const [isDescriptionFolded, setIsDescriptionFolded] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('isDescriptionFolded') === 'true';
-    }
-    return false;
-  });
-
+  const [chat, setChat] = useState([]);
+  const [user_id, setUser_id] = useState(null);
+  const [prompt, setPrompt] = useState("");
+  const [code, setCode] = useState("");
+  const [title, setTitle] = useState("solution.py");
+  const [description, setDescription] = useState("");
+  const [isConsoleFolded, setIsConsoleFolded] = useState(false);
+  const [isDescriptionFolded, setIsDescriptionFolded] = useState(false);
   const [selectedTab, setSelectedTab] = useState('solution');
   const [selectedDescriptionTab, setSelectedDescriptionTab] = useState('Description');
+  const [consoleOutput, setConsoleOutput] = useState('');
+  const [isClientLoaded, setIsClientLoaded] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('editorCode', code);
-    localStorage.setItem('isConsoleFolded', isConsoleFolded);
-    localStorage.setItem('isDescriptionFolded', isDescriptionFolded);
-  }, [code, isConsoleFolded, isDescriptionFolded]);
+    if (typeof window !== 'undefined') {
+      setIsClientLoaded(true);
+
+      const storedTitle = localStorage.getItem('problem-title');
+      const storedDescription = localStorage.getItem('problem-description');
+      const storedCode = localStorage.getItem('editorCode');
+      const storedConsoleFolded = localStorage.getItem('isConsoleFolded');
+      const storedDescriptionFolded = localStorage.getItem('isDescriptionFolded');
+
+      if (storedTitle) setTitle(storedTitle);
+      if (storedDescription) setDescription(storedDescription);
+      if (storedCode) setCode(storedCode);
+      if (storedConsoleFolded) setIsConsoleFolded(storedConsoleFolded === 'true');
+      if (storedDescriptionFolded) setIsDescriptionFolded(storedDescriptionFolded === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleImport = (event) => {
+      const { title: newTitle, description: newDescription, code: newCode } = event.detail;
+
+      setTitle(newTitle);
+      setDescription(newDescription);
+      setCode(newCode);
+    };
+
+    window.addEventListener('ide-import', handleImport);
+    return () => window.removeEventListener('ide-import', handleImport);
+  }, []);
+  useEffect(() => {
+    const initID = async () => {
+      try {
+        const responseData = await Data();
+        setUser_id(responseData.user_id);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    initID();
+  }, []);
+
+  useEffect(() => {
+    if (isClientLoaded) {
+      localStorage.setItem('editorCode', code);
+      localStorage.setItem('isConsoleFolded', isConsoleFolded);
+      localStorage.setItem('isDescriptionFolded', isDescriptionFolded);
+      localStorage.setItem('problem-title', title);
+      localStorage.setItem('problem-description', description);
+    }
+  }, [code, isConsoleFolded, isDescriptionFolded, title, description, isClientLoaded]);
+
+  useEffect(() => {
+    if (!isClientLoaded) return;
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'ide-import-timestamp') {
+        const newTitle = localStorage.getItem('problem-title');
+        const newDescription = localStorage.getItem('problem-description');
+        const newCode = localStorage.getItem('editorCode');
+
+        if (newTitle) setTitle(newTitle);
+        if (newDescription) setDescription(newDescription);
+        if (newCode) setCode(newCode);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isClientLoaded]);
 
   const handleCodeChange = (e) => {
     setCode(e.target.value);
   };
 
+  const handleTitleChange = (e) => {
+    setTitle(e.target.value);
+  };
+
+  const handleDescriptionChange = (e) => {
+    setDescription(e.target.value);
+  };
+
+  const handleAiChat = async () => {
+    if (!user_id || !prompt) {
+      console.warn("User ID or prompt is not set");
+      return;
+    }
+    setChat(prevChat => [
+      ...prevChat,
+      { user: prompt, ai: '' }
+    ]);
+    setPrompt("");
+    try {
+      const response = await fetch('http://localhost:8000/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id, prompt }),
+      });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let responseMessage = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        responseMessage += chunk;
+        setChat(prevChat => {
+          const newChat = [...prevChat];
+          newChat[newChat.length - 1].ai = responseMessage;
+          return newChat;
+        });
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setChat(prevChat => [
+        ...prevChat,
+        { user: prompt, ai: 'An error occurred while getting the response.' }
+      ]);
+    }
+  };
+
   const runCode = () => {
-    setConsoleOutput(`> python solution.py
-Input: [2,4,3], [5,6,4]
-Output: [7,0,8]
-Explanation: 342 + 465 = 807`);
+    setConsoleOutput('Running code...');
   };
 
-  const handleSubmit = () => {
-    console.log('Code submitted');
-  };
-
-  useEffect(() => {
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
+  if (!isClientLoaded) {
+    return <div className="coding-container">Loading...</div>;
+  }
 
   return (
     <div className="coding-container">
       <div className="main-content">
         <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
           <div className="panel-header">
-                <div className="description-tabs">
-                    <button 
-                    className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
-                    onClick={() => setSelectedDescriptionTab('Description')}
-                    >
-                    Description
-                    </button>
-                    <button 
-                    className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
-                    onClick={() => setSelectedDescriptionTab('ASK AI')}
-                    >
-                    ASK AI
-                    </button>
-                </div>
-                    <button 
-                    className="fold-button"
-                    onClick={() => setIsDescriptionFolded(!isDescriptionFolded)}
-                    >
-                    {isDescriptionFolded ? '►' : '◄'}
-                    </button>
+            <div className="description-tabs">
+              <button
+                className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
+                onClick={() => setSelectedDescriptionTab('Description')}
+              >
+                Description
+              </button>
+              <button
+                className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
+                onClick={() => setSelectedDescriptionTab('ASK AI')}
+              >
+                ASK AI
+              </button>
             </div>
-          
+            <button
+              className="fold-button"
+              onClick={() => setIsDescriptionFolded(!isDescriptionFolded)}
+            >
+              {isDescriptionFolded ? '►' : '◄'}
+            </button>
+          </div>
+
           <div className="panel-content">
             {selectedDescriptionTab === 'Description' ? (
               <>
-                <h2>Add Two Numbers</h2>
-                <br></br>
-                <p>You are given two <strong>non-empty</strong> linked lists representing two non-negative integers. The digits are stored in <strong>reverse order</strong>, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.</p>
-                <p>You may assume the two numbers do not contain any leading zero, except the number 0 itself.</p>
-                
-                <div className="example">
-                  <div>Input: l1 = [2,4,3], l2 = [5,6,4]</div>
-                  <div>Output: [7,0,8]</div>
-                  <div>Explanation: 342 + 465 = 807.</div>
-                </div>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={handleTitleChange}
+                  className="w-full p-2 mb-4 text-xl font-bold bg-transparent border-b border-gray-300 focus:outline-none focus:border-blue-500"
+                  placeholder="Enter problem title..."
+                />
+                <textarea
+                  value={description}
+                  onChange={handleDescriptionChange}
+                  className="w-full h-40 p-2 mb-4 bg-transparent border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  placeholder="Enter problem description..."
+                />
               </>
             ) : (
               <div className="ask-ai-content">
-                <p>Ask questions about this problem and get AI assistance!</p>
-                <AIChatInterface />
+                {chat.map((chatEntry, index) => (
+                  <div key={index} className='display-container'>
+                    <div className='user-prompt'>
+                      <div className='user-prompt-content'>
+                        {chatEntry.user}
+                      </div>
+                    </div>
+                    <div className='ai-response'>
+                      <div className='ai-response-content'>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                        >
+                          {chatEntry.ai}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className='chat-box-container'>
+                  <textarea
+                    className='chat-box-input'
+                    placeholder='Type your message here...'
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                  />
+                  <button className='chat-box-send' onClick={handleAiChat}>Send</button>
+                </div>
               </div>
             )}
           </div>
@@ -123,7 +236,7 @@ Explanation: 342 + 465 = 807`);
           <div className="code-editor">
             <div className="editor-header">
               <div className="file-tabs">
-                <div 
+                <div
                   className="tab"
                   aria-selected={selectedTab === 'solution'}
                   role="tab"
@@ -135,15 +248,17 @@ Explanation: 342 + 465 = 807`);
                     }
                   }}
                 >
-                  Solution.py
+                  {title}
                 </div>
               </div>
             </div>
+            <Editor />
             <textarea
               value={code}
               onChange={handleCodeChange}
               className="code-area"
               spellCheck="false"
+              placeholder="Write your solution here..."
             />
           </div>
 
@@ -158,7 +273,7 @@ Explanation: 342 + 465 = 807`);
               </button>
             </div>
             <div className="console-content">
-              <pre>{consoleOutput}</pre>
+              <Terminal />
             </div>
           </div>
         </div>
