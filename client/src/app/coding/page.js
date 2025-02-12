@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,7 +11,7 @@ export default function CodingPage() {
   const [chat, setChat] = useState([]);
   const [user_id, setUser_id] = useState(null);
   const [prompt, setPrompt] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState("# write code here");
   const [title, setTitle] = useState("solution.py");
   const [description, setDescription] = useState("");
   const [isConsoleFolded, setIsConsoleFolded] = useState(false);
@@ -44,14 +43,26 @@ export default function CodingPage() {
     const handleImport = (event) => {
       const { title: newTitle, description: newDescription, code: newCode } = event.detail;
 
-      setTitle(newTitle);
-      setDescription(newDescription);
-      setCode(newCode);
+      if (newTitle) {
+        setTitle(newTitle);
+        localStorage.setItem('problem-title', newTitle);
+      }
+
+      if (newDescription) {
+        setDescription(newDescription);
+        localStorage.setItem('problem-description', newDescription);
+      }
+
+      if (newCode) {
+        setCode(newCode);
+        localStorage.setItem('editorCode', newCode);
+      }
     };
 
-    window.addEventListener('ide-import', handleImport);
-    return () => window.removeEventListener('ide-import', handleImport);
+    window.addEventListener('ide-data-import', handleImport);
+    return () => window.removeEventListener('ide-data-import', handleImport);
   }, []);
+
   useEffect(() => {
     const initID = async () => {
       try {
@@ -93,16 +104,21 @@ export default function CodingPage() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [isClientLoaded]);
 
-  const handleCodeChange = (e) => {
-    setCode(e.target.value);
-  };
-
   const handleTitleChange = (e) => {
-    setTitle(e.target.value);
+    const newTitle = e.target.value;
+    setTitle(newTitle);
+    localStorage.setItem('problem-title', newTitle);
   };
 
   const handleDescriptionChange = (e) => {
-    setDescription(e.target.value);
+    const newDescription = e.target.value;
+    setDescription(newDescription);
+    localStorage.setItem('problem-description', newDescription);
+  };
+
+  const handleCodeChange = (newCode) => {
+    setCode(newCode);
+    localStorage.setItem('editorCode', newCode);
   };
 
   const handleAiChat = async () => {
@@ -110,11 +126,9 @@ export default function CodingPage() {
       console.warn("User ID or prompt is not set");
       return;
     }
-    setChat(prevChat => [
-      ...prevChat,
-      { user: prompt, ai: '' }
-    ]);
+    setChat(prevChat => [...prevChat, { user: prompt, ai: '' }]);
     setPrompt("");
+
     try {
       const response = await fetch('http://localhost:8000/ai/chat', {
         method: 'POST',
@@ -123,9 +137,11 @@ export default function CodingPage() {
         },
         body: JSON.stringify({ user_id, prompt }),
       });
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let responseMessage = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -209,9 +225,7 @@ export default function CodingPage() {
                     </div>
                     <div className='ai-response'>
                       <div className='ai-response-content'>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                        >
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {chatEntry.ai}
                         </ReactMarkdown>
                       </div>
@@ -252,13 +266,10 @@ export default function CodingPage() {
                 </div>
               </div>
             </div>
-            <Editor />
-            <textarea
-              value={code}
+            <Editor
+              isCodeQuestion={true}
+              initialValue={code}
               onChange={handleCodeChange}
-              className="code-area"
-              spellCheck="false"
-              placeholder="Write your solution here..."
             />
           </div>
 
