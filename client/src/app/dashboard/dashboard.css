@@ -1,4 +1,3 @@
-/* Variables */
 :root {
     --primary: #7C3AED;
     --primary-light: #D7C7F3;
@@ -16,12 +15,15 @@
     --gray-700: #374151;
     --gray-800: #1F2937;
     --background-gradient: radial-gradient(92.73% 100% at 50% 0%, #000 40.5%, var(--primary) 63.5%, #9A69EF 78.5%, var(--primary-light) 100%);
-    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --transition-speed: 0.2s;
 }
 
-/* Layout */
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--background-gradient);
+    min-height: 100vh;
+}
+
 .dashboard {
     width: 100%;
     min-height: 100vh;
@@ -31,10 +33,12 @@
 .dashboard-content {
     max-width: 1100px;
     margin: 0 auto;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
 }
 
+/* Tabs */
 .tabs {
     max-width: 1100px;
     margin: 3rem auto 1rem;
@@ -119,61 +123,54 @@
     transform: scale(1.1);
 }
 
-/* Section Headers */
-.section-header {
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.section-header2 {
-    color: black;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.section-header h2 {
-    font-size: 1.125rem;
-    font-weight: 600;
-}
-
-.section-header2 h2 {
-    font-size: 1.125rem;
-    font-weight: 600;
-}
-
-.section-subtitle {
-    font-size: 0.875rem;
-    color: var(--gray-300);
-}
-
 /* Assignment Cards */
-.assignment-link {
-    text-decoration: none;
-    display: block;
-}
-
 .assignment-card-dashboard {
     background: white;
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 1rem;
-    margin-bottom: 0.75rem;
-    transition: all var(--transition-speed) ease;
-    border: 1px solid transparent;
+    margin-bottom: 0.5rem;
+    transition: transform 0.2s;
 }
 
 .assignment-card-dashboard:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--card-shadow-hover);
-    border-color: var(--primary-light);
+    transform: translateY(-2px);
 }
 
-.assignment-card-dashboard.urgent {
-    border-left: 3px solid var(--warning);
+.assignment-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.assignment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    position: relative;
+}
+
+.assignment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.assignment-points {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-700);
+    text-align: right;
+}
+
+.chevron-icon {
+    font-size: 1.25rem;
+    color: var(--gray-400);
+    margin-left: 0.25rem;
+    display: flex;
+    align-items: center;
 }
 
 .assignment-info {
@@ -187,89 +184,93 @@
     margin-bottom: 0.25rem;
 }
 
-.assignment-icon {
-    width: 1rem;
-    height: 1rem;
-    color: var(--primary);
-}
-
 .assignment-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--gray-800);
+    margin: 0;
 }
 
 .assignment-meta {
     display: flex;
     align-items: center;
     gap: 1rem;
-    font-size: 0.875rem;
     color: var(--gray-500);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
 }
 
-.assignment-chapter {
-    display: flex;
-    align-items: center;
-}
-
-.due-time {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.time-icon {
-    width: 0.875rem;
-    height: 0.875rem;
-}
-
-.assignment-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-}
-
-.assignment-actions {
+.chapter-progress {
+    margin-top: 0.5rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
 }
 
-.assignment-points {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-700);
+.progress-bar {
+    flex: 1;
+    height: 6px;
     background: var(--gray-100);
-    padding: 0.25rem 0.5rem;
-    border-radius: 6px;
+    border-radius: 999px;
+    overflow: hidden;
 }
 
-.chevron-icon {
-    width: 1rem;
-    height: 1rem;
-    color: var(--gray-400);
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 999px;
+}
+
+.progress-text {
+    min-width: 5rem;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+.assignment-points {
+    background: var(--gray-100);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    font-weight: 500;
 }
 
 /* Performance Section */
 .performance {
     background: white;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-top: 1rem;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.section-header, .section-header2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header {
+    color: white;
+}
+
+.section-header2 {
+    color: var(--gray-800);
+}
+
+.section-header h2,
+.section-header2 h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
 }
 
 .overall-score {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
+    gap: 0.25rem;
     color: var(--success);
-}
-
-.score-icon {
-    width: 1rem;
-    height: 1rem;
+    font-size: 0.875rem;
 }
 
 .progress-container {
@@ -281,53 +282,29 @@
 .progress-row {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .progress-info {
-    width: 8rem;
-    display: flex;
-    flex-direction: column;
+    width: 6rem;
 }
 
 .progress-label {
     font-size: 0.75rem;
-    font-weight: 500;
     color: var(--gray-500);
+    display: block;
 }
 
 .progress-title {
     font-size: 0.875rem;
     color: var(--gray-700);
-}
-
-.progress-bar {
-    flex: 1;
-    height: 0.5rem;
-    background: var(--gray-100);
-    border-radius: 999px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    border-radius: 999px;
-    transition: width 0.5s ease-out;
-}
-
-.progress-fill.complete {
-    background: linear-gradient(90deg, var(--success) 0%, #34D399 100%);
-}
-
-.progress-fill.partial {
-    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+    display: block;
 }
 
 .progress-score {
-    width: 3rem;
+    min-width: 3rem;
     text-align: right;
     font-size: 0.875rem;
-    font-weight: 500;
     color: var(--gray-700);
 }
 
@@ -335,4 +312,33 @@
     margin-top: 0.5rem;
     padding-top: 0.5rem;
     border-top: 1px solid var(--gray-200);
+}
+
+.progress-fill.complete {
+    background: var(--success);
+}
+
+.progress-fill.partial {
+    background: var(--primary);
+}
+
+@media (max-width: 640px) {
+    .dashboard {
+        padding: 0.5rem;
+    }
+    
+    .assignment-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .assignment-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .progress-info {
+        width: 4rem;
+    }
 }
