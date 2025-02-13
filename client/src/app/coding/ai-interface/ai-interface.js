@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './ai-interface.css';
 
 const SendIcon = () => (
@@ -22,8 +24,8 @@ const WELCOME_MESSAGE = {
   timestamp: new Date()
 };
 
-const AIChatInterface = () => {
-  const [messages, setMessages] = useState([]);
+const AIChatInterface = ({ user_id }) => {
+  const [chat, setChat] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [questionsLeft, setQuestionsLeft] = useState(5);
   const messagesEndRef = useRef(null);
@@ -35,38 +37,77 @@ const AIChatInterface = () => {
     "Give me a hint"
   ];
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() === '' || questionsLeft <= 0) return;
-    
-    const userMessage = {
-      id: messages.length + 1,
+  const handleSendMessage = async () => {
+    if (!user_id || !newMessage.trim() || questionsLeft <= 0) {
+      console.warn("User ID or message is not set");
+      return;
+    }
+
+    const userMessageObject = {
+      id: chat.length + 1,
       text: newMessage,
       isUser: true,
       timestamp: new Date()
     };
-    
-    setMessages(prev => [...prev, userMessage]);
+
+    setChat(prev => [...prev, userMessageObject]);
     setNewMessage('');
     setQuestionsLeft(prev => Math.max(0, prev - 1));
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
-        id: messages.length + 2,
-        text: "I understand your question. Let me help you with that...",
+    try {
+      const response = await fetch('http://localhost:8000/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          user_id, 
+          prompt: newMessage 
+        }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiMessageObject = {
+        id: chat.length + 2,
+        text: '',
         isUser: false,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        aiMessageObject.text += chunk;
+        setChat(prev => {
+          const newChat = [...prev];
+          const lastMessage = newChat[newChat.length - 1];
+          if (lastMessage.isUser) {
+            return [...newChat, aiMessageObject];
+          } else {
+            newChat[newChat.length - 1] = { ...aiMessageObject };
+            return newChat;
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+      const errorMessage = {
+        id: chat.length + 2,
+        text: 'An error occurred while getting the response.',
+        isUser: false,
+        timestamp: new Date()
+      };
+      setChat(prev => [...prev, errorMessage]);
+    }
   };
 
-  // Only scroll when new messages are added (not including welcome message)
   useEffect(() => {
-    if (messages.length > 0) {
+    if (chat.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [chat]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -79,44 +120,45 @@ const AIChatInterface = () => {
     setNewMessage(suggestion);
   };
 
+  const renderMessage = (message) => {
+    if (message.isUser) {
+      return (
+        <div className="message-content user">
+          <div className="message-text">{message.text}</div>
+          <div className="message-time">{formatTime(message.timestamp)}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="ai-message-container">
+        <div className="ai-avatar">AI</div>
+        <div className="message-content ai">
+          <div className="message-text">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.text}
+            </ReactMarkdown>
+          </div>
+          <div className="message-time">{formatTime(message.timestamp)}</div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="chat-interface">
-      <div className="chat-welcome">
-        <div className="welcome-title">AI Coding Assistant</div>
-        <div className="welcome-subtitle">Ask me anything about the problem or your code!</div>
-      </div>
-
       <div className="chat-content">
         <div className="chat-messages">
           <div className="message-wrapper ai">
-            <div className="ai-message-container">
-              <div className="ai-avatar">AI</div>
-              <div className="message-content ai">
-                <div className="message-text">{WELCOME_MESSAGE.text}</div>
-                <div className="message-time">{formatTime(WELCOME_MESSAGE.timestamp)}</div>
-              </div>
-            </div>
+            {renderMessage(WELCOME_MESSAGE)}
           </div>
           
-          {messages.map((message) => (
+          {chat.map((message) => (
             <div
               key={message.id}
               className={`message-wrapper ${message.isUser ? 'user' : 'ai'}`}
             >
-              {message.isUser ? (
-                <div className="message-content user">
-                  <div className="message-text">{message.text}</div>
-                  <div className="message-time">{formatTime(message.timestamp)}</div>
-                </div>
-              ) : (
-                <div className="ai-message-container">
-                  <div className="ai-avatar">AI</div>
-                  <div className="message-content ai">
-                    <div className="message-text">{message.text}</div>
-                    <div className="message-time">{formatTime(message.timestamp)}</div>
-                  </div>
-                </div>
-              )}
+              {renderMessage(message)}
             </div>
           ))}
           <div ref={messagesEndRef} />

@@ -18,13 +18,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={workSans.className}>
         <div className="landing-page">
-          <Header />
-          <div className='after-header'>
-          </div>
           <CodeProvider>
+            <Header />
+            <div className='after-header'>
+            </div>
             {children}
           </CodeProvider>
-
         </div>
       </body>
     </html>

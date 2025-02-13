@@ -6,6 +6,10 @@ import Data from '@/api/data';
 import './coding.css';
 import Editor from '@/components/editor';
 import Terminal from '@/components/Terminal';
+import Loading from "@/app/loading";
+import StorageManager from '@/components/StorageManager';
+import AIChatInterface from './ai-interface/ai-interface';
+
 
 export default function CodingPage() {
   const [chat, setChat] = useState([]);
@@ -20,6 +24,14 @@ export default function CodingPage() {
   const [selectedDescriptionTab, setSelectedDescriptionTab] = useState('Description');
   const [consoleOutput, setConsoleOutput] = useState('');
   const [isClientLoaded, setIsClientLoaded] = useState(false);
+
+  const handleImport = (importedData) => {
+    console.log('Imported data:', importedData);
+  }
+
+  const handleSubmitCode = () => {
+    console.log('Submitting code...')
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -167,7 +179,7 @@ export default function CodingPage() {
   };
 
   if (!isClientLoaded) {
-    return <div className="coding-container">Loading...</div>;
+    return <Loading />;
   }
 
   return (
@@ -204,20 +216,20 @@ export default function CodingPage() {
                   type="text"
                   value={title}
                   onChange={handleTitleChange}
-                  className="w-full p-2 mb-4 text-xl font-bold bg-transparent border-b border-gray-300 focus:outline-none focus:border-blue-500"
+                  className="problem-tiltle"
                   placeholder="Enter problem title..."
                 />
                 <textarea
                   value={description}
                   onChange={handleDescriptionChange}
-                  className="w-full h-40 p-2 mb-4 bg-transparent border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  className="problem-desciption"
                   placeholder="Enter problem description..."
                 />
               </>
             ) : (
-              <div className="">
-                <AIChatInterface />
-              </div>
+                <div className="ask-ai-content">
+                  <AIChatInterface user_id={user_id} />
+                </div>
             )}
           </div>
         </div>
@@ -240,6 +252,8 @@ export default function CodingPage() {
                 >
                   {title}
                 </div>
+                <StorageManager onImport={handleImport} />
+                
               </div>
             </div>
             <Editor
@@ -268,3 +282,4 @@ export default function CodingPage() {
     </div>
   );
 }
+

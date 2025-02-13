@@ -9,12 +9,11 @@ import { useRouter } from 'next/navigation';
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 export default function Editor({ isCodeQuestion }) {
-  const [code, setCode] = useState('# write code here');
   const [editorHeight, setEditorHeight] = useState(100);
   const [user, setUser] = useState(null);
   const [textareaHeight, setTextareaHeight] = useState('auto');
   const router = useRouter();
-  const { setOutput, setError, setOpenTerm, output, error } = useCodeContext();
+  const { code, setCode, setOutput, setError, setOpenTerm, output, error } = useCodeContext();
 
   useEffect(() => {
     const savedCode = localStorage.getItem('editorCode');
@@ -110,10 +109,10 @@ export default function Editor({ isCodeQuestion }) {
   return (
     <div className="content-container">
       <div className="code-question-content">
+      <button onClick={handleRunCode} className="button run">
+                Run Code
+              </button>
         <div className="editor" style={{ height: "500px" }}>
-          <div className='run-test-container'>
-            <button onClick={handleRunCode} className='run-button'>Run</button>
-          </div>
           <MonacoEditor
             height="100%"
             width="100%"

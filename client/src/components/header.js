@@ -7,6 +7,9 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import './header.css'
 import './user-menu.css'
+import axios from 'axios';  // เพิ่มบรรทัดนี้
+
+
 
 const ChevronDown = () => (
   <svg
@@ -34,6 +37,8 @@ const Header = () => {
   const isHomePage = pathname === '/'
   const isCodingPage = pathname === '/coding'
   const shouldShowProfile = !isHomePage && pathname !== '/auth/signin' && pathname !== '/auth/signup'
+  const { code, setOutput, setError, setOpenTerm, output, error } = useCodeContext();
+
 
   const handleImport = (importedData) => {
     console.log('Imported data:', importedData);
@@ -56,25 +61,24 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // const handleRunCode = async () => {
-  //   try {
-  //     const response = await axios.post('http://localhost:8000/code/run-code', {
-  //       code,
-  //     }, { withCredentials: true });
-  //
-  //     if (response.data.error) {
-  //       setError(response.data.error);
-  //       setOutput('');
-  //     } else {
-  //       setOutput(response.data.output);
-  //       setError('');
-  //     }
-  //   } catch (err) {
-  //     console.log(err);
-  //     setError('Error connecting to the server');
-  //     setOutput('');
-  //   }
-  // };
+  const handleRunCode = async () => {
+      try {
+        const response = await axios.post('http://localhost:8000/code/run-code', {
+          code,
+        }, { withCredentials: true });
+        if (response.data.error) {
+          setError(response.data.error);
+          setOutput('');
+        } else {
+          setOutput(response.data.output);
+          setError('');
+        }
+      } catch (err) {
+        console.log(err);
+        setError('Error connecting to the server');
+        setOutput('');
+      }
+    };
 
   const handleSignOut = async () => {
     try {
@@ -112,7 +116,7 @@ const Header = () => {
           {isCodingPage && (
             <div className="toolbar">
               <StorageManager onImport={handleImport} />
-              <button className="button run">
+              <button onClick={handleRunCode} className="button run">
                 Run Code
               </button>
               <button onClick={handleSubmitCode} className="button submit">

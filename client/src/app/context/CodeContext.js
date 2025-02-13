@@ -1,22 +1,93 @@
 "use client"
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const CodeContext = createContext();
 
-export const CodeProvider = ({ children }) => {
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState('');
-  const [openTerm, setOpenTerm] = useState(false)
-  const [openChat, setOpenChat] = useState(false)
-  const [openCreate, setOpenCreate] = useState(false)
+// เพิ่ม code ใน initialState
+const initialState = {
+  code: '# write code here', // เพิ่มบรรทัดนี้
+  output: '',
+  error: null,
+  openTerm: false,
+  openChat: false,
+  openCreate: false,
+};
+
+export const CodeProvider = ({ children, initialOutput = '' }) => {
+  const [state, setState] = useState({
+    ...initialState,
+    output: initialOutput,
+  });
+
+  // เพิ่ม setCode function
+  const setCode = useCallback((code) => {
+    setState(prev => ({ ...prev, code }));
+  }, []);
+
+  const setOutput = useCallback((output) => {
+    setState(prev => ({ ...prev, output }));
+  }, []);
+
+  const setError = useCallback((error) => {
+    setState(prev => ({ ...prev, error }));
+  }, []);
+
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+  }, []);
+
+  const toggleTerminal = useCallback(() => {
+    setState(prev => ({ ...prev, openTerm: !prev.openTerm }));
+  }, []);
+
+  const toggleChat = useCallback(() => {
+    setState(prev => ({ ...prev, openChat: !prev.openChat }));
+  }, []);
+
+  const toggleCreate = useCallback(() => {
+    setState(prev => ({ ...prev, openCreate: !prev.openCreate }));
+  }, []);
+
+  const resetState = useCallback(() => {
+    setState(initialState);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      resetState();
+    };
+  }, [resetState]);
+
+  const contextValue = {
+    ...state,
+    setCode,      // เพิ่มบรรทัดนี้
+    setOutput,
+    setError,
+    clearError,
+    toggleTerminal,
+    toggleChat,
+    toggleCreate,
+    resetState,
+  };
 
   return (
-    <CodeContext.Provider value={{ output, setOutput, error, setError, openTerm, setOpenTerm, openChat, setOpenChat, openCreate, setOpenCreate }}>
+    <CodeContext.Provider value={contextValue}>
       {children}
     </CodeContext.Provider>
   );
 };
 
 export const useCodeContext = () => {
-  return useContext(CodeContext);
+  const context = useContext(CodeContext);
+  
+  if (!context) {
+    throw new Error('useCodeContext must be used within a CodeProvider');
+  }
+  
+  return context;
 };
+
+export const useCodeState = () => {
+  const { code, output, error, openTerm, openChat, openCreate } = useCodeContext();
+  return { code, output, error, openTerm, openChat, openCreate };
+};  
