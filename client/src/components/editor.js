@@ -4,15 +4,41 @@ import GlassBox from './glass-box';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
 import './editor.css';
+import { useRouter } from 'next/navigation';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 export default function Editor({ isCodeQuestion }) {
   const [code, setCode] = useState('# write code here');
   const [editorHeight, setEditorHeight] = useState(100);
-  const [textareaHeight, setTextareaHeight] = useState('auto'); // State for textarea height
-
+  const [user, setUser] = useState(null);
+  const [textareaHeight, setTextareaHeight] = useState('auto');
+  const router = useRouter();
   const { setOutput, setError, setOpenTerm, output, error } = useCodeContext();
+
+  useEffect(() => {
+    const savedCode = localStorage.getItem('editorCode');
+    if (savedCode) {
+      setCode(savedCode);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (code !== '# write code here') { // Only save if it's not the default value
+      localStorage.setItem('editorCode', code);
+    }
+  }, [code]);
+
+  useEffect(() => {
+    const handleImport = (event) => {
+      if (event.detail && event.detail.code) {
+        setCode(event.detail.code);
+      }
+    };
+
+    window.addEventListener('ide-data-import', handleImport);
+    return () => window.removeEventListener('ide-data-import', handleImport);
+  }, []);
 
   const handleEditorDidMount = (editor, monaco) => {
     monaco.editor.defineTheme('transparentTheme', {
@@ -31,13 +57,27 @@ export default function Editor({ isCodeQuestion }) {
     editor.updateOptions({ theme: 'transparentTheme' });
   };
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/users/me', {
+          withCredentials: true,
+        });
+        setUser(response.data);
+      } catch (err) {
+        console.error('Error fetching user:', err);
+        setError('Not authenticated');
+        router.push('/auth/signin');
+      }
+    };
+    fetchUser();
+  }, [router]);
+
   const handleRunCode = async () => {
-    setOpenTerm(true);
     try {
       const response = await axios.post('http://localhost:8000/code/run-code', {
         code,
-      });
-
+      }, { withCredentials: true });
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
@@ -63,61 +103,34 @@ export default function Editor({ isCodeQuestion }) {
     calculateEditorHeight(lineCount);
   }, [code]);
 
-  const handleTextareaInput = (event) => {
-    const textarea = event.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-    setTextareaHeight(`${textarea.scrollHeight}px`);
+  const handleEditorChange = (value) => {
+    setCode(value);
   };
 
   return (
     <div className="content-container">
-      <GlassBox size={{ width: '95%', borderRadius: '0 0 0.5rem 0.5rem', backgroundColor: "#2B2B2B" }}>
-        <div className="code-question-content">
-          {isCodeQuestion &&
-            <div className='output-example'>
-              <GlassBox size={{ width: '90%', borderRadius: '0 0 .5rem .5rem', backgroundColor: "#404040" }}>
-                <div className='example-content-container'>
-                  <div className='example-terminal'>
-                    Terminal
-                  </div>
-                  <hr />
-                  <div className='example-content'>
-                    <textarea
-                      className='example-input'
-                      onInput={handleTextareaInput}
-                      style={{ height: textareaHeight, overflow: 'hidden' }}
-                    />
-                  </div>
-                </div>
-              </GlassBox>
-            </div>
-          }
-          <div className="editor" style={{ height: `${editorHeight}px`, overflow: 'hidden' }}>
-            <div className='run-test-container'>
-              <button className='run-button' onClick={handleRunCode}>Run</button>
-              <button className='test-button'>Test</button>
-            </div>
-            <MonacoEditor
-              height="100%"
-              language="python"
-              theme="transparentTheme"
-              value={code}
-              onChange={(value) => setCode(value)}
-              options={{
-                scrollBeyondLastLine: false,
-                scrollbar: {
-                  vertical: 'hidden',
-                },
-                minimap: { enabled: false },
-                contextmenu: false,
-                automaticLayout: true,
-              }}
-              onMount={handleEditorDidMount}
-            />
+      <div className="code-question-content">
+        <div className="editor" style={{ height: "500px" }}>
+          <div className='run-test-container'>
+            <button onClick={handleRunCode} className='run-button'>Run</button>
           </div>
+          <MonacoEditor
+            height="100%"
+            width="100%"
+            language="python"
+            theme="transparentTheme"
+            value={code}
+            onChange={handleEditorChange}
+            options={{
+              scrollBeyondLastLine: false,
+              minimap: { enabled: false },
+              contextmenu: false,
+              automaticLayout: true,
+            }}
+            onMount={handleEditorDidMount}
+          />
         </div>
-      </GlassBox >
-    </div >
+      </div>
+    </div>
   );
 }

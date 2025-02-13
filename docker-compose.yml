@@ -1,5 +1,4 @@
 version: "3.8"
-
 services:
   server:
     build:
@@ -11,15 +10,44 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./server:/app  # Bind mount local server directory to container
       - /app/__pycache__/  # Prevent caching issues
     depends_on:
       - mongo
+      - redis
     environment:
       - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
       - SECRET_KEY=SDflkjsdS:DLKFJ
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - app-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload  # Enable auto-reload
+
+  redis:
+    image: redis:alpine
+    container_name: devonaut-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+    command: redis-server --appendonly yes
+    restart: always
 
   mongo:
     image: mongo:latest
@@ -30,6 +58,15 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: example
     ports:
       - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 512M
 
   client:
     build:
@@ -46,4 +83,19 @@ services:
     environment:
       - NODE_ENV=development
       - SERVER_API=http://server:8000
-    command: npm run dev  
+    networks:
+      - app-network
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.3'
+    #       memory: 512M
+    command: npm run dev
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  mongo-data:

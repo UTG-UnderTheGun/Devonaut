@@ -2,11 +2,13 @@
   position: absolute;
   z-index: 10;
   right: 0;
+  top: 5.25rem;
   justify-content: right;
   margin: .5rem 1rem;
 }
 
 .run-button, .test-button{
+  margin-top: -2rem;
   background-color: #1C111B;
   color: white;
   width: 80px;

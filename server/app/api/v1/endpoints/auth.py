@@ -1,19 +1,55 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
-from fastapi.security import OAuth2PasswordRequestForm
-from app.services.auth_service import login, register, logout
-from app.db.schemas import User, Token
+from fastapi import APIRouter, HTTPException, Response, Request
+from fastapi.responses import RedirectResponse
+from typing import Optional
+from app.services.auth_service import (
+    login,
+    register,
+    logout,
+    process_google_callback,
+    get_google_auth_url,
+)
+from app.db.schemas import User
 
 router = APIRouter()
 
+
+@router.get("/google")
+async def google_login():
+    auth_url = await get_google_auth_url()
+    print(f"Redirecting to Google Auth URL: {auth_url}")
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/google/callback")
+async def google_callback(request: Request):
+    query_params = request.query_params
+    print(f"Received callback with params: {dict(query_params)}")
+
+    if "error" in query_params:
+        raise HTTPException(
+            status_code=400, detail=f"Google OAuth error: {query_params['error']}"
+        )
+
+    code = query_params.get("code")
+    if not code:
+        raise HTTPException(
+            status_code=400, detail="Authorization code missing from callback URL"
+        )
+
+    return await process_google_callback(request, code)
+
+
 @router.post("/register", response_model=User)
 async def register_user(user: User):
+    print("test")
     return await register(user)
+
 
 @router.post("/token")
 async def login_user(response: Response, user: User):
     return await login(response, user)
 
+
 @router.post("/logout")
 async def logout_user(response: Response):
     return await logout(response)
-
