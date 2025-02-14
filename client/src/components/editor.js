@@ -109,9 +109,6 @@ export default function Editor({ isCodeQuestion }) {
   return (
     <div className="content-container">
       <div className="code-question-content">
-      <button onClick={handleRunCode} className="button run">
-                Run Code
-              </button>
         <div className="editor" style={{ height: "500px" }}>
           <MonacoEditor
             height="100%"
