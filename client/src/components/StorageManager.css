@@ -1,0 +1,50 @@
+.import-tab {
+    display: flex;
+    gap: 0.25rem;  /* Reduced gap */
+}
+
+.import-tab button {
+    padding: 0.25rem 0.5rem;  /* Reduced padding */
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #6b7280;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.75rem;  /* Smaller font size */
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.import-tab button:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+    background: #f9fafb;
+}
+
+/* Hide default file input text */
+.import-tab input[type="file"] {
+    display: none;
+}
+
+/* Updated styling for import/export text */
+.import-section {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.import-section button {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;  /* Allow button to shrink */
+    white-space: nowrap;  /* Prevent text wrapping */
+}
+
+/* Optional: if you want to use icons */
+.import-section button svg {
+    width: 14px;  /* Smaller icon size */
+    height: 14px;
+}

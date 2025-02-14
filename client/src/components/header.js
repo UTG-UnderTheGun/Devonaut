@@ -115,7 +115,7 @@ const Header = () => {
         <div className="header-center">
           {isCodingPage && (
             <div className="toolbar">
-              <StorageManager onImport={handleImport} />
+              {/* <StorageManager onImport={handleImport} /> */}
               <button onClick={handleRunCode} className="button run">
                 Run Code
               </button>
