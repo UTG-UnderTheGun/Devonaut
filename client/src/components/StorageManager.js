@@ -1,16 +1,17 @@
 // StorageManager.js
 import React, { useRef } from 'react';
-import '@/components/StorageManager.css'
+import '@/components/StorageManager.css';
+import { useCodeContext } from '@/app/context/CodeContext';
 
 const StorageManager = () => {
   const fileInputRef = useRef(null);
+  const { code, setCode } = useCodeContext(); // Get code and setCode from context
 
   const exportData = () => {
     try {
-      const code = localStorage.getItem('editorCode') || '';
       const title = localStorage.getItem('problem-title') || 'solution.py';
 
-      // Create a Blob with just the code content
+      // Create a Blob with the current code
       const blob = new Blob([code], {
         type: 'text/plain'
       });
@@ -18,7 +19,6 @@ const StorageManager = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      // Use .py extension for the downloaded file
       link.download = `${title.toLowerCase().replace(/\s+/g, '_')}.py`;
       document.body.appendChild(link);
       link.click();
@@ -30,18 +30,21 @@ const StorageManager = () => {
     }
   };
 
-  // Rest of the code remains the same
   const importData = async (file) => {
     try {
       const text = await file.text();
-      // Check if the file is JSON or Python
+      
       if (file.name.endsWith('.json')) {
         const data = JSON.parse(text);
         if (data.title) localStorage.setItem('problem-title', data.title);
         if (data.description) localStorage.setItem('problem-description', data.description);
-        if (data.code) localStorage.setItem('editorCode', data.code);
+        if (data.code) {
+          setCode(data.code);
+          localStorage.setItem('editorCode', data.code);
+        }
       } else {
         // If it's a .py file, just import the code
+        setCode(text);
         localStorage.setItem('editorCode', text);
       }
 
