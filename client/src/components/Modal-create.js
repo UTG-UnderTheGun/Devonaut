@@ -1,4 +1,4 @@
-import './Mocal-create.css';
+import './Modal-create.css';
 import { useCodeContext } from '@/app/context/CodeContext';
 import { useState } from 'react';
 

@@ -3,7 +3,7 @@ import { useCodeContext } from '@/app/context/CodeContext';
 import StorageManager from './StorageManager';
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import './header.css'
 import './user-menu.css'
@@ -30,6 +30,7 @@ const ChevronDown = () => (
 
 const Header = () => {
   const pathname = usePathname()
+  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
   const profileRef = useRef(null)
