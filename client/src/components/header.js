@@ -124,12 +124,13 @@ const Header = () => {
 
         <div className="header-center">
           {isCodingPage && (
-            <div className="toolbar">
-              {/* <StorageManager onImport={handleImport} /> */}
-              <button onClick={handleRunCode} className="button run">
-                Run Code
+            <div className="coding-actions">
+              <button onClick={handleRunCode} className="action-button run">
+                <span className="action-icon">▶</span>
+                Run
               </button>
-              <button onClick={handleSubmitCode} className="button submit">
+              <button onClick={handleSubmitCode} className="action-button submit">
+                <span className="action-icon">⬆</span>
                 Submit
               </button>
             </div>

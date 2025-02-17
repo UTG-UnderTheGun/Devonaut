@@ -9,6 +9,7 @@ import Terminal from '@/components/Terminal';
 import Loading from "@/app/loading";
 import StorageManager from '@/components/StorageManager';
 import AIChatInterface from './ai-interface/ai-interface';
+import CodingSkeleton from '@/components/skeletons/CodingSkeleton';
 
 export default function CodingPage() {
   const [chat, setChat] = useState([]);
@@ -25,6 +26,7 @@ export default function CodingPage() {
   const [isClientLoaded, setIsClientLoaded] = useState(false);
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const editorRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [problems] = useState([
     {
@@ -179,6 +181,19 @@ Explanation: 342 + 465 = 807.`,
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [isDescriptionFolded, isConsoleFolded]);
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <CodingSkeleton />;
+  }
 
   if (!isClientLoaded) {
     return <Loading />;
