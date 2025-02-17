@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Data from '@/api/data';
@@ -24,6 +24,7 @@ export default function CodingPage() {
   const [consoleOutput, setConsoleOutput] = useState('');
   const [isClientLoaded, setIsClientLoaded] = useState(false);
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
+  const editorRef = useRef(null);
 
   const [problems] = useState([
     {
@@ -162,6 +163,23 @@ Explanation: 342 + 465 = 807.`,
     localStorage.setItem('problem-description', newDescription);
   };
 
+  // Add resize handler for Monaco Editor
+  useEffect(() => {
+    const handleResize = () => {
+      if (editorRef.current?.editor) {
+        editorRef.current.editor.layout();
+      }
+    };
+
+    // Call layout when panels are toggled
+    if (!isDescriptionFolded || !isConsoleFolded) {
+      setTimeout(handleResize, 300); // Wait for animation to complete
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isDescriptionFolded, isConsoleFolded]);
+
   if (!isClientLoaded) {
     return <Loading />;
   }
@@ -252,6 +270,7 @@ Explanation: 342 + 465 = 807.`,
             </div>
 
             <Editor
+              ref={editorRef}
               isCodeQuestion={true}
               initialValue={code}
               onChange={handleCodeChange}

@@ -95,11 +95,21 @@ const Header = () => {
     }
   };
 
+  // Add function to handle logo click
+  const handleLogoClick = (e) => {
+    e.preventDefault()
+    if (shouldShowProfile) {  // If user is signed in
+      router.push('/dashboard')
+    } else {
+      router.push('/')
+    }
+  }
+
   return (
     <header className="header">
       <div className="header-container">
         <div className="header-left">
-          <Link href="/" className="logo">
+          <Link href="#" onClick={handleLogoClick} className="logo">
             <Image
               className="logo-img"
               src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738323587/poker-chip_1_1_rxwagd.png"

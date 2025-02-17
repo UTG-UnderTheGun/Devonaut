@@ -8,18 +8,19 @@ export default function Dashboard() {
   const [indicatorStyle, setIndicatorStyle] = useState({});
   const tabsRef = useRef({});
 
-  // Sample chapter data structure
-  const chapters = [
+  // Organize chapters by status
+  const [chapters] = useState([
     {
       id: 1,
       title: 'For Loop Chapter',
       chapter: 'Chapter 6: For Loop',
       dueTime: '23:59',
-      dueDate: '2024-02-02',
+      dueDate: '2024-02-25',
       totalPoints: 40,
       currentProblem: 1,
       totalProblems: 4,
       progress: 25,
+      status: 'UPCOMING',
       link: '/coding',
       problems: [
         {
@@ -53,11 +54,12 @@ export default function Dashboard() {
       title: 'While Loop Chapter',
       chapter: 'Chapter 7: While Loop',
       dueTime: '23:59',
-      dueDate: '2024-02-03',
+      dueDate: '2024-01-30', // Past date for OVERDUE example
       totalPoints: 30,
       currentProblem: 1,
       totalProblems: 3,
       progress: 0,
+      status: 'OVERDUE',
       link: '/coding',
       problems: [
         {
@@ -79,8 +81,41 @@ export default function Dashboard() {
           completed: false
         }
       ]
+    },
+    {
+      id: 3,
+      title: 'Variables Chapter',
+      chapter: 'Chapter 1: Variables',
+      dueTime: '23:59',
+      dueDate: '2024-01-15',
+      totalPoints: 20,
+      currentProblem: 3,
+      totalProblems: 3,
+      progress: 100,
+      status: 'COMPLETED',
+      link: '/coding',
+      problems: [
+        {
+          type: 'explain',
+          title: 'Understanding Variables',
+          points: 10,
+          completed: true
+        },
+        {
+          type: 'coding',
+          title: 'Variable Declaration',
+          points: 10,
+          completed: true
+        },
+        {
+          type: 'fill',
+          title: 'Variable Usage',
+          points: 10,
+          completed: true
+        }
+      ]
     }
-  ];
+  ]);
 
   // Performance data
   const performance = {
@@ -121,10 +156,23 @@ export default function Dashboard() {
     setActiveTab(tab);
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   const getTimeStatus = (dueDate, dueTime) => {
     const deadline = new Date(dueDate + ' ' + dueTime);
     const now = new Date();
     const diffHours = (deadline - now) / (1000 * 60 * 60);
+    
+    if (deadline < now) {
+      return 'overdue';
+    }
     return diffHours <= 24 ? 'urgent' : 'normal';
   };
 
@@ -144,6 +192,25 @@ export default function Dashboard() {
     }
   };
 
+  // Filter chapters based on active tab
+  const filteredChapters = chapters.filter(chapter => {
+    switch (activeTab) {
+      case 'UPCOMING':
+        return chapter.status === 'UPCOMING';
+      case 'OVERDUE':
+        return chapter.status === 'OVERDUE';
+      case 'COMPLETED':
+        return chapter.status === 'COMPLETED';
+      default:
+        return true;
+    }
+  });
+
+  // Get count for each tab
+  const getTabCount = (status) => {
+    return chapters.filter(chapter => chapter.status === status).length;
+  };
+
   const completionPercentage = (performance.totalScore / performance.totalPossible) * 100;
 
   return (
@@ -160,7 +227,7 @@ export default function Dashboard() {
               onClick={() => handleTabClick(tab)}
             >
               {tab}
-              {tab === 'UPCOMING' && <span className="tab-count">{chapters.length}</span>}
+              <span className="tab-count">{getTabCount(tab)}</span>
             </button>
           ))}
         </div>
@@ -170,48 +237,60 @@ export default function Dashboard() {
         <section className="assignments">
           <div className="section-header">
             <h2>Chapter Assignments</h2>
-            {chapters.length > 0 && (
-              <span className="section-subtitle">You have {chapters.length} active chapters</span>
+            {filteredChapters.length > 0 && (
+              <span className="section-subtitle">
+                You have {filteredChapters.length} {activeTab.toLowerCase()} chapters
+              </span>
             )}
           </div>
           
           <div className="assignment-list">
-            {chapters.map((chapter) => (
-              <Link href={chapter.link} key={chapter.id} className="assignment-link">
-                <div className={`assignment-card-dashboard ${getTimeStatus(chapter.dueDate, chapter.dueTime)}`}>
-                  <div className="assignment-header">
-                    <div className="assignment-info">
-                      <div className="title-row">
-                        <span className="assignment-icon">{getChapterIcon(chapter.problems)}</span>
-                        <h3 className="assignment-title">{chapter.title}</h3>
-                      </div>
-                      <div className="assignment-meta">
-                        <span className="assignment-chapter">{chapter.chapter}</span>
-                        <span className="due-time">
-                          <span className="time-icon">⏰</span>
-                          Due at {chapter.dueTime}
-                        </span>
-                      </div>
-                      <div className="chapter-progress">
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill"
-                            style={{ width: `${chapter.progress}%` }}
-                          />
+            {filteredChapters.length > 0 ? (
+              filteredChapters.map((chapter) => (
+                <Link href={chapter.link} key={chapter.id} className="assignment-link">
+                  <div className={`assignment-card-dashboard ${getTimeStatus(chapter.dueDate, chapter.dueTime)}`}>
+                    <div className="assignment-header">
+                      <div className="assignment-info">
+                        <div className="title-row">
+                          <span className="assignment-icon">{getChapterIcon(chapter.problems)}</span>
+                          <h3 className="assignment-title">{chapter.title}</h3>
                         </div>
-                        <span className="progress-text">
-                          {chapter.progress}% Complete
-                        </span>
+                        <div className="assignment-meta">
+                          <span className="assignment-chapter">{chapter.chapter}</span>
+                          <span className="due-date">
+                            <span className="calendar-icon">📅</span>
+                            {formatDate(chapter.dueDate)}
+                          </span>
+                          <span className="due-time">
+                            <span className="time-icon">⏰</span>
+                            Due at {chapter.dueTime}
+                          </span>
+                        </div>
+                        <div className="chapter-progress">
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-fill"
+                              style={{ width: `${chapter.progress}%` }}
+                            />
+                          </div>
+                          <span className="progress-text">
+                            {chapter.progress}% Complete
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="assignment-actions">
-                      <div className="assignment-points">{chapter.totalPoints} Points</div>
-                      <span className="chevron-icon">›</span>
+                      <div className="assignment-actions">
+                        <div className="assignment-points">{chapter.totalPoints} Points</div>
+                        <span className="chevron-icon">›</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))
+            ) : (
+              <div className="no-assignments">
+                <p>No {activeTab.toLowerCase()} assignments</p>
+              </div>
+            )}
           </div>
         </section>
 
