@@ -132,7 +132,6 @@ const AIChatInterface = ({ user_id }) => {
 
     return (
       <div className="ai-message-container">
-        <div className="ai-avatar">AI</div>
         <div className="message-content ai">
           <div className="message-text">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
