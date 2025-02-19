@@ -24,11 +24,22 @@ const WELCOME_MESSAGE = {
   timestamp: new Date()
 };
 
+const TypingIndicator = () => (
+  <div className="typing-indicator">
+    <div className="typing-dots">
+      <div className="dot"></div>
+      <div className="dot"></div>
+      <div className="dot"></div>
+    </div>
+  </div>
+);
+
 const AIChatInterface = ({ user_id }) => {
   const [chat, setChat] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [questionsLeft, setQuestionsLeft] = useState(5);
   const messagesEndRef = useRef(null);
+  const [isTyping, setIsTyping] = useState(false);
   
   const suggestions = [
     "How do I solve this problem?",
@@ -37,9 +48,21 @@ const AIChatInterface = ({ user_id }) => {
     "Give me a hint"
   ];
 
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: "smooth",
+        block: "end"
+      });
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chat]);
+
   const handleSendMessage = async () => {
     if (!user_id || !newMessage.trim() || questionsLeft <= 0) {
-      console.warn("User ID or message is not set");
       return;
     }
 
@@ -53,12 +76,7 @@ const AIChatInterface = ({ user_id }) => {
     setChat(prev => [...prev, userMessageObject]);
     setNewMessage('');
     setQuestionsLeft(prev => Math.max(0, prev - 1));
-
-    // Reset textarea height
-    const textarea = document.querySelector('.chat-input');
-    if (textarea) {
-      textarea.style.height = '32px'; // Match the height of a single line (24px) + padding
-    }
+    setIsTyping(true); // Show typing indicator
 
     try {
       const response = await fetch('http://localhost:8000/ai/chat', {
@@ -72,48 +90,50 @@ const AIChatInterface = ({ user_id }) => {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiMessageObject = {
         id: chat.length + 2,
         text: '',
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(),
+        isStreaming: true
       };
+
+      setChat(prev => [...prev, aiMessageObject]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        
         const chunk = decoder.decode(value, { stream: true });
         aiMessageObject.text += chunk;
+        
         setChat(prev => {
           const newChat = [...prev];
           const lastMessage = newChat[newChat.length - 1];
-          if (lastMessage.isUser) {
-            return [...newChat, aiMessageObject];
-          } else {
+          if (!lastMessage.isUser) {
             newChat[newChat.length - 1] = { ...aiMessageObject };
-            return newChat;
           }
+          return newChat;
         });
       }
-    } catch (err) {
-      console.error('Error sending message:', err);
-      const errorMessage = {
+    } catch (error) {
+      console.error('Error:', error);
+      setChat(prev => [...prev, {
         id: chat.length + 2,
-        text: 'An error occurred while getting the response.',
+        text: 'Sorry, there was an error processing your request.',
         isUser: false,
         timestamp: new Date()
-      };
-      setChat(prev => [...prev, errorMessage]);
+      }]);
+    } finally {
+      setIsTyping(false);
     }
   };
-
-  useEffect(() => {
-    if (chat.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [chat]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -144,16 +164,13 @@ const AIChatInterface = ({ user_id }) => {
     }
 
     return (
-      <div className="ai-message-container">
-        <div className="ai-avatar">AI</div>
-        <div className="message-content ai">
-          <div className="message-text">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {message.text}
-            </ReactMarkdown>
-          </div>
-          <div className="message-time">{formatTime(message.timestamp)}</div>
+      <div className="message-content ai">
+        <div className={`message-text ${message.isStreaming ? 'streaming' : ''}`}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {message.text}
+          </ReactMarkdown>
         </div>
+        <div className="message-time">{formatTime(message.timestamp)}</div>
       </div>
     );
   };
@@ -211,6 +228,7 @@ const AIChatInterface = ({ user_id }) => {
           timestamp: new Date()
         };
         setChat(prev => [...prev, errorMessage]);
+        scrollToBottom();
       }
     };
 
@@ -234,7 +252,12 @@ const AIChatInterface = ({ user_id }) => {
               {renderMessage(message)}
             </div>
           ))}
-          <div ref={messagesEndRef} />
+          {isTyping && (
+            <div className="message-wrapper ai">
+              <TypingIndicator />
+            </div>
+          )}
+          <div ref={messagesEndRef} style={{ height: '1px' }} />
         </div>
       </div>
 

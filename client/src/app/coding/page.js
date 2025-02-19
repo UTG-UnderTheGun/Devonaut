@@ -190,7 +190,7 @@ Explanation: 342 + 465 = 807.`,
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, []);
