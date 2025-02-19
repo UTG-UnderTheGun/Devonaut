@@ -11,8 +11,11 @@ import StorageManager from '@/components/StorageManager';
 import AIChatInterface from './ai-interface/ai-interface';
 import CodingSkeleton from '@/components/skeletons/CodingSkeleton';
 import CodeExplainer from './ai-interface/CodeExplainer';
+import useAuth from '@/hook/useAuth';
 
 export default function CodingPage() {
+  useAuth();
+
   const [chat, setChat] = useState([]);
   const [user_id, setUser_id] = useState(null);
   const [prompt, setPrompt] = useState("");
@@ -257,23 +260,23 @@ Explanation: 342 + 465 = 807.`,
               <div className="file-section">
                 <div className="file-name">{title}</div>
               </div>
-              
+
               <div className="right-section">
                 <div className="import-section">
                   <StorageManager onImport={handleImport} />
                 </div>
-                
+
                 <div className="navigation-section">
                   <span className="problem-count">Problem {currentProblemIndex + 1} of {problems.length}</span>
                   <div className="nav-arrows">
-                    <button 
+                    <button
                       className="nav-button"
                       onClick={handlePreviousProblem}
                       disabled={currentProblemIndex === 0}
                     >
                       ←
                     </button>
-                    <button 
+                    <button
                       className="nav-button"
                       onClick={handleNextProblem}
                       disabled={currentProblemIndex === problems.length - 1}
