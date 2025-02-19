@@ -10,6 +10,8 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false 
 export default function Editor({ isCodeQuestion }) {
   const router = useRouter();
   const { code, setCode, setOutput, setError } = useCodeContext();
+  const [selectedText, setSelectedText] = useState('');
+  const [editorInstance, setEditorInstance] = useState(null);
 
   useEffect(() => {
     const savedCode = localStorage.getItem('editorCode');
@@ -36,7 +38,16 @@ export default function Editor({ isCodeQuestion }) {
   }, []);
 
   const handleEditorDidMount = (editor, monaco) => {
-    // No custom theme needed, we'll use the default light theme
+    setEditorInstance(editor);
+    
+    // Add selection change listener
+    editor.onDidChangeCursorSelection((e) => {
+      const selection = editor.getModel().getValueInRange(e.selection);
+      if (selection) {
+        setSelectedText(selection);
+      }
+    });
+
     editor.updateOptions({
       scrollBeyondLastLine: false,
       minimap: { enabled: false },
@@ -47,7 +58,44 @@ export default function Editor({ isCodeQuestion }) {
         verticalScrollbarSize: 12,
       },
       wordWrap: 'off',
+      contextmenu: true, // Enable context menu
     });
+
+    // Add custom context menu action for code explanation
+    editor.addAction({
+      id: 'explain-code',
+      label: 'Explain Code',
+      contextMenuGroupId: 'navigation',
+      contextMenuOrder: 1.5,
+      run: function(ed) {
+        const selection = ed.getSelection();
+        const selectedText = ed.getModel().getValueInRange(selection);
+        if (selectedText) {
+          handleExplainCode(selectedText);
+        }
+      }
+    });
+  };
+
+  const handleExplainCode = async (text) => {
+    try {
+      // Create a user message object
+      const userMessageObject = {
+        id: Date.now(),
+        text: `Please explain this code:\n\`\`\`python\n${text}\n\`\`\``,
+        isUser: true,
+        timestamp: new Date()
+      };
+
+      // Dispatch a custom event that the AI interface will listen for
+      const event = new CustomEvent('add-chat-message', {
+        detail: userMessageObject
+      });
+      window.dispatchEvent(event);
+    } catch (err) {
+      console.error('Error handling code explanation:', err);
+      setError('Failed to explain code');
+    }
   };
 
   const handleRunCode = async () => {

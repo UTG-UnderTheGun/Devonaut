@@ -10,6 +10,7 @@ import Loading from "@/app/loading";
 import StorageManager from '@/components/StorageManager';
 import AIChatInterface from './ai-interface/ai-interface';
 import CodingSkeleton from '@/components/skeletons/CodingSkeleton';
+import CodeExplainer from './ai-interface/CodeExplainer';
 
 export default function CodingPage() {
   const [chat, setChat] = useState([]);
@@ -308,6 +309,7 @@ Explanation: 342 + 465 = 807.`,
           </div>
         </div>
       </div>
+      <CodeExplainer />
     </div>
   );
 }

@@ -54,6 +54,12 @@ const AIChatInterface = ({ user_id }) => {
     setNewMessage('');
     setQuestionsLeft(prev => Math.max(0, prev - 1));
 
+    // Reset textarea height
+    const textarea = document.querySelector('.chat-input');
+    if (textarea) {
+      textarea.style.height = '32px'; // Match the height of a single line (24px) + padding
+    }
+
     try {
       const response = await fetch('http://localhost:8000/ai/chat', {
         method: 'POST',
@@ -120,6 +126,13 @@ const AIChatInterface = ({ user_id }) => {
     setNewMessage(suggestion);
   };
 
+  const handleTextareaInput = (e) => {
+    const textarea = e.target;
+    textarea.style.height = '32px'; // Reset to single line height
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    setNewMessage(e.target.value);
+  };
+
   const renderMessage = (message) => {
     if (message.isUser) {
       return (
@@ -132,6 +145,7 @@ const AIChatInterface = ({ user_id }) => {
 
     return (
       <div className="ai-message-container">
+        <div className="ai-avatar">AI</div>
         <div className="message-content ai">
           <div className="message-text">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -143,6 +157,66 @@ const AIChatInterface = ({ user_id }) => {
       </div>
     );
   };
+
+  // Add event listener for code explanation
+  useEffect(() => {
+    const handleExplainCode = async (event) => {
+      const message = event.detail;
+      setChat(prev => [...prev, message]);
+      
+      // Send message directly without setting input
+      try {
+        const response = await fetch('http://localhost:8000/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            user_id, 
+            prompt: message.text 
+          }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiMessageObject = {
+          id: chat.length + 2,
+          text: '',
+          isUser: false,
+          timestamp: new Date()
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          aiMessageObject.text += chunk;
+          setChat(prev => {
+            const newChat = [...prev];
+            const lastMessage = newChat[newChat.length - 1];
+            if (lastMessage.isUser) {
+              return [...newChat, aiMessageObject];
+            } else {
+              newChat[newChat.length - 1] = { ...aiMessageObject };
+              return newChat;
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error sending message:', err);
+        const errorMessage = {
+          id: chat.length + 2,
+          text: 'An error occurred while getting the response.',
+          isUser: false,
+          timestamp: new Date()
+        };
+        setChat(prev => [...prev, errorMessage]);
+      }
+    };
+
+    window.addEventListener('add-chat-message', handleExplainCode);
+    return () => window.removeEventListener('add-chat-message', handleExplainCode);
+  }, [chat.length, user_id]);
 
   return (
     <div className="chat-interface">
@@ -181,12 +255,13 @@ const AIChatInterface = ({ user_id }) => {
           <div className="chat-input-wrapper">
             <textarea
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleTextareaInput}
               onKeyPress={handleKeyPress}
               placeholder="Ask a question about your code..."
               className="chat-input"
               disabled={questionsLeft === 0}
               rows={1}
+              style={{ minHeight: '24px', maxHeight: '150px', overflowY: 'auto' }}
             />
             <div className="questions-counter">
               {questionsLeft} questions left
