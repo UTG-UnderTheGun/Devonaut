@@ -34,7 +34,7 @@ export default function Home() {
     };
   }, []);
 
-  return (
+  return (  
     <div className="homepage-container">
       <main className="homepage-main-content">
         <h1 className="heading-1 animate-on-scroll">

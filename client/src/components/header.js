@@ -3,10 +3,13 @@ import { useCodeContext } from '@/app/context/CodeContext';
 import StorageManager from './StorageManager';
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import './header.css'
 import './user-menu.css'
+import axios from 'axios';  // เพิ่มบรรทัดนี้
+
+
 
 const ChevronDown = () => (
   <svg
@@ -27,6 +30,7 @@ const ChevronDown = () => (
 
 const Header = () => {
   const pathname = usePathname()
+  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
   const profileRef = useRef(null)
@@ -34,6 +38,8 @@ const Header = () => {
   const isHomePage = pathname === '/'
   const isCodingPage = pathname === '/coding'
   const shouldShowProfile = !isHomePage && pathname !== '/auth/signin' && pathname !== '/auth/signup'
+  const { code, setOutput, setError, setOpenTerm, output, error } = useCodeContext();
+
 
   const handleImport = (importedData) => {
     console.log('Imported data:', importedData);
@@ -56,25 +62,24 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // const handleRunCode = async () => {
-  //   try {
-  //     const response = await axios.post('http://localhost:8000/code/run-code', {
-  //       code,
-  //     }, { withCredentials: true });
-  //
-  //     if (response.data.error) {
-  //       setError(response.data.error);
-  //       setOutput('');
-  //     } else {
-  //       setOutput(response.data.output);
-  //       setError('');
-  //     }
-  //   } catch (err) {
-  //     console.log(err);
-  //     setError('Error connecting to the server');
-  //     setOutput('');
-  //   }
-  // };
+  const handleRunCode = async () => {
+      try {
+        const response = await axios.post('http://localhost:8000/code/run-code', {
+          code,
+        }, { withCredentials: true });
+        if (response.data.error) {
+          setError(response.data.error);
+          setOutput('');
+        } else {
+          setOutput(response.data.output);
+          setError('');
+        }
+      } catch (err) {
+        console.log(err);
+        setError('Error connecting to the server');
+        setOutput('');
+      }
+    };
 
   const handleSignOut = async () => {
     try {
@@ -91,11 +96,21 @@ const Header = () => {
     }
   };
 
+  // Add function to handle logo click
+  const handleLogoClick = (e) => {
+    e.preventDefault()
+    if (shouldShowProfile) {  // If user is signed in
+      router.push('/dashboard')
+    } else {
+      router.push('/')
+    }
+  }
+
   return (
     <header className="header">
       <div className="header-container">
         <div className="header-left">
-          <Link href="/" className="logo">
+          <Link href="#" onClick={handleLogoClick} className="logo">
             <Image
               className="logo-img"
               src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738323587/poker-chip_1_1_rxwagd.png"
@@ -110,12 +125,13 @@ const Header = () => {
 
         <div className="header-center">
           {isCodingPage && (
-            <div className="toolbar">
-              <StorageManager onImport={handleImport} />
-              <button className="button run">
-                Run Code
+            <div className="coding-actions">
+              <button onClick={handleRunCode} className="action-button run">
+                <span className="action-icon">▶</span>
+                Run
               </button>
-              <button onClick={handleSubmitCode} className="button submit">
+              <button onClick={handleSubmitCode} className="action-button submit">
+                <span className="action-icon">⬆</span>
                 Submit
               </button>
             </div>

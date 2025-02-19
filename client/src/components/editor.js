@@ -1,6 +1,5 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import GlassBox from './glass-box';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
 import './editor.css';
@@ -9,12 +8,10 @@ import { useRouter } from 'next/navigation';
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 export default function Editor({ isCodeQuestion }) {
-  const [code, setCode] = useState('# write code here');
-  const [editorHeight, setEditorHeight] = useState(100);
-  const [user, setUser] = useState(null);
-  const [textareaHeight, setTextareaHeight] = useState('auto');
   const router = useRouter();
-  const { setOutput, setError, setOpenTerm, output, error } = useCodeContext();
+  const { code, setCode, setOutput, setError } = useCodeContext();
+  const [selectedText, setSelectedText] = useState('');
+  const [editorInstance, setEditorInstance] = useState(null);
 
   useEffect(() => {
     const savedCode = localStorage.getItem('editorCode');
@@ -24,7 +21,7 @@ export default function Editor({ isCodeQuestion }) {
   }, []);
 
   useEffect(() => {
-    if (code !== '# write code here') { // Only save if it's not the default value
+    if (code !== '# write code here') {
       localStorage.setItem('editorCode', code);
     }
   }, [code]);
@@ -41,37 +38,65 @@ export default function Editor({ isCodeQuestion }) {
   }, []);
 
   const handleEditorDidMount = (editor, monaco) => {
-    monaco.editor.defineTheme('transparentTheme', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [],
-      minimap: { enabled: false },
-      colors: {
-        'editor.background': '#00000000',
-        'minimap.background': '#00000000',
-        'scrollbarSlider.background': '#ffffff30',
-        'scrollbarSlider.hoverBackground': '#ffffff50',
-        'scrollbarSlider.activeBackground': '#ffffff70',
-      },
+    setEditorInstance(editor);
+    
+    // Add selection change listener
+    editor.onDidChangeCursorSelection((e) => {
+      const selection = editor.getModel().getValueInRange(e.selection);
+      if (selection) {
+        setSelectedText(selection);
+      }
     });
-    editor.updateOptions({ theme: 'transparentTheme' });
+
+    editor.updateOptions({
+      scrollBeyondLastLine: false,
+      minimap: { enabled: false },
+      scrollbar: {
+        horizontal: 'visible',
+        vertical: 'visible',
+        horizontalScrollbarSize: 12,
+        verticalScrollbarSize: 12,
+      },
+      wordWrap: 'off',
+      contextmenu: true, // Enable context menu
+    });
+
+    // Add custom context menu action for code explanation
+    editor.addAction({
+      id: 'explain-code',
+      label: 'Explain Code',
+      contextMenuGroupId: 'navigation',
+      contextMenuOrder: 1.5,
+      run: function(ed) {
+        const selection = ed.getSelection();
+        const selectedText = ed.getModel().getValueInRange(selection);
+        if (selectedText) {
+          handleExplainCode(selectedText);
+        }
+      }
+    });
   };
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await axios.get('http://localhost:8000/users/me', {
-          withCredentials: true,
-        });
-        setUser(response.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        setError('Not authenticated');
-        router.push('/auth/signin');
-      }
-    };
-    fetchUser();
-  }, [router]);
+  const handleExplainCode = async (text) => {
+    try {
+      // Create a user message object
+      const userMessageObject = {
+        id: Date.now(),
+        text: `Please explain this code:\n\`\`\`python\n${text}\n\`\`\``,
+        isUser: true,
+        timestamp: new Date()
+      };
+
+      // Dispatch a custom event that the AI interface will listen for
+      const event = new CustomEvent('add-chat-message', {
+        detail: userMessageObject
+      });
+      window.dispatchEvent(event);
+    } catch (err) {
+      console.error('Error handling code explanation:', err);
+      setError('Failed to explain code');
+    }
+  };
 
   const handleRunCode = async () => {
     try {
@@ -92,44 +117,37 @@ export default function Editor({ isCodeQuestion }) {
     }
   };
 
-  const calculateEditorHeight = (lineCount) => {
-    const lineHeight = 18;
-    const calculatedHeight = lineCount * lineHeight;
-    setEditorHeight(calculatedHeight);
-  };
-
-  useEffect(() => {
-    const lineCount = code.split('\n').length;
-    calculateEditorHeight(lineCount);
-  }, [code]);
-
   const handleEditorChange = (value) => {
     setCode(value);
   };
 
   return (
-    <div className="content-container">
-      <div className="code-question-content">
-        <div className="editor" style={{ height: "500px" }}>
-          <div className='run-test-container'>
-            <button onClick={handleRunCode} className='run-button'>Run</button>
-          </div>
-          <MonacoEditor
-            height="100%"
-            width="100%"
-            language="python"
-            theme="transparentTheme"
-            value={code}
-            onChange={handleEditorChange}
-            options={{
-              scrollBeyondLastLine: false,
-              minimap: { enabled: false },
-              contextmenu: false,
-              automaticLayout: true,
-            }}
-            onMount={handleEditorDidMount}
-          />
-        </div>
+    <div className="editor-wrapper">
+      <div className="monaco-editor-container">
+        <MonacoEditor
+          height="100%"
+          width="100%"
+          language="python"
+          theme="light" // Using the default light theme
+          value={code}
+          onChange={handleEditorChange}
+          options={{
+            scrollBeyondLastLine: false,
+            minimap: { enabled: false },
+            scrollbar: {
+              horizontal: 'visible',
+              vertical: 'visible',
+              horizontalScrollbarSize: 12,
+              verticalScrollbarSize: 12,
+            },
+            wordWrap: 'off',
+            automaticLayout: true,
+            lineNumbers: 'on',
+            roundedSelection: true,
+            selectOnLineNumbers: true,
+          }}
+          onMount={handleEditorDidMount}
+        />
       </div>
     </div>
   );

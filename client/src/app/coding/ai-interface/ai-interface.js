@@ -1,50 +1,119 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import './ai-interface.css';
 
-// Custom Send Icon component
 const SendIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M18.0703 8.50989L9.51026 4.22989C3.76026 1.34989 1.40026 3.70989 4.28026 9.45989L5.15026 11.1999C5.40026 11.7099 5.40026 12.2999 5.15026 12.8099L4.28026 14.5399C1.40026 20.2899 3.75026 22.6499 9.51026 19.7699L18.0703 15.4899C21.9103 13.5699 21.9103 10.4299 18.0703 8.50989ZM14.8403 12.7499H9.44026C9.03026 12.7499 8.69026 12.4099 8.69026 11.9999C8.69026 11.5899 9.03026 11.2499 9.44026 11.2499H14.8403C15.2503 11.2499 15.5903 11.5899 15.5903 11.9999C15.5903 12.4099 15.2503 12.7499 14.8403 12.7499Z" fill="currentColor"/>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 4L3 11L10 14L13 21L20 4Z" fill="currentColor" />
   </svg>
 );
 
-const AIChatInterface = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "How to use def function in python?",
-      isUser: true
-    },
-    {
-      id: 2,
-      text: "Use def followed by the function name and parentheses ().\nParameters are optional; if needed, list them inside the parentheses.\nThe return statement is optional; it sends back a result to the caller.",
-      isUser: false
-    },
-    {
-      id: 3,
-      text: "What is the best programming language?",
-      isUser: true
-    },
-    {
-      id: 4,
-      text: "There are many programming languages in the market that are used in designing and building websites, various applications and other tasks. All these languages are popular in their place and in the way they are used, and many programmers learn and use them.",
-      isUser: false
-    }
-  ]);
+const formatTime = (date) => {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  }).format(date);
+};
 
+const WELCOME_MESSAGE = {
+  id: 0,
+  text: "Hi! I'm your AI coding assistant. I can help you understand the problem, debug your code, or guide you towards a solution. What would you like to know?",
+  isUser: false,
+  timestamp: new Date()
+};
+
+const AIChatInterface = ({ user_id }) => {
+  const [chat, setChat] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [questionsLeft, setQuestionsLeft] = useState(1);
+  const [questionsLeft, setQuestionsLeft] = useState(5);
+  const messagesEndRef = useRef(null);
+  
+  const suggestions = [
+    "How do I solve this problem?",
+    "Can you explain the code?",
+    "What's wrong with my solution?",
+    "Give me a hint"
+  ];
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() === '') return;
-    
-    setMessages(prev => [...prev, {
-      id: prev.length + 1,
+  const handleSendMessage = async () => {
+    if (!user_id || !newMessage.trim() || questionsLeft <= 0) {
+      console.warn("User ID or message is not set");
+      return;
+    }
+
+    const userMessageObject = {
+      id: chat.length + 1,
       text: newMessage,
-      isUser: true
-    }]);
+      isUser: true,
+      timestamp: new Date()
+    };
+
+    setChat(prev => [...prev, userMessageObject]);
     setNewMessage('');
     setQuestionsLeft(prev => Math.max(0, prev - 1));
+
+    // Reset textarea height
+    const textarea = document.querySelector('.chat-input');
+    if (textarea) {
+      textarea.style.height = '32px'; // Match the height of a single line (24px) + padding
+    }
+
+    try {
+      const response = await fetch('http://localhost:8000/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          user_id, 
+          prompt: newMessage 
+        }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiMessageObject = {
+        id: chat.length + 2,
+        text: '',
+        isUser: false,
+        timestamp: new Date()
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        aiMessageObject.text += chunk;
+        setChat(prev => {
+          const newChat = [...prev];
+          const lastMessage = newChat[newChat.length - 1];
+          if (lastMessage.isUser) {
+            return [...newChat, aiMessageObject];
+          } else {
+            newChat[newChat.length - 1] = { ...aiMessageObject };
+            return newChat;
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+      const errorMessage = {
+        id: chat.length + 2,
+        text: 'An error occurred while getting the response.',
+        isUser: false,
+        timestamp: new Date()
+      };
+      setChat(prev => [...prev, errorMessage]);
+    }
   };
+
+  useEffect(() => {
+    if (chat.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chat]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -53,57 +122,158 @@ const AIChatInterface = () => {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`max-w-[80%] ${message.isUser ? 'ml-auto' : 'mr-auto'}`}
-          >
-            {message.isUser ? (
-              <div className="bg-[#3369FF] text-white px-6 py-3 rounded-t-3xl rounded-br-3xl">
-                <p className="text-base font-bold">{message.text}</p>
-              </div>
-            ) : (
-              <div className="flex gap-4">
-                <div className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center flex-shrink-0">
-                  <img
-                    src="/api/placeholder/12/18"
-                    alt="AI"
-                    className="w-3 h-4"
-                  />
-                </div>
-                <div className="bg-[#EEEEEE] text-[#505050] px-6 py-3 rounded-t-3xl rounded-br-3xl">
-                  <p className="text-base font-bold whitespace-pre-line">{message.text}</p>
-                </div>
-              </div>
-            )}
+  const handleSuggestionClick = (suggestion) => {
+    setNewMessage(suggestion);
+  };
+
+  const handleTextareaInput = (e) => {
+    const textarea = e.target;
+    textarea.style.height = '32px'; // Reset to single line height
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    setNewMessage(e.target.value);
+  };
+
+  const renderMessage = (message) => {
+    if (message.isUser) {
+      return (
+        <div className="message-content user">
+          <div className="message-text">{message.text}</div>
+          <div className="message-time">{formatTime(message.timestamp)}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="ai-message-container">
+        <div className="ai-avatar">AI</div>
+        <div className="message-content ai">
+          <div className="message-text">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.text}
+            </ReactMarkdown>
           </div>
-        ))}
+          <div className="message-time">{formatTime(message.timestamp)}</div>
+        </div>
       </div>
+    );
+  };
+
+  // Add event listener for code explanation
+  useEffect(() => {
+    const handleExplainCode = async (event) => {
+      const message = event.detail;
+      setChat(prev => [...prev, message]);
       
-      <div className="p-4">
-        <div className="bg-white rounded-2xl shadow-lg px-6 py-4 flex items-center gap-4">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="What's wrong with my code?"
-            className="flex-1 text-[#3369FF] text-xl font-bold outline-none"
-            disabled={questionsLeft === 0}
-          />
-          <span className="text-[#6A6A6A] text-xl font-bold">
-            (You get {questionsLeft} question left.)
-          </span>
-          <button 
-            onClick={handleSendMessage}
-            disabled={questionsLeft === 0 || newMessage.trim() === ''}
-            className="text-[#3369FF] disabled:text-gray-400"
-          >
-            <SendIcon />
-          </button>
+      // Send message directly without setting input
+      try {
+        const response = await fetch('http://localhost:8000/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            user_id, 
+            prompt: message.text 
+          }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiMessageObject = {
+          id: chat.length + 2,
+          text: '',
+          isUser: false,
+          timestamp: new Date()
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          aiMessageObject.text += chunk;
+          setChat(prev => {
+            const newChat = [...prev];
+            const lastMessage = newChat[newChat.length - 1];
+            if (lastMessage.isUser) {
+              return [...newChat, aiMessageObject];
+            } else {
+              newChat[newChat.length - 1] = { ...aiMessageObject };
+              return newChat;
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error sending message:', err);
+        const errorMessage = {
+          id: chat.length + 2,
+          text: 'An error occurred while getting the response.',
+          isUser: false,
+          timestamp: new Date()
+        };
+        setChat(prev => [...prev, errorMessage]);
+      }
+    };
+
+    window.addEventListener('add-chat-message', handleExplainCode);
+    return () => window.removeEventListener('add-chat-message', handleExplainCode);
+  }, [chat.length, user_id]);
+
+  return (
+    <div className="chat-interface">
+      <div className="chat-content">
+        <div className="chat-messages">
+          <div className="message-wrapper ai">
+            {renderMessage(WELCOME_MESSAGE)}
+          </div>
+          
+          {chat.map((message) => (
+            <div
+              key={message.id}
+              className={`message-wrapper ${message.isUser ? 'user' : 'ai'}`}
+            >
+              {renderMessage(message)}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      <div className="bottom-section">
+        <div className="suggestion-chips">
+          {questionsLeft > 0 && suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              className="suggestion-chip"
+              onClick={() => handleSuggestionClick(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+        
+        <div className="chat-input-container">
+          <div className="chat-input-wrapper">
+            <textarea
+              value={newMessage}
+              onChange={handleTextareaInput}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask a question about your code..."
+              className="chat-input"
+              disabled={questionsLeft === 0}
+              rows={1}
+              style={{ minHeight: '24px', maxHeight: '150px', overflowY: 'auto' }}
+            />
+            <div className="questions-counter">
+              {questionsLeft} questions left
+            </div>
+            <button 
+              onClick={handleSendMessage}
+              disabled={questionsLeft === 0 || newMessage.trim() === ''}
+              className="send-button"
+            >
+              <SendIcon />
+            </button>
+          </div>
         </div>
       </div>
     </div>
