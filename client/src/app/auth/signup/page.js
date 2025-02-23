@@ -11,7 +11,8 @@ export default function Register() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
+    name: '',
     password: '',
     termsAccepted: false
   });
@@ -45,12 +46,19 @@ export default function Register() {
 
     try {
       const response = await axios.post('http://localhost:8000/auth/register', {
-        username: formData.username,
+        username: formData.email, // Using email as username
         password: formData.password,
+        email: formData.email,
+        name: formData.name
       });
 
       setSuccess('Registration successful! You can now log in.');
-      setFormData({ username: '', password: '', termsAccepted: false });
+      setFormData({ 
+        email: '', 
+        name: '', 
+        password: '', 
+        termsAccepted: false 
+      });
       
       // Add a slight delay before redirect for better UX
       setTimeout(() => {
@@ -70,7 +78,6 @@ export default function Register() {
 
   return (
     <div className="container">
-
       <main className="signin-card">
         <div className="progress-steps">
           <div className={`step ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
@@ -80,12 +87,26 @@ export default function Register() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Email</label>
+            <label className="form-label">Name</label>
             <input
               type="text"
-              name="username"
+              name="name"
               className="form-input"
-              value={formData.username}
+              value={formData.name}
+              onChange={handleChange}
+              required
+              placeholder="Enter your name"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              name="email"
+              className="form-input"
+              value={formData.email}
               onChange={handleChange}
               required
               placeholder="Enter your Email"
@@ -150,5 +171,5 @@ export default function Register() {
         </form>
       </main>
     </div>
-  )
-};
+  );
+}

@@ -14,6 +14,7 @@ from app.db.schemas import User
 from app.db.database import collection
 from app.core.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.security import verify_password, get_password_hash, create_access_token
+from bson import ObjectId
 
 GOOGLE_USER_INFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -24,15 +25,50 @@ GOOGLE_REDIRECT_URI = "http://localhost:8000/auth/google/callback"
 
 
 async def register(user: User):
-    print(user.username, user.password)
+    # Check if username already exists
     if get_user(collection, user.username):
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(
+            status_code=400, 
+            detail="Username already registered"
+        )
+    
+    # Create user document
+    user_doc = {
+        "username": user.username,
+        "hashed_password": get_password_hash(user.password),
+        "email": user.email,
+        "name": user.name,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "_id": ObjectId()  # Generate MongoDB ID
+    }
 
-    hashed_password = get_password_hash(user.password)
-    collection.insert_one(
-        {"username": user.username, "hashed_password": hashed_password}
-    )
-    return user
+    try:
+        # Insert into MongoDB
+        result = collection.insert_one(user_doc)
+        
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create user"
+            )
+
+        # Remove password from response
+        user_doc.pop("hashed_password")
+        return {
+            "message": "User registered successfully",
+            "user": {
+                **user_doc,
+                "_id": str(user_doc["_id"])  # Convert ObjectId to string
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Registration error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during registration"
+        )
 
 
 async def login(response: Response, user: User):

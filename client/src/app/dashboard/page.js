@@ -2,8 +2,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import './dashboard.css';
-
+import useAuth from '@/hook/useAuth';
 export default function Dashboard() {
+  useAuth();
   const [activeTab, setActiveTab] = useState('UPCOMING');
   const [indicatorStyle, setIndicatorStyle] = useState({});
   const tabsRef = useRef({});
@@ -214,6 +215,7 @@ export default function Dashboard() {
   const completionPercentage = (performance.totalScore / performance.totalPossible) * 100;
 
   return (
+    
     <div className="dashboard">
       <nav className="tabs">
         <div className="tab-container">
