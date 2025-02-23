@@ -1,30 +1,43 @@
-/* Skeleton Loading Styles */
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
+/* Base skeleton styles */
 .skeleton {
   background: #ffffff;
   border-radius: 0.75rem;
   overflow: hidden;
 }
 
-.skeleton-element {
+/* Shimmer animation */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
     90deg,
-    rgba(226, 232, 240, 0) 0%,
-    rgba(226, 232, 240, 0.8) 50%,
-    rgba(226, 232, 240, 0) 100%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
   );
-  background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
+/* Skeleton elements */
 .skeleton-tabs {
   display: flex;
   gap: 1rem;
@@ -35,14 +48,12 @@
 .skeleton-tab {
   width: 120px;
   height: 28px;
-  background: #f1f5f9;
   border-radius: 6px;
 }
 
 .skeleton-title {
   width: 70%;
   height: 32px;
-  background: #f1f5f9;
   border-radius: 6px;
   margin: 1rem;
 }
@@ -51,7 +62,6 @@
   width: calc(100% - 2rem);
   height: calc(100% - 120px);
   margin: 1rem;
-  background: #f1f5f9;
   border-radius: 6px;
 }
 
@@ -66,7 +76,6 @@
 .skeleton-file-name {
   width: 150px;
   height: 24px;
-  background: #f1f5f9;
   border-radius: 4px;
 }
 
@@ -79,36 +88,14 @@
 .skeleton-button {
   width: 90px;
   height: 28px;
-  background: #f1f5f9;
   border-radius: 4px;
 }
 
 .skeleton-editor {
   flex: 1;
-  background: #f8fafc;
   margin: 1rem;
   border-radius: 6px;
   min-height: 400px;
-  position: relative;
-  overflow: hidden;
-}
-
-.skeleton-editor::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    #f1f5f9 20%,
-    transparent 40%,
-    transparent 100%
-  );
-  animation: shimmer 2s infinite linear;
-  background-size: 1000px 100%;
 }
 
 .skeleton-console {
@@ -128,56 +115,40 @@
 .skeleton-console-title {
   width: 100px;
   height: 20px;
-  background: #f1f5f9;
   border-radius: 4px;
 }
 
 .skeleton-console-content {
   width: 100%;
   height: 120px;
-  background: #f8fafc;
   border-radius: 6px;
-  position: relative;
-  overflow: hidden;
 }
 
-.skeleton-console-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    #f1f5f9 20%,
-    transparent 40%,
-    transparent 100%
-  );
-  animation: shimmer 2s infinite linear;
-  background-size: 1000px 100%;
+/* Staggered animation delays */
+.skeleton-tab:nth-child(2) {
+  animation-delay: 0.1s;
 }
 
-/* Apply shimmer effect to all skeleton elements */
-.skeleton-tab::after,
-.skeleton-title::after,
-.skeleton-description::after,
-.skeleton-file-name::after,
-.skeleton-button::after,
-.skeleton-console-title::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.8) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  transform: translateX(-100%);
-  animation: shimmer 2s infinite;
+.skeleton-title {
+  animation-delay: 0.2s;
+}
+
+.skeleton-description {
+  animation-delay: 0.3s;
+}
+
+.skeleton-file-name {
+  animation-delay: 0.2s;
+}
+
+.skeleton-button:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.skeleton-console-title {
+  animation-delay: 0.4s;
+}
+
+.skeleton-console-content {
+  animation-delay: 0.5s;
 } 

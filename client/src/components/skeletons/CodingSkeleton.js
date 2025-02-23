@@ -8,13 +8,13 @@ const CodingSkeleton = () => {
         <div className="description-panel skeleton">
           <div className="panel-header">
             <div className="skeleton-tabs">
-              <div className="skeleton-tab skeleton-element"></div>
-              <div className="skeleton-tab skeleton-element"></div>
+              <div className="skeleton-tab shimmer"></div>
+              <div className="skeleton-tab shimmer"></div>
             </div>
           </div>
           <div className="panel-content">
-            <div className="skeleton-title skeleton-element"></div>
-            <div className="skeleton-description skeleton-element"></div>
+            <div className="skeleton-title shimmer"></div>
+            <div className="skeleton-description shimmer"></div>
           </div>
         </div>
 
@@ -22,21 +22,21 @@ const CodingSkeleton = () => {
         <div className="editor-container">
           <div className="code-editor skeleton">
             <div className="skeleton-header">
-              <div className="skeleton-file-name skeleton-element"></div>
+              <div className="skeleton-file-name shimmer"></div>
               <div className="skeleton-actions">
-                <div className="skeleton-button skeleton-element"></div>
-                <div className="skeleton-button skeleton-element"></div>
+                <div className="skeleton-button shimmer"></div>
+                <div className="skeleton-button shimmer"></div>
               </div>
             </div>
-            <div className="skeleton-editor"></div>
+            <div className="skeleton-editor shimmer"></div>
           </div>
 
           {/* Console Skeleton */}
           <div className="skeleton-console">
             <div className="skeleton-console-header">
-              <div className="skeleton-console-title skeleton-element"></div>
+              <div className="skeleton-console-title shimmer"></div>
             </div>
-            <div className="skeleton-console-content"></div>
+            <div className="skeleton-console-content shimmer"></div>
           </div>
         </div>
       </div>
