@@ -2,6 +2,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "lib": ["ES2015", "DOM"],
+    "target": "ES6"
   }
 }

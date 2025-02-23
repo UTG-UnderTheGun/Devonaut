@@ -24,15 +24,44 @@ GOOGLE_REDIRECT_URI = "http://localhost:8000/auth/google/callback"
 
 
 async def register(user: User):
-    print(user.username, user.password)
-    if get_user(collection, user.username):
-        raise HTTPException(status_code=400, detail="Username already registered")
+    try:
+        # Check if user already exists
+        existing_user = get_user(collection, user.username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already registered")
 
-    hashed_password = get_password_hash(user.password)
-    collection.insert_one(
-        {"username": user.username, "hashed_password": hashed_password}
-    )
-    return user
+        # Create new user document
+        new_user = {
+            "username": user.username,
+            "hashed_password": get_password_hash(user.password),
+            "skill_level": "beginner",  # Default skill level
+            "created_at": datetime.utcnow(),
+            "last_login": datetime.utcnow(),
+            "is_active": True
+        }
+
+        # Insert into MongoDB
+        result = collection.insert_one(new_user)
+        
+        if not result.inserted_id:
+            raise HTTPException(status_code=500, detail="Failed to create user")
+
+        # Log the successful registration
+        print(f"New user registered: {user.username} with ID: {result.inserted_id}")
+        
+        # Return user data (excluding sensitive information)
+        return {
+            "username": user.username,
+            "user_id": str(result.inserted_id),
+            "message": "Registration successful"
+        }
+
+    except Exception as e:
+        print(f"Registration error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 
 async def login(response: Response, user: User):
