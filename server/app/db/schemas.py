@@ -8,6 +8,7 @@ class User(BaseModel):
     password: str
     email: Optional[str] = None
     name: Optional[str] = None
+    skill_level: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -15,6 +16,7 @@ class User(BaseModel):
 class UserInDB(BaseModel):
     username: str
     hashed_password: str
+    skill_level: Optional[str] = None
 
 
 class CodeSubmission(BaseModel):
@@ -38,3 +40,7 @@ class TokenData(BaseModel):
 
 class Code(BaseModel):
     code: str
+
+
+class SkillLevel(BaseModel):
+    skill_level: str

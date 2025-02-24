@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.security import get_current_user
 from app.db.database import collection
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
+from bson import ObjectId
 
 router = APIRouter()
 
 class UserResponse(BaseModel):
     username: str
     user_id: str
+    skill_level: Optional[str] = None
 
 class UserList(BaseModel):
     total_users: int
@@ -21,12 +23,19 @@ class PaginatedUserList(BaseModel):
     page: int
     total_pages: int
 
+class SkillLevel(BaseModel):
+    skill_level: str
+
 @router.get("/me", response_model=UserResponse, 
     summary="Get current user information",
     description="Returns the current authenticated user's information")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     user, user_id = current_user
-    return {"username": user["username"], "user_id": str(user_id)}
+    return {
+        "username": user["username"],
+        "user_id": str(user_id),
+        "skill_level": user.get("skill_level", None)  # Return None if not set
+    }
 
 @router.get("/all", response_model=UserList,
     summary="Get all users",
@@ -102,4 +111,50 @@ async def get_users_paginated(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch users: {str(e)}"
+        )
+
+@router.post("/skill-level", 
+    summary="Update user's skill level",
+    description="Updates the skill level of the authenticated user")
+async def update_skill_level(
+    skill_data: SkillLevel,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        user, user_id = current_user
+        
+        # Validate skill level
+        valid_levels = ["beginner", "intermediate", "advanced"]
+        if skill_data.skill_level.lower() not in valid_levels:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid skill level. Must be one of: beginner, intermediate, advanced"
+            )
+
+        # Update user's skill level in database
+        result = collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "skill_level": skill_data.skill_level.lower(),
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found or skill level not updated"
+            )
+
+        return {
+            "message": "Skill level updated successfully",
+            "skill_level": skill_data.skill_level
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update skill level: {str(e)}"
         )

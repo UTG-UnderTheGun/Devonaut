@@ -44,28 +44,44 @@ export default function Register() {
     setError('');
     setSuccess('');
 
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      // Register the user
       const response = await axios.post('http://localhost:8000/auth/register', {
-        username: formData.email, // Using email as username
+        username: formData.email,
         password: formData.password,
         email: formData.email,
         name: formData.name
       });
 
-      setSuccess('Registration successful! You can now log in.');
-      setFormData({ 
-        email: '', 
-        name: '', 
-        password: '', 
-        termsAccepted: false 
+      // If registration successful, automatically log them in
+      const loginResponse = await axios.post('http://localhost:8000/auth/token', {
+        username: formData.email,
+        password: formData.password,
+      }, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
-      
-      // Add a slight delay before redirect for better UX
+
+      const { access_token } = loginResponse.data;
+      sessionStorage.setItem('token', access_token);
+
+      setSuccess('Registration successful! Redirecting...');
+
+      // Redirect to skill level selection page
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/auth/level');
       }, 1500);
 
     } catch (err) {
+      console.error('Error during signup:', err);
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
       setIsLoading(false);
     }
@@ -124,6 +140,20 @@ export default function Register() {
               onChange={handleChange}
               required
               placeholder="Enter your password"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Confirm Password</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              className="form-input"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              placeholder="Enter your password again"
               disabled={isLoading}
             />
           </div>
