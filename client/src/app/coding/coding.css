@@ -504,3 +504,180 @@ h2 {
   overflow: hidden;
   height: 100%;
 }
+
+.test-type-selector {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #1a1a1a;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.output-question {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.code-display {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.code-display pre {
+  margin: 0;
+  color: #1a1a1a;
+}
+
+.question-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #1a1a1a;
+}
+
+.output-input {
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.fill-blanks {
+  position: relative;
+}
+
+.fill-blanks .blank {
+  background: #e5e7eb;
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin: 0 2px;
+}
+
+.equation-display {
+  font-family: monospace;
+  margin-bottom: 1rem;
+  font-size: 14px;
+}
+
+.answer-section {
+  margin-top: 1rem;
+}
+
+.output-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.fill-question {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-with-blanks {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.code-part {
+  white-space: pre;
+}
+
+.code-blank {
+  background: white;
+  border: 1px solid #7C3AED;
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin: 0 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  width: 200px;
+  color: #1a1a1a;
+}
+
+.code-blank:focus {
+  outline: none;
+  border-color: #6D28D9;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.fill-question {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.equation-display {
+  font-family: 'Consolas', 'Monaco', monospace;
+  margin-bottom: 1.5rem;
+  font-size: 14px;
+  color: #1a1a1a;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.code-blank-inline {
+  display: inline-block;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin: 0 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  width: 300px;
+  color: #1a1a1a;
+}
+
+.code-blank-inline:focus {
+  outline: none;
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.code-part {
+  font-family: 'Consolas', 'Monaco', monospace;
+  white-space: pre;
+}
+
+.fill-question .code-display {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 4px;
+  line-height: 1.6;
+}
+
+.console.hidden {
+  display: none;
+}
+
+/* ปรับความสูงของ editor เมื่อไม่มี console */
+.code-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 20px); /* ลบ margin/padding */
+}
+
+/* เมื่อ console ถูกซ่อน */
+.editor-container:has(.console.hidden) .code-editor {
+  height: 100%;
+}

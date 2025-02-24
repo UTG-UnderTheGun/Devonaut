@@ -10,12 +10,9 @@ const StorageManager = () => {
   const exportData = () => {
     try {
       const title = localStorage.getItem('problem-title') || 'solution.py';
+      const code = localStorage.getItem('editorCode') || '';
 
-      // Create a Blob with the current code
-      const blob = new Blob([code], {
-        type: 'text/plain'
-      });
-
+      const blob = new Blob([code], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -33,29 +30,14 @@ const StorageManager = () => {
   const importData = async (file) => {
     try {
       const text = await file.text();
+      const data = JSON.parse(text);
       
-      if (file.name.endsWith('.json')) {
-        const data = JSON.parse(text);
-        if (data.title) localStorage.setItem('problem-title', data.title);
-        if (data.description) localStorage.setItem('problem-description', data.description);
-        if (data.code) {
-          setCode(data.code);
-          localStorage.setItem('editorCode', data.code);
-        }
-      } else {
-        // If it's a .py file, just import the code
-        setCode(text);
-        localStorage.setItem('editorCode', text);
+      if (data.title) localStorage.setItem('problem-title', data.title);
+      if (data.description) localStorage.setItem('problem-description', data.description);
+      if (data.code) {
+        setCode(data.code);
+        localStorage.setItem('editorCode', data.code);
       }
-
-      window.dispatchEvent(new CustomEvent('ide-data-import', {
-        detail: {
-          title: file.name.replace('.py', ''),
-          code: text
-        }
-      }));
-
-      localStorage.setItem('ide-import-timestamp', Date.now().toString());
     } catch (error) {
       console.error('Error importing data:', error);
       alert('Failed to import data');

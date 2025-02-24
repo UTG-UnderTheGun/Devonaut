@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Data from '@/api/data';
@@ -31,37 +31,44 @@ export default function CodingPage() {
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const editorRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [testType, setTestType] = useState('code');
+  const [answers, setAnswers] = useState({});
+
+  const testTypes = [
+    { value: 'code', label: 'เขียนโค้ดตามโจทย์' },
+    { value: 'output', label: 'ทายผลลัพธ์ของโค้ด' },
+    { value: 'fill', label: 'เติมโค้ดในช่องว่าง' }
+  ];
 
   const [problems] = useState([
     {
       id: 1,
-      title: 'Two Sum',
-      description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-You can return the answer in any order.
-
-Example 1:
-Input: nums = [2,7,11,15], target = 9
-Output: [0,1]
-Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].`,
-      starterCode: `class Solution:
-    def twoSum(self, nums: List[int], target: int) -> List[int]:
-        # Your code here`
+      type: 'output',
+      title: 'Q1: What will the following program print out?',
+      description: '',
+      starterCode: `x = 3
+y = 5
+a = x + y * (5 + 1)
+b = y + 16 // x
+print(x, a, b)`,
+      expectedOutput: '3 33 8'
     },
     {
       id: 2,
-      title: 'Add Two Numbers',
-      description: `You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.
-
-You may assume the two numbers do not contain any leading zero, except the number 0 itself.
-
-Example:
-Input: l1 = [2,4,3], l2 = [5,6,4]
-Output: [7,0,8]
-Explanation: 342 + 465 = 807.`,
-      starterCode: `class Solution:
-    def addTwoNumbers(self, l1: ListNode, l2: ListNode) -> ListNode:
-        # Your code here`
+      type: 'fill',
+      title: 'Q11: Fill in the blank to calculate the following equation z = (x+1)²/2(y-1)',
+      description: '',
+      starterCode: `x = int(input('Enter x: '))
+y = int(input('Enter y: '))
+z = [____]`,
+      blanks: ['(x+1)**2/(2*(y-1))']
+    },
+    {
+      id: 3,
+      type: 'code',
+      title: 'Basic Function',
+      description: 'เขียนฟังก์ชันที่รับค่าตัวเลข 2 ตัวและคืนค่าผลบวก',
+      starterCode: 'def add_numbers(a, b):\n    # เขียนโค้ดตรงนี้\n'
     }
   ]);
 
@@ -82,6 +89,8 @@ Explanation: 342 + 465 = 807.`,
     setTitle(currentProblem.title);
     setDescription(currentProblem.description);
     setCode(currentProblem.starterCode);
+    setTestType(currentProblem.type);
+    setAnswers({});
   }, [currentProblemIndex, problems]);
 
   const handleImport = (importedData) => {
@@ -195,6 +204,16 @@ Explanation: 342 + 465 = 807.`,
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (testType !== 'code') {
+      setIsConsoleFolded(true);
+      setSelectedDescriptionTab('ASK AI');
+    } else {
+      setIsConsoleFolded(false);
+      setSelectedDescriptionTab('Description');
+    }
+  }, [testType]);
+
   if (isLoading) {
     return <CodingSkeleton />;
   }
@@ -208,12 +227,14 @@ Explanation: 342 + 465 = 807.`,
         <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
           <div className="panel-header">
             <div className="description-tabs">
-              <button
-                className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
-                onClick={() => setSelectedDescriptionTab('Description')}
-              >
-                Description
-              </button>
+              {testType === 'code' && (
+                <button
+                  className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
+                  onClick={() => setSelectedDescriptionTab('Description')}
+                >
+                  Description
+                </button>
+              )}
               <button
                 className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
                 onClick={() => setSelectedDescriptionTab('ASK AI')}
@@ -230,7 +251,7 @@ Explanation: 342 + 465 = 807.`,
           </div>
 
           <div className="panel-content">
-            {selectedDescriptionTab === 'Description' ? (
+            {selectedDescriptionTab === 'Description' && testType === 'code' ? (
               <>
                 <input
                   type="text"
@@ -258,7 +279,17 @@ Explanation: 342 + 465 = 807.`,
           <div className="code-editor">
             <div className="editor-header">
               <div className="file-section">
-                <div className="file-name">{title}</div>
+                <select 
+                  value={testType}
+                  onChange={(e) => setTestType(e.target.value)}
+                  className="test-type-selector"
+                >
+                  {testTypes.map(type => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="right-section">
@@ -288,15 +319,66 @@ Explanation: 342 + 465 = 807.`,
               </div>
             </div>
 
-            <Editor
-              ref={editorRef}
-              isCodeQuestion={true}
-              initialValue={code}
-              onChange={handleCodeChange}
-            />
+            {testType === 'code' && (
+              <Editor
+                ref={editorRef}
+                isCodeQuestion={true}
+                initialValue={code}
+                onChange={handleCodeChange}
+              />
+            )}
+
+            {testType === 'output' && (
+              <div className="output-question">
+                <div className="question-title">
+                  {problems[currentProblemIndex].title}
+                </div>
+                <div className="code-display">
+                  <pre>{problems[currentProblemIndex].starterCode}</pre>
+                </div>
+                <div className="answer-section">
+                  <input
+                    type="text"
+                    placeholder="Enter your answer..."
+                    className="output-input"
+                    value={consoleOutput}
+                    onChange={(e) => setConsoleOutput(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {testType === 'fill' && (
+              <div className="fill-question">
+                <div className="question-title">
+                  {problems[currentProblemIndex].title}
+                </div>
+                <div className="code-display">
+                  {problems[currentProblemIndex].starterCode.split('[____]').map((part, index, array) => (
+                    <React.Fragment key={index}>
+                      <span className="code-part">{part}</span>
+                      {index < array.length - 1 && (
+                        <input
+                          type="text"
+                          className="code-blank-inline"
+                          placeholder="เติมคำตอบ..."
+                          value={answers[`blank-${currentProblemIndex}-${index}`] || ''}
+                          onChange={(e) => {
+                            setAnswers(prev => ({
+                              ...prev,
+                              [`blank-${currentProblemIndex}-${index}`]: e.target.value
+                            }));
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className={`console ${isConsoleFolded ? 'folded' : ''}`}>
+          <div className={`console ${isConsoleFolded || testType !== 'code' ? 'folded' : ''}`}>
             <div className="console-header">
               <span>Console</span>
               <button
