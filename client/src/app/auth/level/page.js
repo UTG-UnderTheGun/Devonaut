@@ -19,13 +19,20 @@ export default function SkillLevel() {
 
     setIsLoading(true);
     try {
-      // Here you can add API call to save skill level
-      // Example:
-      // await axios.post('api/set-skill', { skill });
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Call API to save skill level
+      const response = await fetch('http://localhost:8000/users/skill-level', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ skill_level: skill })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to set skill level');
+      }
+
       router.push('/dashboard');
     } catch (error) {
       console.error('Error setting skill level:', error);
@@ -49,7 +56,7 @@ export default function SkillLevel() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Choose your skill</label>
+            <label className="form-label">เลือกระดับความรู้ Python ของคุณ</label>
             <div className="select-wrapper">
               <select
                 value={skill}
@@ -57,12 +64,32 @@ export default function SkillLevel() {
                 required
                 disabled={isLoading}
               >
-                <option value="">Select your skill level</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="expert">Expert</option>
+                <option value="">กรุณาเลือกระดับของคุณ</option>
+                <option value="beginner">
+                  มือใหม่ - เพิ่งเริ่มเรียนเขียนโปรแกรม
+                </option>
+                <option value="intermediate">
+                  ระดับกลาง - เข้าใจพื้นฐาน if-else, loops, lists
+                </option>
+                <option value="advanced">
+                  ก้าวหน้า - เข้าใจ functions และโครงสร้างข้อมูลพื้นฐาน
+                </option>
               </select>
+            </div>
+          </div>
+
+          <div className="level-descriptions">
+            <div className="level-description">
+              <h3>มือใหม่</h3>
+              <p>เหมาะสำหรับผู้ที่เพิ่งเริ่มต้นเขียนโปรแกรม เน้นการเรียนรู้พื้นฐานที่สุด เช่น ตัวแปร การรับค่า-แสดงผล และการคำนวณอย่างง่าย</p>
+            </div>
+            <div className="level-description">
+              <h3>ระดับกลาง</h3>
+              <p>สำหรับผู้ที่เข้าใจพื้นฐานแล้ว พร้อมเรียนรู้เรื่อง if-else, loops, lists และ functions พื้นฐาน</p>
+            </div>
+            <div className="level-description">
+              <h3>ก้าวหน้า</h3>
+              <p>สำหรับผู้ที่เข้าใจหลักการพื้นฐานดี พร้อมเรียนรู้การจัดการข้อมูลที่ซับซ้อนขึ้น และการจัดการ errors เบื้องต้น</p>
             </div>
           </div>
 
@@ -71,7 +98,7 @@ export default function SkillLevel() {
             className="btn btn-primary"
             disabled={!skill || isLoading}
           >
-            {isLoading ? 'LOADING...' : 'CONTINUE'}
+            {isLoading ? 'กำลังบันทึก...' : 'ยืนยัน'}
           </button>
         </form>
       </main>

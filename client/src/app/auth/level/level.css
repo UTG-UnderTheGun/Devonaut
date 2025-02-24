@@ -186,3 +186,36 @@
       font-size: 18px;
     }
   }
+
+.level-descriptions {
+  margin: 20px 0;
+}
+
+.level-description {
+  background: rgba(124, 58, 237, 0.05);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.level-description h3 {
+  color: #7C3AED;
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.level-description p {
+  color: #4B5563;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.select-wrapper select {
+  font-size: 15px;
+  padding: 10px;
+}
+
+.select-wrapper option {
+  padding: 10px;
+}

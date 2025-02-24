@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react'
 import './header.css'
 import './user-menu.css'
 import axios from 'axios';  // เพิ่มบรรทัดนี้
+import Loading from "@/app/loading";
 
 
 
@@ -34,6 +35,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
   const profileRef = useRef(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isHomePage = pathname === '/'
   const isCodingPage = pathname === '/coding'
@@ -83,16 +85,34 @@ const Header = () => {
 
   const handleSignOut = async () => {
     try {
-      await axios.post('http://localhost:8000/auth/logout', {}, {
-        withCredentials: true,
+      setIsLoggingOut(true); // Start loading
+
+      // Call the logout endpoint
+      await axios.post('http://localhost:8000/users/logout', {}, {
+        withCredentials: true
       });
-      setUser(null); // Clear user state
-      router.push('/auth/login'); // Redirect after logout
-      setUser(null);
-      router.push('/auth/login');
+
+      // Clear ALL stored tokens and user data
+      sessionStorage.clear();  // Clear all session storage
+      localStorage.clear();    // Clear all local storage
+
+      // Clear any cookies (in case they weren't cleared by the server)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      // Close the menu
+      setIsMenuOpen(false);
+
+      // Show loading and redirect after delay
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Single delay for both loading and redirect
+      window.location.href = '/'; // Redirect while loading screen is still showing
+
     } catch (err) {
       console.error('Error during logout:', err);
-      setError('Logout failed, please try again.');
+      setIsLoggingOut(false); // Stop loading on error
     }
   };
 
@@ -104,6 +124,11 @@ const Header = () => {
     } else {
       router.push('/')
     }
+  }
+
+  // Show loading screen when logging out
+  if (isLoggingOut) {
+    return <Loading />;
   }
 
   return (
@@ -180,8 +205,9 @@ const Header = () => {
                   <button
                     onClick={handleSignOut}
                     className="menu-item sign-out"
+                    disabled={isLoggingOut}
                   >
-                    Sign Out
+                    {isLoggingOut ? 'Signing out...' : 'Sign Out'}
                   </button>
                 </div>
               </div>
