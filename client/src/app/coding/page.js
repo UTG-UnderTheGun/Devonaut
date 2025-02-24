@@ -6,12 +6,13 @@ import Data from '@/api/data';
 import './coding.css';
 import Editor from '@/components/editor';
 import Terminal from '@/components/Terminal';
-import Loading from "@/app/loading";
+import Loading from '@/app/loading';
 import StorageManager from '@/components/StorageManager';
 import AIChatInterface from './ai-interface/ai-interface';
 import CodingSkeleton from '@/components/skeletons/CodingSkeleton';
 import CodeExplainer from './ai-interface/CodeExplainer';
 import useAuth from '@/hook/useAuth';
+import StudentAssignment from '@/components/assignment/student-assignment';
 
 export default function CodingPage() {
   useAuth();
