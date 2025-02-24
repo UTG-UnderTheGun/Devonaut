@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from app.core.security import get_current_user
 from app.db.database import collection
 from typing import List, Dict, Optional
@@ -157,4 +157,32 @@ async def update_skill_level(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update skill level: {str(e)}"
+        )
+
+@router.post("/logout",
+    summary="Logout user",
+    description="Logs out the current user by clearing their session cookie")
+async def logout(response: Response):
+    try:
+        # Clear both session and access_token cookies
+        response.delete_cookie(
+            key="session",
+            path="/",
+            secure=True,
+            httponly=True,
+            samesite="lax"
+        )
+        response.delete_cookie(
+            key="access_token",  # Add this to clear the access token
+            path="/",
+            secure=True,
+            httponly=True,
+            samesite="lax"
+        )
+        
+        return {"message": "Successfully logged out"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to logout: {str(e)}"
         )
