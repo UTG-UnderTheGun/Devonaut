@@ -12,9 +12,15 @@ import AIChatInterface from './ai-interface/ai-interface';
 import CodingSkeleton from '@/components/skeletons/CodingSkeleton';
 import CodeExplainer from './ai-interface/CodeExplainer';
 import useAuth from '@/hook/useAuth';
+import StudentAssignment from '@/components/assignment/student-assignment';
+import { useProblemState } from './hooks/useProblemState';
+import DescriptionPanel from './components/DescriptionPanel';
+import EditorSection from './components/EditorSection';
+import ConsoleSection from './components/ConsoleSection';
 
 export default function CodingPage() {
   useAuth();
+  const problemState = useProblemState();
 
   const [chat, setChat] = useState([]);
   const [user_id, setUser_id] = useState(null);
@@ -29,48 +35,26 @@ export default function CodingPage() {
   const [consoleOutput, setConsoleOutput] = useState('');
   const [isClientLoaded, setIsClientLoaded] = useState(false);
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
-  const editorRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [testType, setTestType] = useState('code');
   const [answers, setAnswers] = useState({});
-
-  const testTypes = [
-    { value: 'code', label: 'เขียนโค้ดตามโจทย์' },
-    { value: 'output', label: 'ทายผลลัพธ์ของโค้ด' },
-    { value: 'fill', label: 'เติมโค้ดในช่องว่าง' }
-  ];
-
-  const [problems] = useState([
+  const [problemCodes, setProblemCodes] = useState({});
+  const editorRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [problems, setProblems] = useState([
     {
       id: 1,
-      type: 'output',
-      title: 'Q1: What will the following program print out?',
-      description: '',
-      starterCode: `x = 3
-y = 5
-a = x + y * (5 + 1)
-b = y + 16 // x
-print(x, a, b)`,
-      expectedOutput: '3 33 8'
-    },
-    {
-      id: 2,
-      type: 'fill',
-      title: 'Q11: Fill in the blank to calculate the following equation z = (x+1)²/2(y-1)',
-      description: '',
-      starterCode: `x = int(input('Enter x: '))
-y = int(input('Enter y: '))
-z = [____]`,
-      blanks: ['(x+1)**2/(2*(y-1))']
-    },
-    {
-      id: 3,
       type: 'code',
       title: 'Basic Function',
       description: 'เขียนฟังก์ชันที่รับค่าตัวเลข 2 ตัวและคืนค่าผลบวก',
       starterCode: 'def add_numbers(a, b):\n    # เขียนโค้ดตรงนี้\n'
     }
   ]);
+
+  const testTypes = [
+    { value: 'code', label: 'เขียนโค้ดตามโจทย์' },
+    { value: 'output', label: 'ทายผลลัพธ์ของโค้ด' },
+    { value: 'fill', label: 'เติมโค้ดในช่องว่าง' }
+  ];
 
   const handlePreviousProblem = () => {
     if (currentProblemIndex > 0) {
@@ -88,14 +72,80 @@ z = [____]`,
     const currentProblem = problems[currentProblemIndex];
     setTitle(currentProblem.title);
     setDescription(currentProblem.description);
-    setCode(currentProblem.starterCode);
+    
+    // โหลดโค้ดที่บันทึกไว้ตาม type และ problem ID
+    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
+    if (savedCode) {
+      setCode(savedCode);
+    } else {
+      // ถ้าไม่มีโค้ดที่บันทึกไว้ ใช้ starterCode
+      setCode(currentProblem.starterCode);
+    }
+    
     setTestType(currentProblem.type);
-    setAnswers({});
-  }, [currentProblemIndex, problems]);
+  }, [currentProblemIndex, problems, testType]);
 
   const handleImport = (importedData) => {
-    console.log('Imported data:', importedData);
-  }
+    try {
+      // แปลงข้อมูลให้ถูกต้องก่อนเก็บใน problems
+      const processedData = Array.isArray(importedData) 
+        ? importedData.map(problem => ({
+            ...problem,
+            starterCode: problem.code || problem.starterCode
+          }))
+        : {
+            ...importedData,
+            starterCode: importedData.code || importedData.starterCode
+          };
+
+      // แปลงเป็น array ถ้าเป็น object เดี่ยว
+      const newProblems = Array.isArray(processedData) ? processedData : [processedData];
+
+      // ล้างข้อมูลที่บันทึกไว้ทั้งหมด
+      localStorage.removeItem('problem-answers');
+      localStorage.removeItem('problem-codes');
+      setAnswers({});
+      setProblemCodes({});
+
+      // อัพเดท problems ทั้งหมด
+      setProblems(newProblems);
+      
+      // เซ็ต current problem เป็นข้อแรก
+      setCurrentProblemIndex(0);
+
+      // อัพเดท state ต่างๆ ตาม current problem
+      const currentProblem = newProblems[0];
+      setTitle(currentProblem.title);
+      setDescription(currentProblem.description);
+      setCode(currentProblem.code || currentProblem.starterCode);
+      setTestType(currentProblem.type);
+
+      // บันทึกข้อมูลพื้นฐานลง localStorage
+      localStorage.setItem('current-problem-id', currentProblem.id);
+      localStorage.setItem('problem-title', currentProblem.title);
+      localStorage.setItem('problem-description', currentProblem.description);
+      localStorage.setItem('editorCode', currentProblem.code || currentProblem.starterCode);
+      localStorage.setItem('problem-type', currentProblem.type);
+      localStorage.setItem('problem-blanks', JSON.stringify(currentProblem.blanks || []));
+      localStorage.setItem('problem-expected-output', currentProblem.expectedOutput || '');
+      
+      // ล้าง localStorage ของโค้ดเก่า
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('code-') || key.startsWith('starter-code-')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // บันทึก starterCode ของแต่ละโจทย์ลง localStorage
+      newProblems.forEach((problem, index) => {
+        localStorage.setItem(`starter-code-${index}`, problem.starterCode);
+      });
+
+    } catch (error) {
+      console.error('Error handling import:', error);
+      alert('Failed to process imported data');
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -163,7 +213,8 @@ z = [____]`,
 
   const handleCodeChange = (newCode) => {
     setCode(newCode);
-    localStorage.setItem('editorCode', newCode);
+    // เก็บโค้ดแยกตาม type และ problem ID
+    localStorage.setItem(`code-${testType}-${currentProblemIndex}`, newCode);
   };
 
   const handleTitleChange = (e) => {
@@ -214,6 +265,33 @@ z = [____]`,
     }
   }, [testType]);
 
+  // เพิ่ม useEffect เพื่อโหลดคำตอบจาก localStorage เมื่อเริ่มต้น
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAnswers = localStorage.getItem('problem-answers');
+      if (savedAnswers) {
+        setAnswers(JSON.parse(savedAnswers));
+      }
+    }
+  }, []);
+
+  // เพิ่ม useEffect เพื่อบันทึกคำตอบลง localStorage เมื่อมีการเปลี่ยนแปลง
+  useEffect(() => {
+    if (answers && Object.keys(answers).length > 0) {
+      localStorage.setItem('problem-answers', JSON.stringify(answers));
+    }
+  }, [answers]);
+
+  // เพิ่ม useEffect เพื่อโหลดโค้ดจาก localStorage เมื่อเริ่มต้น
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedCodes = localStorage.getItem('problem-codes');
+      if (savedCodes) {
+        setProblemCodes(JSON.parse(savedCodes));
+      }
+    }
+  }, []);
+
   if (isLoading) {
     return <CodingSkeleton />;
   }
@@ -221,177 +299,51 @@ z = [____]`,
   if (!isClientLoaded) {
     return <Loading />;
   }
+
+  const descriptionProps = {
+    isDescriptionFolded,
+    setIsDescriptionFolded,
+    testType,
+    selectedDescriptionTab,
+    setSelectedDescriptionTab,
+    title,
+    description,
+    handleTitleChange,
+    handleDescriptionChange,
+    user_id
+  };
+
+  const editorProps = {
+    testType,
+    problems,
+    currentProblemIndex,
+    problemCodes,
+    code,
+    handleCodeChange,
+    editorRef,
+    setTestType,
+    handleImport,
+    handlePreviousProblem,
+    handleNextProblem,
+    answers,
+    setAnswers,
+    consoleOutput,
+    setConsoleOutput
+  };
+
+  const consoleProps = {
+    isConsoleFolded,
+    setIsConsoleFolded,
+    testType
+  };
+
   return (
     <div className="coding-container">
       <div className="main-content">
-        <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
-          <div className="panel-header">
-            <div className="description-tabs">
-              {testType === 'code' && (
-                <button
-                  className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
-                  onClick={() => setSelectedDescriptionTab('Description')}
-                >
-                  Description
-                </button>
-              )}
-              <button
-                className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
-                onClick={() => setSelectedDescriptionTab('ASK AI')}
-              >
-                ASK AI
-              </button>
-            </div>
-            <button
-              className="fold-button"
-              onClick={() => setIsDescriptionFolded(!isDescriptionFolded)}
-            >
-              {isDescriptionFolded ? '►' : '◄'}
-            </button>
-          </div>
-
-          <div className="panel-content">
-            {selectedDescriptionTab === 'Description' && testType === 'code' ? (
-              <>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={handleTitleChange}
-                  className="problem-title"
-                  placeholder="Enter problem title..."
-                />
-                <textarea
-                  value={description}
-                  onChange={handleDescriptionChange}
-                  className="problem-description"
-                  placeholder="Enter problem description..."
-                />
-              </>
-            ) : (
-              <div className="ask-ai-content">
-                <AIChatInterface user_id={user_id} />
-              </div>
-            )}
-          </div>
-        </div>
-
+        <DescriptionPanel {...descriptionProps} />
         <div className="editor-container">
-          <div className="code-editor">
-            <div className="editor-header">
-              <div className="file-section">
-                <select 
-                  value={testType}
-                  onChange={(e) => setTestType(e.target.value)}
-                  className="test-type-selector"
-                >
-                  {testTypes.map(type => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="right-section">
-                <div className="import-section">
-                  <StorageManager onImport={handleImport} />
-                </div>
-
-                <div className="navigation-section">
-                  <span className="problem-count">Problem {currentProblemIndex + 1} of {problems.length}</span>
-                  <div className="nav-arrows">
-                    <button
-                      className="nav-button"
-                      onClick={handlePreviousProblem}
-                      disabled={currentProblemIndex === 0}
-                    >
-                      ←
-                    </button>
-                    <button
-                      className="nav-button"
-                      onClick={handleNextProblem}
-                      disabled={currentProblemIndex === problems.length - 1}
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {testType === 'code' && (
-              <Editor
-                ref={editorRef}
-                isCodeQuestion={true}
-                initialValue={code}
-                onChange={handleCodeChange}
-              />
-            )}
-
-            {testType === 'output' && (
-              <div className="output-question">
-                <div className="question-title">
-                  {problems[currentProblemIndex].title}
-                </div>
-                <div className="code-display">
-                  <pre>{problems[currentProblemIndex].starterCode}</pre>
-                </div>
-                <div className="answer-section">
-                  <input
-                    type="text"
-                    placeholder="Enter your answer..."
-                    className="output-input"
-                    value={consoleOutput}
-                    onChange={(e) => setConsoleOutput(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {testType === 'fill' && (
-              <div className="fill-question">
-                <div className="question-title">
-                  {problems[currentProblemIndex].title}
-                </div>
-                <div className="code-display">
-                  {problems[currentProblemIndex].starterCode.split('[____]').map((part, index, array) => (
-                    <React.Fragment key={index}>
-                      <span className="code-part">{part}</span>
-                      {index < array.length - 1 && (
-                        <input
-                          type="text"
-                          className="code-blank-inline"
-                          placeholder="เติมคำตอบ..."
-                          value={answers[`blank-${currentProblemIndex}-${index}`] || ''}
-                          onChange={(e) => {
-                            setAnswers(prev => ({
-                              ...prev,
-                              [`blank-${currentProblemIndex}-${index}`]: e.target.value
-                            }));
-                          }}
-                        />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={`console ${isConsoleFolded || testType !== 'code' ? 'folded' : ''}`}>
-            <div className="console-header">
-              <span>Console</span>
-              <button
-                className="fold-button"
-                onClick={() => setIsConsoleFolded(!isConsoleFolded)}
-              >
-                {isConsoleFolded ? '▲' : '▼'}
-              </button>
-            </div>
-            <div className="console-content">
-              <Terminal />
-            </div>
-          </div>
+          <EditorSection {...editorProps} />
+          <ConsoleSection {...consoleProps} />
         </div>
       </div>
       <CodeExplainer />

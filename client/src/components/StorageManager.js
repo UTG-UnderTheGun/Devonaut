@@ -1,22 +1,28 @@
 // StorageManager.js
 import React, { useRef } from 'react';
 import '@/components/StorageManager.css';
-import { useCodeContext } from '@/app/context/CodeContext';
 
-const StorageManager = () => {
+const StorageManager = ({ onImport }) => {
   const fileInputRef = useRef(null);
-  const { code, setCode } = useCodeContext(); // Get code and setCode from context
 
   const exportData = () => {
     try {
-      const title = localStorage.getItem('problem-title') || 'solution.py';
-      const code = localStorage.getItem('editorCode') || '';
+      // Export current problem as JSON
+      const currentProblem = {
+        id: localStorage.getItem('current-problem-id') || 1,
+        title: localStorage.getItem('problem-title') || '',
+        description: localStorage.getItem('problem-description') || '',
+        code: localStorage.getItem('editorCode') || '',
+        type: localStorage.getItem('problem-type') || 'code',
+        blanks: JSON.parse(localStorage.getItem('problem-blanks') || '[]'),
+        expectedOutput: localStorage.getItem('problem-expected-output') || ''
+      };
 
-      const blob = new Blob([code], { type: 'text/plain' });
+      const blob = new Blob([JSON.stringify(currentProblem, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${title.toLowerCase().replace(/\s+/g, '_')}.py`;
+      link.download = `problem_${currentProblem.id}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -32,15 +38,28 @@ const StorageManager = () => {
       const text = await file.text();
       const data = JSON.parse(text);
       
-      if (data.title) localStorage.setItem('problem-title', data.title);
-      if (data.description) localStorage.setItem('problem-description', data.description);
-      if (data.code) {
-        setCode(data.code);
-        localStorage.setItem('editorCode', data.code);
+      // Validate the imported data structure
+      if (Array.isArray(data)) {
+        const isValid = data.every(item => item.id && item.type);
+        if (!isValid) {
+          throw new Error('Invalid problem format in array');
+        }
+      } else {
+        if (!data.id || !data.type) {
+          throw new Error('Invalid problem format');
+        }
       }
+
+      // ตรวจสอบว่า onImport มีค่าก่อนเรียกใช้
+      if (typeof onImport === 'function') {
+        onImport(data);
+      } else {
+        throw new Error('Import handler not provided');
+      }
+
     } catch (error) {
       console.error('Error importing data:', error);
-      alert('Failed to import data');
+      alert('Failed to import data: ' + error.message);
     }
   };
 
@@ -60,22 +79,16 @@ const StorageManager = () => {
 
   return (
     <div className="import-tab">
-      <button
-        onClick={exportData}
-        className="btn-compact"
-      >
+      <button onClick={exportData} className="btn-compact">
         Export
       </button>
-      <button
-        onClick={handleImportClick}
-        className="btn-compact"
-      >
+      <button onClick={handleImportClick} className="btn-compact">
         Import
       </button>
       <input
         ref={fileInputRef}
         type="file"
-        accept=".py,.json"
+        accept=".json"
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />
