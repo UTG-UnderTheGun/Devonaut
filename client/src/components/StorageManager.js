@@ -2,30 +2,61 @@
 import React, { useRef } from 'react';
 import '@/components/StorageManager.css';
 
-const StorageManager = ({ onImport }) => {
+const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   const fileInputRef = useRef(null);
 
-  const exportData = () => {
+  const handleExport = () => {
     try {
-      // Export current problem as JSON
-      const currentProblem = {
-        id: localStorage.getItem('current-problem-id') || 1,
-        title: localStorage.getItem('problem-title') || '',
-        description: localStorage.getItem('problem-description') || '',
-        code: localStorage.getItem('editorCode') || '',
-        type: localStorage.getItem('problem-type') || 'code',
-        blanks: JSON.parse(localStorage.getItem('problem-blanks') || '[]'),
-        expectedOutput: localStorage.getItem('problem-expected-output') || ''
+      // Get answers from localStorage
+      const savedAnswers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
+      const problemId = currentProblemIndex + 1; // คำนวณ id จาก index
+      
+      let filteredAnswers = {};
+
+      if (testType === 'fill') {
+        // สำหรับ type 'fill'
+        Object.entries(savedAnswers).forEach(([key, value]) => {
+          // ใช้ problemId แทน currentProblemIndex
+          if (key.startsWith(`blank-${problemId}-`)) {
+            filteredAnswers[key] = value;
+          }
+        });
+      } else if (testType === 'code') {
+        // สำหรับ type 'code'
+        const studentCode = localStorage.getItem(`code-code-${currentProblemIndex}`);
+        console.log('Student code:', studentCode);
+        
+        if (studentCode && studentCode.trim() !== '') {
+          filteredAnswers = { code: studentCode };
+        }
+      }
+
+      // Get output if it's output type
+      const output = testType === 'output' ? 
+        localStorage.getItem(`output-${currentProblemIndex}`) || null : null;
+
+      // Prepare export data
+      const exportData = {
+        id: problemId,
+        problemIndex: currentProblemIndex,
+        code: null,
+        type: testType,
+        answers: filteredAnswers,
+        output: output,
+        starterCode: localStorage.getItem(`starter-code-${currentProblemIndex}`)
       };
 
-      const blob = new Blob([JSON.stringify(currentProblem, null, 2)], { type: 'application/json' });
+      console.log('Exporting data:', exportData);
+
+      // Create and download file
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `problem_${currentProblem.id}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `problem${problemId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting data:', error);
@@ -79,7 +110,7 @@ const StorageManager = ({ onImport }) => {
 
   return (
     <div className="import-tab">
-      <button onClick={exportData} className="btn-compact">
+      <button onClick={handleExport} className="btn-compact">
         Export
       </button>
       <button onClick={handleImportClick} className="btn-compact">

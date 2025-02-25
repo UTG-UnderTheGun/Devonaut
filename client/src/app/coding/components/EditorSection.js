@@ -42,7 +42,11 @@ const EditorSection = ({
 
         <div className="right-section">
           <div className="import-section">
-            <StorageManager onImport={handleImport} />
+            <StorageManager 
+              onImport={handleImport}
+              currentProblemIndex={currentProblemIndex}
+              testType={testType}
+            />
           </div>
 
           <div className="navigation-section">
@@ -123,7 +127,10 @@ const EditorSection = ({
                 placeholder="Enter your answer..."
                 className="output-input"
                 value={consoleOutput}
-                onChange={(e) => setConsoleOutput(e.target.value)}
+                onChange={(e) => {
+                  setConsoleOutput(e.target.value);
+                  localStorage.setItem(`output-${currentProblemIndex}`, e.target.value);
+                }}
                 rows={1}
                 onInput={(e) => {
                   e.target.style.height = 'auto';
@@ -168,11 +175,11 @@ const EditorSection = ({
                         type="text"
                         className="code-blank-inline"
                         placeholder="เติมคำตอบ..."
-                        value={answers[`blank-${currentProblemIndex}-${index}`] || ''}
+                        value={answers[`blank-${currentProblemIndex + 1}-${index}`] || ''}
                         onChange={(e) => {
                           const newAnswers = {
                             ...answers,
-                            [`blank-${currentProblemIndex}-${index}`]: e.target.value
+                            [`blank-${currentProblemIndex + 1}-${index}`]: e.target.value
                           };
                           setAnswers(newAnswers);
                           localStorage.setItem('problem-answers', JSON.stringify(newAnswers));
