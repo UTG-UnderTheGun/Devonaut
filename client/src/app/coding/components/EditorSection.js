@@ -4,6 +4,7 @@ import StorageManager from '@/components/StorageManager';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
+import { IoRefreshOutline } from "react-icons/io5";
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -23,21 +24,67 @@ const EditorSection = ({
   answers,
   setAnswers,
   consoleOutput,
-  setConsoleOutput
+  setConsoleOutput,
+  handleReset,
+  title,
+  setTitle,
+  description,
+  setDescription,
+  setSelectedDescriptionTab
 }) => {
+  const [showEmptyState, setShowEmptyState] = React.useState(true);
+
+  const handleResetAll = () => {
+    setShowEmptyState(true);
+    
+    // Clear editor
+    if (editorRef.current) {
+      editorRef.current.setValue('');
+    }
+
+    // Clear all localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('code-') || 
+          key.startsWith('problem-') || 
+          key.startsWith('starter-code-') ||
+          key === 'editorCode') {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Reset states
+    setTitle('');
+    setDescription('');
+    setConsoleOutput('');
+    setAnswers({});
+    setSelectedDescriptionTab('Description');
+
+    if (handleReset) {
+      handleReset();
+    }
+  };
+
+  React.useEffect(() => {
+    if (problems.length > 0) {
+      setShowEmptyState(false);
+    }
+  }, [problems]);
+
   return (
     <div className="code-editor">
       <div className="editor-header">
         <div className="file-section">
-          <select 
-            value={testType}
-            onChange={(e) => setTestType(e.target.value)}
-            className="test-type-selector"
-          >
-            <option value="code">เขียนโค้ดตามโจทย์</option>
-            <option value="output">ทายผลลัพธ์ของโค้ด</option>
-            <option value="fill">เติมโค้ดในช่องว่าง</option>
-          </select>
+          {!showEmptyState && (
+            <select 
+              value={testType}
+              onChange={(e) => setTestType(e.target.value)}
+              className="test-type-selector"
+            >
+              <option value="code">เขียนโค้ดตามโจทย์</option>
+              <option value="output">ทายผลลัพธ์ของโค้ด</option>
+              <option value="fill">เติมโค้ดในช่องว่าง</option>
+            </select>
+          )}
         </div>
 
         <div className="right-section">
@@ -47,34 +94,57 @@ const EditorSection = ({
               currentProblemIndex={currentProblemIndex}
               testType={testType}
             />
+            <button 
+              onClick={handleResetAll} 
+              className="icon-button"
+              title="Reset"
+            >
+              <IoRefreshOutline size={18} />
+            </button>
           </div>
-
-          <div className="navigation-section">
-            <span className="problem-count">
-              Problem {currentProblemIndex + 1} of {problems.length}
-            </span>
-            <div className="nav-arrows">
-              <button
-                className="nav-button"
-                onClick={handlePreviousProblem}
-                disabled={currentProblemIndex === 0}
-              >
-                ←
-              </button>
-              <button
-                className="nav-button"
-                onClick={handleNextProblem}
-                disabled={currentProblemIndex === problems.length - 1}
-              >
-                →
-              </button>
+          {!showEmptyState && (
+            <div className="navigation-section">
+              <span className="problem-count">
+                Problem {currentProblemIndex + 1} of {problems.length}
+              </span>
+              <div className="nav-arrows">
+                <button
+                  className="nav-button"
+                  onClick={handlePreviousProblem}
+                  disabled={currentProblemIndex === 0}
+                >
+                  ←
+                </button>
+                <button
+                  className="nav-button"
+                  onClick={handleNextProblem}
+                  disabled={currentProblemIndex === problems.length - 1}
+                >
+                  →
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* แสดงส่วนของ Editor ตาม type */}
-      {renderEditorContent()}
+      {showEmptyState ? (
+        <div className="empty-state">
+          <Editor
+            ref={editorRef}
+            isCodeQuestion={true}
+            initialValue=""
+            onChange={(value) => {
+              if (value.trim() !== '') {
+                localStorage.setItem('editorCode', value);
+              }
+              handleCodeChange(value);
+            }}
+          />
+        </div>
+      ) : (
+        renderEditorContent()
+      )}
     </div>
   );
 

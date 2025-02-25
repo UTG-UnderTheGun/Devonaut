@@ -44,9 +44,9 @@ export default function CodingPage() {
     {
       id: 1,
       type: 'code',
-      title: 'Basic Function',
-      description: 'เขียนฟังก์ชันที่รับค่าตัวเลข 2 ตัวและคืนค่าผลบวก',
-      starterCode: 'def add_numbers(a, b):\n    # เขียนโค้ดตรงนี้\n'
+      title: '',
+      description: '',
+      starterCode: ''
     }
   ]);
 
@@ -319,6 +319,22 @@ export default function CodingPage() {
     setTestType(currentProblem.type);
   }, [currentProblemIndex, problems, testType, problemCodes]);
 
+  const handleReset = () => {
+    // Reset code
+    if (editorRef.current) {
+      editorRef.current.setValue('');
+    }
+    
+    // Reset title and description
+    setTitle('');
+    setDescription('');
+    
+    // Clear localStorage
+    localStorage.removeItem('problem-title');
+    localStorage.removeItem('problem-description');
+    localStorage.removeItem(`code-code-${currentProblemIndex}`);
+  };
+
   if (isLoading) {
     return <CodingSkeleton />;
   }
@@ -355,7 +371,13 @@ export default function CodingPage() {
     answers,
     setAnswers,
     consoleOutput,
-    setConsoleOutput
+    setConsoleOutput,
+    handleReset,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    setSelectedDescriptionTab
   };
 
   const consoleProps = {
@@ -367,7 +389,11 @@ export default function CodingPage() {
   return (
     <div className="coding-container">
       <div className="main-content">
-        <DescriptionPanel {...descriptionProps} />
+        <DescriptionPanel 
+          {...descriptionProps} 
+          selectedDescriptionTab={selectedDescriptionTab}
+          setSelectedDescriptionTab={setSelectedDescriptionTab}
+        />
         <div className="editor-container">
           <EditorSection {...editorProps} />
           <ConsoleSection {...consoleProps} />
