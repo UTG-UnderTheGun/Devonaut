@@ -99,23 +99,6 @@ const EditorSection = ({
       </SyntaxHighlighter>
     );
 
-    const renderHighlightedCodeInline = (code) => (
-      <SyntaxHighlighter
-        language="python"
-        style={vs}
-        customStyle={{
-          margin: 0,
-          padding: '0',
-          background: 'transparent',
-          display: 'inline',
-          fontSize: '0.875rem',
-          lineHeight: '1.6'
-        }}
-      >
-        {code}
-      </SyntaxHighlighter>
-    );
-
     switch (testType) {
       case 'code':
         return (
@@ -162,44 +145,43 @@ const EditorSection = ({
               </div>
             )}
             <div className="code-display">
-              <SyntaxHighlighter
-                language="python"
-                style={vs}
-                customStyle={{
-                  margin: 0,
-                  padding: '1rem',
-                  background: 'transparent',
-                  fontSize: '0.875rem',
-                  lineHeight: '1.6'
-                }}
-              >
-                {getSavedCode().split('____').map((part, index, array) => 
-                  index === array.length - 1 ? part : part + '____'
-                ).join('')}
-              </SyntaxHighlighter>
-              {getSavedCode().split('____').map((part, index, array) => (
-                index < array.length - 1 && (
-                  <input
-                    key={index}
-                    type="text"
-                    className="code-blank-inline"
-                    style={{
-                      position: 'absolute',
-                      transform: `translateY(-${(array.length - index) * 1.6}em)`
-                    }}
-                    placeholder="เติมคำตอบ..."
-                    value={answers[`blank-${currentProblemIndex}-${index}`] || ''}
-                    onChange={(e) => {
-                      const newAnswers = {
-                        ...answers,
-                        [`blank-${currentProblemIndex}-${index}`]: e.target.value
-                      };
-                      setAnswers(newAnswers);
-                      localStorage.setItem('problem-answers', JSON.stringify(newAnswers));
-                    }}
-                  />
-                )
-              ))}
+              <pre style={{ margin: 0, background: 'transparent' }}>
+                {getSavedCode().split('____').map((part, index, array) => (
+                  <React.Fragment key={index}>
+                    <SyntaxHighlighter
+                      language="python"
+                      style={vs}
+                      customStyle={{
+                        margin: 0,
+                        padding: 0,
+                        background: 'transparent',
+                        display: 'inline',
+                        fontSize: '14px',
+                        lineHeight: '1.6'
+                      }}
+                      PreTag="span"
+                    >
+                      {part}
+                    </SyntaxHighlighter>
+                    {index < array.length - 1 && (
+                      <input
+                        type="text"
+                        className="code-blank-inline"
+                        placeholder="เติมคำตอบ..."
+                        value={answers[`blank-${currentProblemIndex}-${index}`] || ''}
+                        onChange={(e) => {
+                          const newAnswers = {
+                            ...answers,
+                            [`blank-${currentProblemIndex}-${index}`]: e.target.value
+                          };
+                          setAnswers(newAnswers);
+                          localStorage.setItem('problem-answers', JSON.stringify(newAnswers));
+                        }}
+                      />
+                    )}
+                  </React.Fragment>
+                ))}
+              </pre>
             </div>
           </div>
         );

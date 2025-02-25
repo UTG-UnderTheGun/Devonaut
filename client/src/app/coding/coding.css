@@ -532,12 +532,20 @@ h2 {
   line-height: 1.5;
   margin-bottom: 1rem;
   overflow-x: auto;
-  position: relative;
 }
 
 .code-display pre {
   margin: 0 !important;
   background: transparent !important;
+}
+
+/* Remove container styles from SyntaxHighlighter */
+.code-display pre > span {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .code-display code {
@@ -630,7 +638,8 @@ h2 {
 }
 
 .code-part {
-  white-space: pre;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: #1f2937;
 }
 
 .code-blank {
@@ -669,21 +678,21 @@ h2 {
 
 .code-blank-inline {
   display: inline-block;
-  margin-left: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  background: white;
+  width: 120px;
+  margin: 0 4px;
+  padding: 2px 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.875rem;
-  width: 120px;
+  background: white;
+  outline: none;
   vertical-align: middle;
 }
 
 .code-blank-inline:focus {
-  outline: none;
-  border-color: #7C3AED;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .code-part {
