@@ -66,7 +66,7 @@ export default function Login() {
       setSuccess('Login successful! Redirecting...');
 
       setTimeout(() => {
-        router.push('/auth/level');
+          router.push('/auth/level');
       }, 1500);
 
     } catch (err) {

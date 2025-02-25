@@ -69,21 +69,18 @@ export default function CodingPage() {
   };
 
   useEffect(() => {
-    const currentProblem = problems[currentProblemIndex];
-    setTitle(currentProblem.title);
-    setDescription(currentProblem.description);
-    
-    // โหลดโค้ดที่บันทึกไว้ตาม type และ problem ID
-    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
-    if (savedCode) {
-      setCode(savedCode);
-    } else {
-      // ถ้าไม่มีโค้ดที่บันทึกไว้ ใช้ starterCode
-      setCode(currentProblem.starterCode);
+    // โหลดโค้ดที่บันทึกไว้ทั้งหมดเมื่อเริ่มต้น
+    if (typeof window !== 'undefined') {
+      const keys = Object.keys(localStorage);
+      const savedCodes = {};
+      keys.forEach(key => {
+        if (key.startsWith('code-')) {
+          savedCodes[key] = localStorage.getItem(key);
+        }
+      });
+      setProblemCodes(savedCodes);
     }
-    
-    setTestType(currentProblem.type);
-  }, [currentProblemIndex, problems, testType]);
+  }, []);
 
   const handleImport = (importedData) => {
     try {
@@ -212,9 +209,19 @@ export default function CodingPage() {
   }, [code, isConsoleFolded, isDescriptionFolded, title, description, isClientLoaded]);
 
   const handleCodeChange = (newCode) => {
+    const key = `code-${testType}-${currentProblemIndex}`;
+    
+    // เก็บโค้ดใน state
+    setProblemCodes(prev => ({
+      ...prev,
+      [key]: newCode
+    }));
+    
+    // เก็บลง localStorage
+    localStorage.setItem(key, newCode);
+    
+    // อัพเดท current code
     setCode(newCode);
-    // เก็บโค้ดแยกตาม type และ problem ID
-    localStorage.setItem(`code-${testType}-${currentProblemIndex}`, newCode);
   };
 
   const handleTitleChange = (e) => {
@@ -291,6 +298,26 @@ export default function CodingPage() {
       }
     }
   }, []);
+
+  // แก้ไข useEffect ที่ทำงานเมื่อเปลี่ยน problem
+  useEffect(() => {
+    const currentProblem = problems[currentProblemIndex];
+    setTitle(currentProblem.title);
+    setDescription(currentProblem.description);
+    
+    const key = `code-${testType}-${currentProblemIndex}`;
+    const savedCode = problemCodes[key];
+    
+    if (savedCode) {
+      setCode(savedCode);
+    } else {
+      // ถ้าไม่มีโค้ดที่บันทึกไว้ ใช้ starterCode
+      const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
+      setCode(starterCode || currentProblem.starterCode);
+    }
+    
+    setTestType(currentProblem.type);
+  }, [currentProblemIndex, problems, testType, problemCodes]);
 
   if (isLoading) {
     return <CodingSkeleton />;
