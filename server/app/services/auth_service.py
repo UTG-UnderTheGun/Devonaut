@@ -14,6 +14,7 @@ from app.db.schemas import User
 from app.db.database import collection
 from app.core.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.security import verify_password, get_password_hash, create_access_token
+from bson import ObjectId
 
 GOOGLE_USER_INFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -24,43 +25,49 @@ GOOGLE_REDIRECT_URI = "http://localhost:8000/auth/google/callback"
 
 
 async def register(user: User):
+    # Check if username already exists
+    if get_user(collection, user.username):
+        raise HTTPException(
+            status_code=400, 
+            detail="Username already registered"
+        )
+    
+    # Create user document
+    user_doc = {
+        "username": user.username,
+        "hashed_password": get_password_hash(user.password),
+        "email": user.email,
+        "name": user.name,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "_id": ObjectId()  # Generate MongoDB ID
+    }
+
     try:
-        # Check if user already exists
-        existing_user = get_user(collection, user.username)
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Username already registered")
-
-        # Create new user document
-        new_user = {
-            "username": user.username,
-            "hashed_password": get_password_hash(user.password),
-            "skill_level": "beginner",  # Default skill level
-            "created_at": datetime.utcnow(),
-            "last_login": datetime.utcnow(),
-            "is_active": True
-        }
-
         # Insert into MongoDB
-        result = collection.insert_one(new_user)
+        result = collection.insert_one(user_doc)
         
         if not result.inserted_id:
-            raise HTTPException(status_code=500, detail="Failed to create user")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create user"
+            )
 
-        # Log the successful registration
-        print(f"New user registered: {user.username} with ID: {result.inserted_id}")
-        
-        # Return user data (excluding sensitive information)
+        # Remove password from response
+        user_doc.pop("hashed_password")
         return {
-            "username": user.username,
-            "user_id": str(result.inserted_id),
-            "message": "Registration successful"
+            "message": "User registered successfully",
+            "user": {
+                **user_doc,
+                "_id": str(user_doc["_id"])  # Convert ObjectId to string
+            }
         }
 
     except Exception as e:
-        print(f"Registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Registration failed: {str(e)}"
+            detail="Internal server error during registration"
         )
 
 

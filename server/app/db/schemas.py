@@ -1,15 +1,22 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 
 class User(BaseModel):
     username: str
     password: str
+    email: Optional[str] = None
+    name: Optional[str] = None
+    skill_level: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class UserInDB(BaseModel):
     username: str
     hashed_password: str
+    skill_level: Optional[str] = None
 
 
 class CodeSubmission(BaseModel):
@@ -33,3 +40,7 @@ class TokenData(BaseModel):
 
 class Code(BaseModel):
     code: str
+
+
+class SkillLevel(BaseModel):
+    skill_level: str

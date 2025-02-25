@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response, Request
+from fastapi import APIRouter, HTTPException, Response, Request, status
 from fastapi.responses import RedirectResponse
 from typing import Optional
 from app.services.auth_service import (
@@ -39,10 +39,18 @@ async def google_callback(request: Request):
     return await process_google_callback(request, code)
 
 
-@router.post("/register", response_model=User)
+@router.post("/register")
 async def register_user(user: User):
-    print("test")
-    return await register(user)
+    try:
+        result = await register(user)
+        return result
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 @router.post("/token")

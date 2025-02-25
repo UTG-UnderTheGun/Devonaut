@@ -65,8 +65,17 @@ export default function Login() {
 
       setSuccess('Login successful! Redirecting...');
 
+      const userResponse = await fetch('http://localhost:8000/users/me', {
+        credentials: 'include'
+      });
+      const userData = await userResponse.json();
+
       setTimeout(() => {
+        if (userData.skill_level) {
+          router.push('/dashboard');
+        } else {
           router.push('/auth/level');
+        }
       }, 1500);
 
     } catch (err) {
