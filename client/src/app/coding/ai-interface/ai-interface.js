@@ -19,7 +19,7 @@ const formatTime = (date) => {
 
 const WELCOME_MESSAGE = {
   id: 0,
-  text: "Hi! I'm your AI coding assistant. I can help you understand the problem, debug your code, or guide you towards a solution. What would you like to know?",
+  text: "สวัสดีครับ! ผมเป็นผู้ช่วยด้านการเขียนโค้ด AI ที่พร้อมช่วยคุณครับ ผมสามารถช่วยคุณทำความเข้าใจปัญหา แก้ไขข้อผิดพลาดในโค้ด หรือแนะนำคุณไปสู่วิธีแก้ปัญหาได้ คุณอยากทราบเรื่องอะไรครับ?",
   isUser: false,
   timestamp: new Date()
 };
@@ -37,7 +37,7 @@ const TypingIndicator = () => (
 const AIChatInterface = ({ user_id }) => {
   const [chat, setChat] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [questionsLeft, setQuestionsLeft] = useState(5);
+  const [questionsLeft, setQuestionsLeft] = useState(10);
   const messagesEndRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
   

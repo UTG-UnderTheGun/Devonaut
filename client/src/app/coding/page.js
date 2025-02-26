@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Data from '@/api/data';
@@ -13,9 +13,14 @@ import CodingSkeleton from '@/components/skeletons/CodingSkeleton';
 import CodeExplainer from './ai-interface/CodeExplainer';
 import useAuth from '@/hook/useAuth';
 import StudentAssignment from '@/components/assignment/student-assignment';
+import { useProblemState } from './hooks/useProblemState';
+import DescriptionPanel from './components/DescriptionPanel';
+import EditorSection from './components/EditorSection';
+import ConsoleSection from './components/ConsoleSection';
 
 export default function CodingPage() {
   useAuth();
+  const problemState = useProblemState();
 
   const [chat, setChat] = useState([]);
   const [user_id, setUser_id] = useState(null);
@@ -30,41 +35,26 @@ export default function CodingPage() {
   const [consoleOutput, setConsoleOutput] = useState('');
   const [isClientLoaded, setIsClientLoaded] = useState(false);
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
+  const [testType, setTestType] = useState('code');
+  const [answers, setAnswers] = useState({});
+  const [problemCodes, setProblemCodes] = useState({});
   const editorRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const [problems] = useState([
+  const [problems, setProblems] = useState([
     {
       id: 1,
-      title: 'Two Sum',
-      description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-You can return the answer in any order.
-
-Example 1:
-Input: nums = [2,7,11,15], target = 9
-Output: [0,1]
-Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].`,
-      starterCode: `class Solution:
-    def twoSum(self, nums: List[int], target: int) -> List[int]:
-        # Your code here`
-    },
-    {
-      id: 2,
-      title: 'Add Two Numbers',
-      description: `You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.
-
-You may assume the two numbers do not contain any leading zero, except the number 0 itself.
-
-Example:
-Input: l1 = [2,4,3], l2 = [5,6,4]
-Output: [7,0,8]
-Explanation: 342 + 465 = 807.`,
-      starterCode: `class Solution:
-    def addTwoNumbers(self, l1: ListNode, l2: ListNode) -> ListNode:
-        # Your code here`
+      type: 'code',
+      title: '',
+      description: '',
+      starterCode: ''
     }
   ]);
+
+  const testTypes = [
+    { value: 'code', label: 'เขียนโค้ดตามโจทย์' },
+    { value: 'output', label: 'ทายผลลัพธ์ของโค้ด' },
+    { value: 'fill', label: 'เติมโค้ดในช่องว่าง' }
+  ];
 
   const handlePreviousProblem = () => {
     if (currentProblemIndex > 0) {
@@ -79,15 +69,24 @@ Explanation: 342 + 465 = 807.`,
   };
 
   useEffect(() => {
-    const currentProblem = problems[currentProblemIndex];
-    setTitle(currentProblem.title);
-    setDescription(currentProblem.description);
-    setCode(currentProblem.starterCode);
-  }, [currentProblemIndex, problems]);
+    // โหลดโค้ดที่บันทึกไว้ทั้งหมดเมื่อเริ่มต้น
+    if (typeof window !== 'undefined') {
+      const keys = Object.keys(localStorage);
+      const savedCodes = {};
+      keys.forEach(key => {
+        if (key.startsWith('code-')) {
+          savedCodes[key] = localStorage.getItem(key);
+        }
+      });
+      setProblemCodes(savedCodes);
+    }
+  }, []);
 
-  const handleImport = (importedData) => {
-    console.log('Imported data:', importedData);
-  }
+  const handleImport = (data) => {
+    // บันทึกข้อมูลลง localStorage
+    localStorage.setItem('saved-problems', JSON.stringify(data));
+    setProblems(Array.isArray(data) ? data : [data]);
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -154,8 +153,19 @@ Explanation: 342 + 465 = 807.`,
   }, [code, isConsoleFolded, isDescriptionFolded, title, description, isClientLoaded]);
 
   const handleCodeChange = (newCode) => {
+    const key = `code-${testType}-${currentProblemIndex}`;
+    
+    // เก็บโค้ดใน state
+    setProblemCodes(prev => ({
+      ...prev,
+      [key]: newCode
+    }));
+    
+    // เก็บลง localStorage
+    localStorage.setItem(key, newCode);
+    
+    // อัพเดท current code
     setCode(newCode);
-    localStorage.setItem('editorCode', newCode);
   };
 
   const handleTitleChange = (e) => {
@@ -196,6 +206,79 @@ Explanation: 342 + 465 = 807.`,
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (testType !== 'code') {
+      setIsConsoleFolded(true);
+      setSelectedDescriptionTab('ASK AI');
+    } else {
+      setIsConsoleFolded(false);
+      setSelectedDescriptionTab('Description');
+    }
+  }, [testType]);
+
+  // เพิ่ม useEffect เพื่อโหลดคำตอบจาก localStorage เมื่อเริ่มต้น
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAnswers = localStorage.getItem('problem-answers');
+      if (savedAnswers) {
+        setAnswers(JSON.parse(savedAnswers));
+      }
+    }
+  }, []);
+
+  // เพิ่ม useEffect เพื่อบันทึกคำตอบลง localStorage เมื่อมีการเปลี่ยนแปลง
+  useEffect(() => {
+    if (answers && Object.keys(answers).length > 0) {
+      localStorage.setItem('problem-answers', JSON.stringify(answers));
+    }
+  }, [answers]);
+
+  // เพิ่ม useEffect เพื่อโหลดโค้ดจาก localStorage เมื่อเริ่มต้น
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedCodes = localStorage.getItem('problem-codes');
+      if (savedCodes) {
+        setProblemCodes(JSON.parse(savedCodes));
+      }
+    }
+  }, []);
+
+  // แก้ไข useEffect ที่ทำงานเมื่อเปลี่ยน problem
+  useEffect(() => {
+    const currentProblem = problems[currentProblemIndex];
+    setTitle(currentProblem.title);
+    setDescription(currentProblem.description);
+    
+    const key = `code-${testType}-${currentProblemIndex}`;
+    const savedCode = problemCodes[key];
+    
+    if (savedCode) {
+      setCode(savedCode);
+    } else {
+      // ถ้าไม่มีโค้ดที่บันทึกไว้ ใช้ starterCode
+      const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
+      setCode(starterCode || currentProblem.starterCode);
+    }
+    
+    setTestType(currentProblem.type);
+  }, [currentProblemIndex, problems, testType, problemCodes]);
+
+  const handleReset = () => {
+    // Reset code
+    if (editorRef.current) {
+      editorRef.current.setValue('');
+    }
+    
+    // Reset title and description
+    setTitle('');
+    setDescription('');
+    
+    // Clear localStorage
+    localStorage.removeItem('problem-title');
+    localStorage.removeItem('problem-description');
+    localStorage.removeItem(`code-code-${currentProblemIndex}`);
+  };
+
   if (isLoading) {
     return <CodingSkeleton />;
   }
@@ -203,114 +286,61 @@ Explanation: 342 + 465 = 807.`,
   if (!isClientLoaded) {
     return <Loading />;
   }
+
+  const descriptionProps = {
+    isDescriptionFolded,
+    setIsDescriptionFolded,
+    testType,
+    selectedDescriptionTab,
+    setSelectedDescriptionTab,
+    title,
+    description,
+    handleTitleChange,
+    handleDescriptionChange,
+    user_id
+  };
+
+  const editorProps = {
+    testType,
+    problems,
+    currentProblemIndex,
+    problemCodes,
+    code,
+    handleCodeChange,
+    editorRef,
+    setTestType,
+    handleImport,
+    handlePreviousProblem,
+    handleNextProblem,
+    answers,
+    setAnswers,
+    consoleOutput,
+    setConsoleOutput,
+    handleReset,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    setSelectedDescriptionTab
+  };
+
+  const consoleProps = {
+    isConsoleFolded,
+    setIsConsoleFolded,
+    testType
+  };
+
   return (
     <div className="coding-container">
       <div className="main-content">
-        <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
-          <div className="panel-header">
-            <div className="description-tabs">
-              <button
-                className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''}`}
-                onClick={() => setSelectedDescriptionTab('Description')}
-              >
-                Description
-              </button>
-              <button
-                className={`description-tab ${selectedDescriptionTab === 'ASK AI' ? 'active' : ''}`}
-                onClick={() => setSelectedDescriptionTab('ASK AI')}
-              >
-                ASK AI
-              </button>
-            </div>
-            <button
-              className="fold-button"
-              onClick={() => setIsDescriptionFolded(!isDescriptionFolded)}
-            >
-              {isDescriptionFolded ? '►' : '◄'}
-            </button>
-          </div>
-
-          <div className="panel-content">
-            {selectedDescriptionTab === 'Description' ? (
-              <>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={handleTitleChange}
-                  className="problem-title"
-                  placeholder="Enter problem title..."
-                />
-                <textarea
-                  value={description}
-                  onChange={handleDescriptionChange}
-                  className="problem-description"
-                  placeholder="Enter problem description..."
-                />
-              </>
-            ) : (
-              <div className="ask-ai-content">
-                <AIChatInterface user_id={user_id} />
-              </div>
-            )}
-          </div>
-        </div>
-
+        <DescriptionPanel 
+          {...descriptionProps} 
+          selectedDescriptionTab={selectedDescriptionTab}
+          setSelectedDescriptionTab={setSelectedDescriptionTab}
+        />
         <div className="editor-container">
-          <div className="code-editor">
-            <div className="editor-header">
-              <div className="file-section">
-                <div className="file-name">{title}</div>
-              </div>
-
-              <div className="right-section">
-                <div className="import-section">
-                  <StorageManager onImport={handleImport} />
-                </div>
-
-                <div className="navigation-section">
-                  <span className="problem-count">Problem {currentProblemIndex + 1} of {problems.length}</span>
-                  <div className="nav-arrows">
-                    <button
-                      className="nav-button"
-                      onClick={handlePreviousProblem}
-                      disabled={currentProblemIndex === 0}
-                    >
-                      ←
-                    </button>
-                    <button
-                      className="nav-button"
-                      onClick={handleNextProblem}
-                      disabled={currentProblemIndex === problems.length - 1}
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Editor
-              ref={editorRef}
-              isCodeQuestion={true}
-              initialValue={code}
-              onChange={handleCodeChange}
-            />
-          </div>
-
-          <div className={`console ${isConsoleFolded ? 'folded' : ''}`}>
-            <div className="console-header">
-              <span>Console</span>
-              <button
-                className="fold-button"
-                onClick={() => setIsConsoleFolded(!isConsoleFolded)}
-              >
-                {isConsoleFolded ? '▲' : '▼'}
-              </button>
-            </div>
-            <div className="console-content">
-              <Terminal />
-            </div>
-          </div>
+          <EditorSection {...editorProps} />
+          <ConsoleSection {...consoleProps} />
         </div>
       </div>
       <CodeExplainer />
