@@ -6,62 +6,34 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   const fileInputRef = useRef(null);
 
   const handleExport = () => {
-    try {
-      // Get answers from localStorage
-      const savedAnswers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
-      const problemId = currentProblemIndex + 1; // คำนวณ id จาก index
-      
-      let filteredAnswers = {};
+    // Get current problem data
+    const currentCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
+    const title = localStorage.getItem('problem-title');
+    const description = localStorage.getItem('problem-description');
+    const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
+    const answers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
 
-      if (testType === 'fill') {
-        // สำหรับ type 'fill'
-        Object.entries(savedAnswers).forEach(([key, value]) => {
-          // ใช้ problemId แทน currentProblemIndex
-          if (key.startsWith(`blank-${problemId}-`)) {
-            filteredAnswers[key] = value;
-          }
-        });
-      } else if (testType === 'code') {
-        // สำหรับ type 'code'
-        const studentCode = localStorage.getItem(`code-code-${currentProblemIndex}`);
-        console.log('Student code:', studentCode);
-        
-        if (studentCode && studentCode.trim() !== '') {
-          filteredAnswers = { code: studentCode };
-        }
-      }
+    // Create export object in same structure as import
+    const exportData = {
+      id: currentProblemIndex + 1,
+      title: title || '',
+      description: description || '',
+      code: starterCode || '',
+      type: testType,
+      answers: '',
+      blanks: []
+    };
 
-      // Get output if it's output type
-      const output = testType === 'output' ? 
-        localStorage.getItem(`output-${currentProblemIndex}`) || null : null;
-
-      // Prepare export data
-      const exportData = {
-        id: problemId,
-        problemIndex: currentProblemIndex,
-        code: null,
-        type: testType,
-        answers: filteredAnswers,
-        output: output,
-        starterCode: localStorage.getItem(`starter-code-${currentProblemIndex}`)
-      };
-
-      console.log('Exporting data:', exportData);
-
-      // Create and download file
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `problem${problemId}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      alert('Failed to export data');
-    }
+    // Convert to JSON and create download
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `problem${currentProblemIndex + 1}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const importData = async (file) => {
@@ -71,17 +43,24 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       
       // Validate the imported data structure
       if (Array.isArray(data)) {
-        const isValid = data.every(item => item.id && item.type);
+        const isValid = data.every(item => 
+          item.id && 
+          item.type && 
+          item.code &&
+          typeof item.answers === 'string'
+        );
         if (!isValid) {
           throw new Error('Invalid problem format in array');
         }
       } else {
-        if (!data.id || !data.type) {
+        if (!data.id || !data.type || !data.code || typeof data.answers !== 'string') {
           throw new Error('Invalid problem format');
         }
       }
 
-      // ตรวจสอบว่า onImport มีค่าก่อนเรียกใช้
+      // Reset answers when importing new problem
+      data.answers = {};
+
       if (typeof onImport === 'function') {
         onImport(data);
       } else {

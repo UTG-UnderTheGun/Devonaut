@@ -4,7 +4,8 @@ import StorageManager from '@/components/StorageManager';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
-import { IoRefreshOutline } from "react-icons/io5";
+import { BiRefresh } from "react-icons/bi";
+import './EditorSection.css';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -65,8 +66,10 @@ const EditorSection = ({
   };
 
   React.useEffect(() => {
-    if (problems.length > 0) {
+    if (problems && problems.length > 0 && problems[0].title) {
       setShowEmptyState(false);
+    } else {
+      setShowEmptyState(true);
     }
   }, [problems]);
 
@@ -74,17 +77,7 @@ const EditorSection = ({
     <div className="code-editor">
       <div className="editor-header">
         <div className="file-section">
-          {!showEmptyState && (
-            <select 
-              value={testType}
-              onChange={(e) => setTestType(e.target.value)}
-              className="test-type-selector"
-            >
-              <option value="code">เขียนโค้ดตามโจทย์</option>
-              <option value="output">ทายผลลัพธ์ของโค้ด</option>
-              <option value="fill">เติมโค้ดในช่องว่าง</option>
-            </select>
-          )}
+          {/* Test type selector removed */}
         </div>
 
         <div className="right-section">
@@ -99,10 +92,11 @@ const EditorSection = ({
               className="icon-button"
               title="Reset"
             >
-              <IoRefreshOutline size={18} />
+              <BiRefresh size={18} />
             </button>
           </div>
-          {!showEmptyState && (
+          {/* Only show navigation when problems exist and not in empty state */}
+          {!showEmptyState && problems && problems.length > 0 && problems[0].title && (
             <div className="navigation-section">
               <span className="problem-count">
                 Problem {currentProblemIndex + 1} of {problems.length}
