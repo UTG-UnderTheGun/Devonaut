@@ -34,26 +34,54 @@ const EditorSection = ({
   setSelectedDescriptionTab
 }) => {
   const [showEmptyState, setShowEmptyState] = React.useState(true);
+  const [outputAnswers, setOutputAnswers] = React.useState({});
+
+  const handleImportWrapper = (data) => {
+    localStorage.setItem('saved-problems', JSON.stringify(data));
+    handleImport(data);
+  };
+
+  React.useEffect(() => {
+    const savedProblems = localStorage.getItem('saved-problems');
+    const savedAnswers = localStorage.getItem('problem-answers');
+    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
+    const savedOutputs = localStorage.getItem('problem-outputs');
+
+    if (savedProblems) {
+      const parsedProblems = JSON.parse(savedProblems);
+      if (parsedProblems.length > 0) {
+        setShowEmptyState(false);
+        if (typeof handleImport === 'function') {
+          handleImport(parsedProblems);
+        }
+      }
+    }
+
+    if (savedAnswers) {
+      setAnswers(JSON.parse(savedAnswers));
+    }
+
+    if (savedCode) {
+      handleCodeChange(savedCode);
+    }
+
+    if (savedOutputs) {
+      setOutputAnswers(JSON.parse(savedOutputs));
+    }
+  }, []);
 
   const handleResetAll = () => {
     setShowEmptyState(true);
     
-    // Clear editor
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
 
-    // Clear all localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('code-') || 
-          key.startsWith('problem-') || 
-          key.startsWith('starter-code-') ||
-          key === 'editorCode') {
-        localStorage.removeItem(key);
-      }
-    });
+    localStorage.removeItem('saved-problems');
+    localStorage.removeItem('problem-answers');
+    localStorage.removeItem('problem-outputs');
+    setOutputAnswers({});
 
-    // Reset states
     setTitle('');
     setDescription('');
     setConsoleOutput('');
@@ -83,7 +111,7 @@ const EditorSection = ({
         <div className="right-section">
           <div className="import-section">
             <StorageManager 
-              onImport={handleImport}
+              onImport={handleImportWrapper}
               currentProblemIndex={currentProblemIndex}
               testType={testType}
             />
@@ -157,9 +185,8 @@ const EditorSection = ({
         customStyle={{
           margin: 0,
           padding: '1rem',
-          background: '#f8f9fa',
-          borderRadius: '4px',
-          fontSize: '0.875rem',
+          background: 'transparent',
+          fontSize: '14px',
           lineHeight: '1.6'
         }}
       >
@@ -183,6 +210,11 @@ const EditorSection = ({
             <div className="question-title">
               {problems[currentProblemIndex].title}
             </div>
+            {problems[currentProblemIndex].description && (
+              <div className="question-description">
+                {problems[currentProblemIndex].description}
+              </div>
+            )}
             <div className="code-display">
               {renderHighlightedCode(getSavedCode())}
             </div>
@@ -190,10 +222,14 @@ const EditorSection = ({
               <textarea
                 placeholder="Enter your answer..."
                 className="output-input"
-                value={consoleOutput}
+                value={outputAnswers[currentProblemIndex] || ''}
                 onChange={(e) => {
-                  setConsoleOutput(e.target.value);
-                  localStorage.setItem(`output-${currentProblemIndex}`, e.target.value);
+                  const newOutputAnswers = {
+                    ...outputAnswers,
+                    [currentProblemIndex]: e.target.value
+                  };
+                  setOutputAnswers(newOutputAnswers);
+                  localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
                 }}
                 rows={1}
                 onInput={(e) => {

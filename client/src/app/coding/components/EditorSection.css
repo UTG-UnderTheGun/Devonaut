@@ -6,6 +6,7 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  transition: height 0.3s ease-out;
 }
 
 .editor-header {
@@ -66,18 +67,22 @@
 .icon-button:hover {
   background: #f3f4f6;
   border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .import-section button:active,
 .icon-button:active {
   background: #e5e7eb;
-  transform: scale(0.95);
+  transform: scale(0.95) translateY(0);
+  box-shadow: none;
 }
 
 .navigation-section {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  animation: scaleIn 0.3s ease-out;
 }
 
 .problem-count {
@@ -97,7 +102,7 @@
   color: #6b7280;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-button:hover:not(:disabled) {
@@ -116,4 +121,129 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.output-question {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.output-question .question-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.output-question .question-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* เพิ่ม keyframes สำหรับ animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* เพิ่ม animation ให้กับ elements ต่างๆ */
+.question-title,
+.question-description,
+.code-display,
+.answer-section {
+  animation: slideIn 0.3s ease-out;
+}
+
+.output-question,
+.fill-question {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ปรับ transition ของปุ่มให้นุ่มนวลขึ้น */
+.nav-button:active {
+  transform: scale(0.95);
+}
+
+/* เพิ่ม animation สำหรับ navigation */
+.navigation-section {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* เพิ่ม animation สำหรับ code display */
+.code-display {
+  position: relative;
+  overflow: hidden;
+}
+
+.code-display pre {
+  transition: all 0.3s ease-out;
+}
+
+/* เพิ่ม animation สำหรับ textarea */
+.output-input,
+.code-blank-inline {
+  transition: all 0.2s ease-out;
+}
+
+.output-input:focus,
+.code-blank-inline:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* เพิ่ม animation สำหรับ empty state */
+.empty-state {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* เพิ่ม hover effect ที่นุ่มนวลขึ้น */
+.import-section button:hover,
+.icon-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* เพิ่ม active state ที่นุ่มนวลขึ้น */
+.import-section button:active,
+.icon-button:active {
+  transform: scale(0.95) translateY(0);
+  box-shadow: none;
 }

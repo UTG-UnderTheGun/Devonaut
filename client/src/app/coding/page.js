@@ -82,66 +82,10 @@ export default function CodingPage() {
     }
   }, []);
 
-  const handleImport = (importedData) => {
-    try {
-      // แปลงข้อมูลให้ถูกต้องก่อนเก็บใน problems
-      const processedData = Array.isArray(importedData) 
-        ? importedData.map(problem => ({
-            ...problem,
-            starterCode: problem.code || problem.starterCode
-          }))
-        : {
-            ...importedData,
-            starterCode: importedData.code || importedData.starterCode
-          };
-
-      // แปลงเป็น array ถ้าเป็น object เดี่ยว
-      const newProblems = Array.isArray(processedData) ? processedData : [processedData];
-
-      // ล้างข้อมูลที่บันทึกไว้ทั้งหมด
-      localStorage.removeItem('problem-answers');
-      localStorage.removeItem('problem-codes');
-      setAnswers({});
-      setProblemCodes({});
-
-      // อัพเดท problems ทั้งหมด
-      setProblems(newProblems);
-      
-      // เซ็ต current problem เป็นข้อแรก
-      setCurrentProblemIndex(0);
-
-      // อัพเดท state ต่างๆ ตาม current problem
-      const currentProblem = newProblems[0];
-      setTitle(currentProblem.title);
-      setDescription(currentProblem.description);
-      setCode(currentProblem.code || currentProblem.starterCode);
-      setTestType(currentProblem.type);
-
-      // บันทึกข้อมูลพื้นฐานลง localStorage
-      localStorage.setItem('current-problem-id', currentProblem.id);
-      localStorage.setItem('problem-title', currentProblem.title);
-      localStorage.setItem('problem-description', currentProblem.description);
-      localStorage.setItem('editorCode', currentProblem.code || currentProblem.starterCode);
-      localStorage.setItem('problem-type', currentProblem.type);
-      localStorage.setItem('problem-blanks', JSON.stringify(currentProblem.blanks || []));
-      localStorage.setItem('problem-expected-output', currentProblem.expectedOutput || '');
-      
-      // ล้าง localStorage ของโค้ดเก่า
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('code-') || key.startsWith('starter-code-')) {
-          localStorage.removeItem(key);
-        }
-      });
-
-      // บันทึก starterCode ของแต่ละโจทย์ลง localStorage
-      newProblems.forEach((problem, index) => {
-        localStorage.setItem(`starter-code-${index}`, problem.starterCode);
-      });
-
-    } catch (error) {
-      console.error('Error handling import:', error);
-      alert('Failed to process imported data');
-    }
+  const handleImport = (data) => {
+    // บันทึกข้อมูลลง localStorage
+    localStorage.setItem('saved-problems', JSON.stringify(data));
+    setProblems(Array.isArray(data) ? data : [data]);
   };
 
   useEffect(() => {
