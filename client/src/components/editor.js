@@ -7,15 +7,18 @@ import { useRouter } from 'next/navigation';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
-export default function Editor({ isCodeQuestion, initialValue, onChange }) {
+export default function Editor({ isCodeQuestion }) {
   const router = useRouter();
   const { code, setCode, setOutput, setError } = useCodeContext();
   const [selectedText, setSelectedText] = useState('');
   const [editorInstance, setEditorInstance] = useState(null);
 
   useEffect(() => {
-    setCode(initialValue);
-  }, [initialValue]);
+    const savedCode = localStorage.getItem('editorCode');
+    if (savedCode) {
+      setCode(savedCode);
+    }
+  }, []);
 
   useEffect(() => {
     if (code !== '# write code here') {
@@ -114,9 +117,8 @@ export default function Editor({ isCodeQuestion, initialValue, onChange }) {
     }
   };
 
-  const handleChange = (newValue) => {
-    setCode(newValue);
-    onChange(newValue);
+  const handleEditorChange = (value) => {
+    setCode(value);
   };
 
   return (
@@ -126,15 +128,15 @@ export default function Editor({ isCodeQuestion, initialValue, onChange }) {
           height="100%"
           width="100%"
           language="python"
-          theme="transparentTheme"
+          theme="light" // Using the default light theme
           value={code}
-          onChange={handleChange}
+          onChange={handleEditorChange}
           options={{
             scrollBeyondLastLine: false,
             minimap: { enabled: false },
             scrollbar: {
               horizontal: 'visible',
-              vertical: 'hidden',
+              vertical: 'visible',
               horizontalScrollbarSize: 12,
               verticalScrollbarSize: 12,
             },
@@ -143,7 +145,6 @@ export default function Editor({ isCodeQuestion, initialValue, onChange }) {
             lineNumbers: 'on',
             roundedSelection: true,
             selectOnLineNumbers: true,
-            contextmenu: false,
           }}
           onMount={handleEditorDidMount}
         />
