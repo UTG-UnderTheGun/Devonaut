@@ -35,22 +35,57 @@ const EditorSection = ({
 }) => {
   const [showEmptyState, setShowEmptyState] = React.useState(true);
   const [outputAnswers, setOutputAnswers] = React.useState({});
+  const [isImported, setIsImported] = React.useState(false);
 
   const handleImportWrapper = (data) => {
+    // Set flag that we're using imported data
+    setIsImported(true);
+    
+    // Clear any existing code in localStorage for this problem
+    for (let i = 0; i < 100; i++) {
+      localStorage.removeItem(`code-code-${i}`);
+      localStorage.removeItem(`code-output-${i}`);
+      localStorage.removeItem(`code-fill-${i}`);
+      localStorage.removeItem(`starter-code-${i}`);
+    }
+    
+    // Store the imported data
     localStorage.setItem('saved-problems', JSON.stringify(data));
+    
+    // Call the original import handler
     handleImport(data);
+    
+    // If the imported data has code, update the editor directly
+    if (Array.isArray(data)) {
+      if (data[currentProblemIndex] && data[currentProblemIndex].code) {
+        // Update the editor with the imported code
+        if (editorRef.current) {
+          editorRef.current.setValue(data[currentProblemIndex].code);
+        }
+        handleCodeChange(data[currentProblemIndex].code);
+      }
+    } else if (data.code) {
+      // Update the editor with the imported code
+      if (editorRef.current) {
+        editorRef.current.setValue(data.code);
+      }
+      handleCodeChange(data.code);
+    }
+    
+    // Force a re-render
+    setShowEmptyState(false);
   };
 
   React.useEffect(() => {
     const savedProblems = localStorage.getItem('saved-problems');
     const savedAnswers = localStorage.getItem('problem-answers');
-    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
     const savedOutputs = localStorage.getItem('problem-outputs');
 
     if (savedProblems) {
       const parsedProblems = JSON.parse(savedProblems);
       if (parsedProblems.length > 0) {
         setShowEmptyState(false);
+        setIsImported(true);
         if (typeof handleImport === 'function') {
           handleImport(parsedProblems);
         }
@@ -61,27 +96,41 @@ const EditorSection = ({
       setAnswers(JSON.parse(savedAnswers));
     }
 
-    if (savedCode) {
-      handleCodeChange(savedCode);
-    }
-
     if (savedOutputs) {
       setOutputAnswers(JSON.parse(savedOutputs));
+    }
+    
+    // Only load code from localStorage if we haven't imported data
+    if (!isImported) {
+      const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
+      if (savedCode) {
+        handleCodeChange(savedCode);
+      }
     }
   }, []);
 
   const handleResetAll = () => {
     setShowEmptyState(true);
+    setIsImported(false);
     
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
 
+    // Clear all localStorage items
     localStorage.removeItem('saved-problems');
     localStorage.removeItem('problem-answers');
     localStorage.removeItem('problem-outputs');
+    
+    // Clear all code-related localStorage items
+    for (let i = 0; i < 100; i++) {
+      localStorage.removeItem(`code-code-${i}`);
+      localStorage.removeItem(`code-output-${i}`);
+      localStorage.removeItem(`code-fill-${i}`);
+      localStorage.removeItem(`starter-code-${i}`);
+    }
+    
     setOutputAnswers({});
-
     setTitle('');
     setDescription('');
     setConsoleOutput('');
@@ -170,14 +219,27 @@ const EditorSection = ({
     </div>
   );
 
-  function renderEditorContent() {
-    const getSavedCode = () => {
-      const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
-      if (savedCode) return savedCode;
-      const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
-      return starterCode || problems[currentProblemIndex].starterCode;
-    };
+  function getSavedCode() {
+    // If we're using imported data, prioritize the code from problems array
+    if (isImported && problems && problems[currentProblemIndex]) {
+      // ตรวจสอบว่ามี code ใน problems หรือไม่
+      if (problems[currentProblemIndex].code) {
+        return problems[currentProblemIndex].code;
+      }
+      // ถ้าไม่มี code ให้ใช้ starterCode
+      return problems[currentProblemIndex].starterCode || '';
+    }
+    
+    // Otherwise check localStorage
+    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
+    if (savedCode) return savedCode;
+    
+    const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
+    return starterCode || (problems[currentProblemIndex] ? 
+      (problems[currentProblemIndex].code || problems[currentProblemIndex].starterCode) : '');
+  }
 
+  function renderEditorContent() {
     const renderHighlightedCode = (code) => (
       <SyntaxHighlighter
         language="python"

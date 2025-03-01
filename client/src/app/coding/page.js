@@ -83,9 +83,53 @@ export default function CodingPage() {
   }, []);
 
   const handleImport = (data) => {
-    // บันทึกข้อมูลลง localStorage
-    localStorage.setItem('saved-problems', JSON.stringify(data));
-    setProblems(Array.isArray(data) ? data : [data]);
+    if (Array.isArray(data)) {
+      // ถ้า data เป็น array ให้ใช้ทั้ง array
+      const formattedProblems = data.map(problem => ({
+        ...problem,
+        starterCode: problem.code || '', // เก็บ code ไว้ใน starterCode ด้วย
+        code: problem.code || ''         // เก็บ code ไว้ใน code ด้วย
+      }));
+      setProblems(formattedProblems);
+      
+      // ถ้ามีปัญหาแรก ให้ตั้งค่าตามนั้น
+      if (formattedProblems[0]) {
+        setTitle(formattedProblems[0].title || '');
+        setDescription(formattedProblems[0].description || '');
+        setTestType(formattedProblems[0].type || 'code');
+        
+        // ถ้ามี code ให้อัพเดท editor
+        if (formattedProblems[0].code) {
+          setCode(formattedProblems[0].code);
+          if (editorRef.current) {
+            editorRef.current.setValue(formattedProblems[0].code);
+          }
+        }
+      }
+      
+      setCurrentProblemIndex(0);
+    } else {
+      // ถ้า data เป็น object เดียว ให้สร้าง array ที่มี object เดียว
+      const formattedProblem = {
+        ...data,
+        starterCode: data.code || '', // เก็บ code ไว้ใน starterCode ด้วย
+        code: data.code || ''         // เก็บ code ไว้ใน code ด้วย
+      };
+      setProblems([formattedProblem]);
+      setTitle(formattedProblem.title || '');
+      setDescription(formattedProblem.description || '');
+      setTestType(formattedProblem.type || 'code');
+      
+      // ถ้ามี code ให้อัพเดท editor
+      if (formattedProblem.code) {
+        setCode(formattedProblem.code);
+        if (editorRef.current) {
+          editorRef.current.setValue(formattedProblem.code);
+        }
+      }
+      
+      setCurrentProblemIndex(0);
+    }
   };
 
   useEffect(() => {
