@@ -54,6 +54,20 @@ const EditorSection = ({
         setShowEmptyState(false);
         if (typeof handleImport === 'function') {
           handleImport(parsedProblems);
+          
+          // Check if problems have expectedOutput and populate output answers
+          const newOutputAnswers = {...outputAnswers};
+          parsedProblems.forEach((problem, index) => {
+            if (problem.expectedOutput && !newOutputAnswers[index]) {
+              newOutputAnswers[index] = problem.expectedOutput;
+            }
+          });
+          
+          // Update state and localStorage if we found any expectedOutput values
+          if (Object.keys(newOutputAnswers).length > 0) {
+            setOutputAnswers(newOutputAnswers);
+            localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+          }
         }
       }
     }
@@ -262,6 +276,30 @@ const EditorSection = ({
     return () => window.removeEventListener('storage-reset', handleStorageReset);
   }, []);
 
+  // Add a useEffect to update outputAnswers when problems change
+  useEffect(() => {
+    // Only proceed if we have problems and we're on an output type problem
+    if (problems && problems.length > 0 && problems[currentProblemIndex] && testType === 'output') {
+      const currentProblem = problems[currentProblemIndex];
+      
+      // Check if this problem has an expectedOutput that should be displayed
+      if (currentProblem.expectedOutput && currentProblem.expectedOutput.trim() !== '') {
+        // Update the outputAnswers state with this value
+        setOutputAnswers(prev => {
+          const newOutputAnswers = {...prev};
+          if (!newOutputAnswers[currentProblemIndex]) {
+            newOutputAnswers[currentProblemIndex] = currentProblem.expectedOutput;
+            
+            // Also save to localStorage
+            localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+            console.log(`Set output answer for problem ${currentProblemIndex} to: ${currentProblem.expectedOutput}`);
+          }
+          return newOutputAnswers;
+        });
+      }
+    }
+  }, [problems, currentProblemIndex, testType]);
+
   return (
     <div className="code-editor">
       <div className="editor-header">
@@ -447,6 +485,7 @@ const EditorSection = ({
                   const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: e.target.value };
                   setOutputAnswers(newOutputAnswers);
                   localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+                  console.log(`Updated output answer for problem ${currentProblemIndex} to: ${e.target.value}`);
                 }}
                 rows={1}
                 onInput={(e) => {
