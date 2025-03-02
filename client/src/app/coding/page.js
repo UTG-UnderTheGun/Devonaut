@@ -83,53 +83,54 @@ export default function CodingPage() {
   }, []);
 
   const handleImport = (data) => {
+    console.log("Importing data:", data);
+    
+    // ตรวจสอบว่าข้อมูลถูกต้องไหม
+    if (!data) {
+      console.error("No data to import");
+      return;
+    }
+    
+    // ถ้าเป็น array ตรวจสอบว่าไม่ว่างเปล่า
     if (Array.isArray(data)) {
-      // ถ้า data เป็น array ให้ใช้ทั้ง array
-      const formattedProblems = data.map(problem => ({
-        ...problem,
-        starterCode: problem.code || '', // เก็บ code ไว้ใน starterCode ด้วย
-        code: problem.code || ''         // เก็บ code ไว้ใน code ด้วย
-      }));
-      setProblems(formattedProblems);
-      
-      // ถ้ามีปัญหาแรก ให้ตั้งค่าตามนั้น
-      if (formattedProblems[0]) {
-        setTitle(formattedProblems[0].title || '');
-        setDescription(formattedProblems[0].description || '');
-        setTestType(formattedProblems[0].type || 'code');
-        
-        // ถ้ามี code ให้อัพเดท editor
-        if (formattedProblems[0].code) {
-          setCode(formattedProblems[0].code);
-          if (editorRef.current) {
-            editorRef.current.setValue(formattedProblems[0].code);
-          }
-        }
+      if (data.length === 0) {
+        console.error("Empty problem array");
+        return;
       }
       
+      // ตรวจสอบว่าแต่ละข้อมีข้อมูลครบถ้วน
+      const validData = data.map((problem, index) => {
+        return {
+          ...problem,
+          id: problem.id || index + 1,
+          type: problem.type || 'code',
+          title: problem.title || `Problem ${index + 1}`,
+          description: problem.description || '',
+          starterCode: problem.starterCode || problem.code || ''
+        };
+      });
+      
+      console.log("Valid data:", validData);
+      setProblems(validData);
       setCurrentProblemIndex(0);
     } else {
-      // ถ้า data เป็น object เดียว ให้สร้าง array ที่มี object เดียว
-      const formattedProblem = {
+      // ถ้าเป็น object เดียว
+      const validProblem = {
         ...data,
-        starterCode: data.code || '', // เก็บ code ไว้ใน starterCode ด้วย
-        code: data.code || ''         // เก็บ code ไว้ใน code ด้วย
+        id: data.id || 1,
+        type: data.type || 'code',
+        title: data.title || 'Problem',
+        description: data.description || '',
+        starterCode: data.starterCode || data.code || ''
       };
-      setProblems([formattedProblem]);
-      setTitle(formattedProblem.title || '');
-      setDescription(formattedProblem.description || '');
-      setTestType(formattedProblem.type || 'code');
       
-      // ถ้ามี code ให้อัพเดท editor
-      if (formattedProblem.code) {
-        setCode(formattedProblem.code);
-        if (editorRef.current) {
-          editorRef.current.setValue(formattedProblem.code);
-        }
-      }
-      
+      console.log("Valid problem:", validProblem);
+      setProblems([validProblem]);
       setCurrentProblemIndex(0);
     }
+    
+    // บันทึกลง localStorage
+    localStorage.setItem('saved-problems', JSON.stringify(Array.isArray(data) ? data : [data]));
   };
 
   useEffect(() => {
@@ -188,13 +189,12 @@ export default function CodingPage() {
 
   useEffect(() => {
     if (isClientLoaded) {
-      localStorage.setItem('editorCode', code);
       localStorage.setItem('isConsoleFolded', isConsoleFolded);
       localStorage.setItem('isDescriptionFolded', isDescriptionFolded);
       localStorage.setItem('problem-title', title);
       localStorage.setItem('problem-description', description);
     }
-  }, [code, isConsoleFolded, isDescriptionFolded, title, description, isClientLoaded]);
+  }, [isConsoleFolded, isDescriptionFolded, title, description, isClientLoaded]);
 
   const handleCodeChange = (newCode) => {
     const key = `code-${testType}-${currentProblemIndex}`;
@@ -287,25 +287,46 @@ export default function CodingPage() {
     }
   }, []);
 
-  // แก้ไข useEffect ที่ทำงานเมื่อเปลี่ยน problem
+  // ปรับปรุง useEffect ที่ทำงานเมื่อเปลี่ยน problem
   useEffect(() => {
+    if (!problems || !problems[currentProblemIndex]) return;
+    
     const currentProblem = problems[currentProblemIndex];
-    setTitle(currentProblem.title);
-    setDescription(currentProblem.description);
+    console.log("Current problem changed to:", currentProblem);
     
-    const key = `code-${testType}-${currentProblemIndex}`;
-    const savedCode = problemCodes[key];
+    // อัพเดทหัวข้อและคำอธิบาย
+    setTitle(currentProblem.title || '');
+    setDescription(currentProblem.description || '');
     
-    if (savedCode) {
-      setCode(savedCode);
-    } else {
-      // ถ้าไม่มีโค้ดที่บันทึกไว้ ใช้ starterCode
-      const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
-      setCode(starterCode || currentProblem.starterCode);
+    // กำหนด testType ให้ตรงกับ problem ปัจจุบัน
+    if (currentProblem.type) {
+      console.log("Setting test type to:", currentProblem.type);
+      setTestType(currentProblem.type);
+      
+      // โหลดหรือสร้าง starter code ถ้ายังไม่มี
+      const key = `code-${currentProblem.type}-${currentProblemIndex}`;
+      const savedCode = localStorage.getItem(key);
+      
+      if (savedCode) {
+        console.log("Loading saved code");
+        setCode(savedCode);
+      } else if (currentProblem.starterCode || currentProblem.code) {
+        console.log("Using starter code");
+        const starterCode = currentProblem.starterCode || currentProblem.code;
+        setCode(starterCode);
+        localStorage.setItem(key, starterCode);
+      }
     }
-    
-    setTestType(currentProblem.type);
-  }, [currentProblemIndex, problems, testType, problemCodes]);
+  }, [currentProblemIndex, problems]);
+
+  // Add this to the page.js file
+
+  // This effect runs when currentProblemIndex changes
+  useEffect(() => {
+    if (problems && problems[currentProblemIndex] && problems[currentProblemIndex].type) {
+      setTestType(problems[currentProblemIndex].type);
+    }
+  }, [currentProblemIndex, problems]);
 
   const handleReset = () => {
     // Reset code
@@ -316,12 +337,70 @@ export default function CodingPage() {
     // Reset title and description
     setTitle('');
     setDescription('');
+    setConsoleOutput('');
     
-    // Clear localStorage
+    // Clear all problem-related state
+    setCode('');
+    
+    // Clear the specific problem data in the problem codes state
+    setProblemCodes(prev => {
+      const newCodes = { ...prev };
+      // Remove all keys associated with the current problem
+      Object.keys(newCodes).forEach(key => {
+        if (key.includes(`-${currentProblemIndex}`)) {
+          delete newCodes[key];
+        }
+      });
+      return newCodes;
+    });
+    
+    // Reset any output answers for this problem
+    const newOutputAnswers = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
+    if (newOutputAnswers[currentProblemIndex]) {
+      delete newOutputAnswers[currentProblemIndex];
+      localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+    }
+    
+    // Clear localStorage for this problem
     localStorage.removeItem('problem-title');
     localStorage.removeItem('problem-description');
-    localStorage.removeItem(`code-code-${currentProblemIndex}`);
+    
+    // Remove all localStorage keys for this problem
+    const typesToClear = ['code', 'output', 'fill'];
+    typesToClear.forEach(type => {
+      localStorage.removeItem(`code-${type}-${currentProblemIndex}`);
+      localStorage.removeItem(`editor-code-${type}-${currentProblemIndex}`);
+    });
+    
+    console.log("Reset handler executed for problem", currentProblemIndex);
   };
+
+  // เพิ่ม useEffect นี้เพื่อรับ event reset
+  useEffect(() => {
+    const handleCodeReset = (event) => {
+      const { problemIndex } = event.detail;
+      console.log("Received code reset event for problem", problemIndex);
+      
+      // ล้างข้อมูลใน state สำหรับ problem นี้
+      setProblemCodes(prev => {
+        const newCodes = { ...prev };
+        Object.keys(newCodes).forEach(key => {
+          if (key.includes(`-${problemIndex}`)) {
+            delete newCodes[key];
+          }
+        });
+        return newCodes;
+      });
+      
+      // ถ้าเป็น problem ปัจจุบัน ให้ล้างค่า code ด้วย
+      if (problemIndex === currentProblemIndex) {
+        setCode('');
+      }
+    };
+    
+    window.addEventListener('code-reset', handleCodeReset);
+    return () => window.removeEventListener('code-reset', handleCodeReset);
+  }, [currentProblemIndex]);
 
   if (isLoading) {
     return <CodingSkeleton />;
