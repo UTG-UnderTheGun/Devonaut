@@ -14,7 +14,7 @@ const formatTime = (date) => {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true
-  }).format(date);
+  }).format(new Date(date));
 };
 
 const WELCOME_MESSAGE = {
@@ -48,6 +48,35 @@ const AIChatInterface = ({ user_id }) => {
     "Give me a hint"
   ];
 
+  // Load chat history and questions left from localStorage when component mounts
+  useEffect(() => {
+    if (user_id) {
+      // Load chat history
+      const savedChat = localStorage.getItem(`chat_${user_id}`);
+      if (savedChat) {
+        try {
+          const parsedChat = JSON.parse(savedChat);
+          setChat(parsedChat);
+        } catch (error) {
+          console.error('Error parsing saved chat:', error);
+          localStorage.removeItem(`chat_${user_id}`);
+        }
+      } else {
+        // If no chat history, just show welcome message
+        setChat([]);
+      }
+      
+      // Load questions left
+      const savedQuestionsLeft = localStorage.getItem(`questionsLeft_${user_id}`);
+      if (savedQuestionsLeft) {
+        const questionsLeftValue = parseInt(savedQuestionsLeft, 10);
+        if (!isNaN(questionsLeftValue)) {
+          setQuestionsLeft(questionsLeftValue);
+        }
+      }
+    }
+  }, [user_id]);
+
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ 
@@ -73,9 +102,22 @@ const AIChatInterface = ({ user_id }) => {
       timestamp: new Date()
     };
 
-    setChat(prev => [...prev, userMessageObject]);
+    // Update chat with user message
+    const updatedChat = [...chat, userMessageObject];
+    setChat(updatedChat);
+    
+    // Save to localStorage
+    localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChat));
+    
     setNewMessage('');
-    setQuestionsLeft(prev => Math.max(0, prev - 1));
+    
+    // Update and save questions left
+    setQuestionsLeft(prev => {
+      const newValue = Math.max(0, prev - 1);
+      localStorage.setItem(`questionsLeft_${user_id}`, newValue.toString());
+      return newValue;
+    });
+    
     setIsTyping(true); // Show typing indicator
 
     try {
@@ -104,7 +146,10 @@ const AIChatInterface = ({ user_id }) => {
         isStreaming: true
       };
 
-      setChat(prev => [...prev, aiMessageObject]);
+      // Add initial AI message and save to localStorage
+      const chatWithAiMessage = [...updatedChat, aiMessageObject];
+      setChat(chatWithAiMessage);
+      localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithAiMessage));
 
       while (true) {
         const { done, value } = await reader.read();
@@ -118,18 +163,41 @@ const AIChatInterface = ({ user_id }) => {
           const lastMessage = newChat[newChat.length - 1];
           if (!lastMessage.isUser) {
             newChat[newChat.length - 1] = { ...aiMessageObject };
+            // Save updated chat with new AI message content
+            localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
           }
           return newChat;
         });
       }
+      
+      // Update final message to remove streaming flag once complete
+      setChat(prev => {
+        const newChat = [...prev];
+        const lastMessage = newChat[newChat.length - 1];
+        if (!lastMessage.isUser) {
+          const updatedMessage = { 
+            ...lastMessage, 
+            isStreaming: false 
+          };
+          newChat[newChat.length - 1] = updatedMessage;
+          // Save the final state
+          localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+        }
+        return newChat;
+      });
     } catch (error) {
       console.error('Error:', error);
-      setChat(prev => [...prev, {
+      const errorMessage = {
         id: chat.length + 2,
         text: 'Sorry, there was an error processing your request.',
         isUser: false,
         timestamp: new Date()
-      }]);
+      };
+      
+      // Add error message and save to localStorage
+      const chatWithError = [...updatedChat, errorMessage];
+      setChat(chatWithError);
+      localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithError));
     } finally {
       setIsTyping(false);
     }
@@ -179,10 +247,22 @@ const AIChatInterface = ({ user_id }) => {
   useEffect(() => {
     const handleExplainCode = async (event) => {
       const message = event.detail;
-      setChat(prev => [...prev, message]);
+      
+      // Add user message and save to localStorage
+      const updatedChat = [...chat, message];
+      setChat(updatedChat);
+      localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChat));
+      
+      // Decrement questions left and save
+      setQuestionsLeft(prev => {
+        const newValue = Math.max(0, prev - 1);
+        localStorage.setItem(`questionsLeft_${user_id}`, newValue.toString());
+        return newValue;
+      });
       
       // Send message directly without setting input
       try {
+        setIsTyping(true);
         const response = await fetch('http://localhost:8000/ai/chat', {
           method: 'POST',
           headers: {
@@ -194,47 +274,90 @@ const AIChatInterface = ({ user_id }) => {
           }),
         });
 
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let aiMessageObject = {
-          id: chat.length + 2,
+          id: updatedChat.length + 1,
           text: '',
           isUser: false,
-          timestamp: new Date()
+          timestamp: new Date(),
+          isStreaming: true
         };
+
+        // Add initial AI message
+        const chatWithAiMessage = [...updatedChat, aiMessageObject];
+        setChat(chatWithAiMessage);
+        localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithAiMessage));
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           aiMessageObject.text += chunk;
+          
           setChat(prev => {
             const newChat = [...prev];
             const lastMessage = newChat[newChat.length - 1];
-            if (lastMessage.isUser) {
-              return [...newChat, aiMessageObject];
-            } else {
+            if (!lastMessage.isUser) {
               newChat[newChat.length - 1] = { ...aiMessageObject };
-              return newChat;
+              // Save updated chat with new AI message content
+              localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+            } else {
+              const updatedChatWithAi = [...newChat, aiMessageObject];
+              localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChatWithAi));
+              return updatedChatWithAi;
             }
+            return newChat;
           });
         }
+        
+        // Update final message to remove streaming flag once complete
+        setChat(prev => {
+          const newChat = [...prev];
+          const lastMessage = newChat[newChat.length - 1];
+          if (!lastMessage.isUser) {
+            const updatedMessage = { 
+              ...lastMessage, 
+              isStreaming: false 
+            };
+            newChat[newChat.length - 1] = updatedMessage;
+            // Save the final state
+            localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+          }
+          return newChat;
+        });
       } catch (err) {
         console.error('Error sending message:', err);
         const errorMessage = {
-          id: chat.length + 2,
+          id: updatedChat.length + 1,
           text: 'An error occurred while getting the response.',
           isUser: false,
           timestamp: new Date()
         };
-        setChat(prev => [...prev, errorMessage]);
+        
+        // Add error message and save to localStorage
+        const chatWithError = [...updatedChat, errorMessage];
+        setChat(chatWithError);
+        localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithError));
+      } finally {
+        setIsTyping(false);
         scrollToBottom();
       }
     };
 
     window.addEventListener('add-chat-message', handleExplainCode);
     return () => window.removeEventListener('add-chat-message', handleExplainCode);
-  }, [chat.length, user_id]);
+  }, [chat, user_id]);
+
+  // Function to clear chat history
+  const clearChat = () => {
+    setChat([]);
+    localStorage.removeItem(`chat_${user_id}`);
+  };
 
   return (
     <div className="chat-interface">

@@ -4,7 +4,6 @@ import StorageManager from '@/components/StorageManager';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
-import { BiRefresh } from "react-icons/bi";
 import './EditorSection.css';
 
 // Register Python language
@@ -72,7 +71,7 @@ const EditorSection = ({
 
   const handleResetAll = () => {
     setShowEmptyState(true);
-    
+
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
@@ -110,17 +109,16 @@ const EditorSection = ({
 
         <div className="right-section">
           <div className="import-section">
-            <StorageManager 
+            <StorageManager
               onImport={handleImportWrapper}
               currentProblemIndex={currentProblemIndex}
               testType={testType}
             />
-            <button 
-              onClick={handleResetAll} 
+            <button
+              onClick={handleResetAll}
               className="icon-button"
               title="Reset"
             >
-              <BiRefresh size={18} />
             </button>
           </div>
           {/* Only show navigation when problems exist and not in empty state */}
