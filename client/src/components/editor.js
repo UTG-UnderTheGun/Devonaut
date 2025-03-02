@@ -7,24 +7,15 @@ import { useRouter } from 'next/navigation';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
-export default function Editor({ isCodeQuestion }) {
+export default function Editor({ isCodeQuestion, initialValue, onChange, problemIndex, testType }) {
   const router = useRouter();
   const { code, setCode, setOutput, setError } = useCodeContext();
   const [selectedText, setSelectedText] = useState('');
   const [editorInstance, setEditorInstance] = useState(null);
 
   useEffect(() => {
-    const savedCode = localStorage.getItem('editorCode');
-    if (savedCode) {
-      setCode(savedCode);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (code !== '# write code here') {
-      localStorage.setItem('editorCode', code);
-    }
-  }, [code]);
+    setCode(initialValue);
+  }, [initialValue]);
 
   useEffect(() => {
     const handleImport = (event) => {
@@ -117,8 +108,13 @@ export default function Editor({ isCodeQuestion }) {
     }
   };
 
-  const handleEditorChange = (value) => {
-    setCode(value);
+  const handleChange = (newValue) => {
+    setCode(newValue);
+    // Save to problem-specific key
+    if (problemIndex !== undefined && testType) {
+      localStorage.setItem(`code-${testType}-${problemIndex}`, newValue);
+    }
+    onChange(newValue);
   };
 
   return (
@@ -128,15 +124,15 @@ export default function Editor({ isCodeQuestion }) {
           height="100%"
           width="100%"
           language="python"
-          theme="light" // Using the default light theme
+          theme="transparentTheme"
           value={code}
-          onChange={handleEditorChange}
+          onChange={handleChange}
           options={{
             scrollBeyondLastLine: false,
             minimap: { enabled: false },
             scrollbar: {
               horizontal: 'visible',
-              vertical: 'visible',
+              vertical: 'hidden',
               horizontalScrollbarSize: 12,
               verticalScrollbarSize: 12,
             },
@@ -145,6 +141,7 @@ export default function Editor({ isCodeQuestion }) {
             lineNumbers: 'on',
             roundedSelection: true,
             selectOnLineNumbers: true,
+            contextmenu: false,
           }}
           onMount={handleEditorDidMount}
         />

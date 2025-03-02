@@ -6,7 +6,7 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   const fileInputRef = useRef(null);
 
   const handleExport = () => {
-    // Get current problem data
+    // Get problem-specific code
     const currentCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
     const title = localStorage.getItem('problem-title');
     const description = localStorage.getItem('problem-description');
@@ -18,7 +18,7 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       id: currentProblemIndex + 1,
       title: title || '',
       description: description || '',
-      code: currentCode || starterCode || '',
+      code: starterCode || '',
       type: testType,
       answers: '',
       blanks: []
@@ -46,29 +46,20 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         const isValid = data.every(item => 
           item.id && 
           item.type && 
-          (item.code !== undefined) // Allow empty code
+          item.code &&
+          typeof item.answers === 'string'
         );
         if (!isValid) {
           throw new Error('Invalid problem format in array');
         }
       } else {
-        if (!data.id || !data.type || data.code === undefined) {
+        if (!data.id || !data.type || !data.code || typeof data.answers !== 'string') {
           throw new Error('Invalid problem format');
         }
       }
 
-      // Clear localStorage before import
-      for (let i = 0; i < 100; i++) {
-        localStorage.removeItem(`code-code-${i}`);
-        localStorage.removeItem(`code-output-${i}`);
-        localStorage.removeItem(`code-fill-${i}`);
-        localStorage.removeItem(`starter-code-${i}`);
-      }
-
       // Reset answers when importing new problem
-      if (!data.answers) {
-        data.answers = {};
-      }
+      data.answers = {};
 
       if (typeof onImport === 'function') {
         onImport(data);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Editor from '@/components/editor';
 import StorageManager from '@/components/StorageManager';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -33,59 +33,25 @@ const EditorSection = ({
   setDescription,
   setSelectedDescriptionTab
 }) => {
-  const [showEmptyState, setShowEmptyState] = React.useState(true);
-  const [outputAnswers, setOutputAnswers] = React.useState({});
-  const [isImported, setIsImported] = React.useState(false);
+  const [showEmptyState, setShowEmptyState] = useState(true);
+  const [outputAnswers, setOutputAnswers] = useState({});
+  const [editorCodes, setEditorCodes] = useState({});
 
   const handleImportWrapper = (data) => {
-    // Set flag that we're using imported data
-    setIsImported(true);
-    
-    // Clear any existing code in localStorage for this problem
-    for (let i = 0; i < 100; i++) {
-      localStorage.removeItem(`code-code-${i}`);
-      localStorage.removeItem(`code-output-${i}`);
-      localStorage.removeItem(`code-fill-${i}`);
-      localStorage.removeItem(`starter-code-${i}`);
-    }
-    
-    // Store the imported data
     localStorage.setItem('saved-problems', JSON.stringify(data));
-    
-    // Call the original import handler
     handleImport(data);
-    
-    // If the imported data has code, update the editor directly
-    if (Array.isArray(data)) {
-      if (data[currentProblemIndex] && data[currentProblemIndex].code) {
-        // Update the editor with the imported code
-        if (editorRef.current) {
-          editorRef.current.setValue(data[currentProblemIndex].code);
-        }
-        handleCodeChange(data[currentProblemIndex].code);
-      }
-    } else if (data.code) {
-      // Update the editor with the imported code
-      if (editorRef.current) {
-        editorRef.current.setValue(data.code);
-      }
-      handleCodeChange(data.code);
-    }
-    
-    // Force a re-render
-    setShowEmptyState(false);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const savedProblems = localStorage.getItem('saved-problems');
     const savedAnswers = localStorage.getItem('problem-answers');
+    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
     const savedOutputs = localStorage.getItem('problem-outputs');
 
     if (savedProblems) {
       const parsedProblems = JSON.parse(savedProblems);
       if (parsedProblems.length > 0) {
         setShowEmptyState(false);
-        setIsImported(true);
         if (typeof handleImport === 'function') {
           handleImport(parsedProblems);
         }
@@ -96,40 +62,107 @@ const EditorSection = ({
       setAnswers(JSON.parse(savedAnswers));
     }
 
+    if (savedCode) {
+      handleCodeChange(savedCode);
+    }
+
     if (savedOutputs) {
       setOutputAnswers(JSON.parse(savedOutputs));
     }
-    
-    // Only load code from localStorage if we haven't imported data
-    if (!isImported) {
-      const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
-      if (savedCode) {
-        handleCodeChange(savedCode);
-      }
-    }
   }, []);
+
+  useEffect(() => {
+    const loadProblemData = () => {
+      if (!problems || !problems[currentProblemIndex]) return;
+      
+      // ตรวจสอบ type ของโปรเบลมปัจจุบัน
+      const currentProblem = problems[currentProblemIndex];
+      const currentType = currentProblem.type || testType;
+      
+      // กำหนด testType ให้ตรงกับโปรเบลมปัจจุบัน
+      if (setTestType && currentType !== testType) {
+        setTestType(currentType);
+      }
+      
+      // ลองค้นหาโค้ดจากหลายๆ รูปแบบของ key
+      const keysToTry = [
+        `code-${currentType}-${currentProblemIndex}`,
+        `editor-code-${currentType}-${currentProblemIndex}`,
+        `code-${testType}-${currentProblemIndex}`,
+        `starter-code-${currentProblemIndex}`
+      ];
+      
+      let foundCode = null;
+      
+      // ค้นหาโค้ดจาก localStorage
+      for (const key of keysToTry) {
+        const savedCode = localStorage.getItem(key);
+        if (savedCode) {
+          foundCode = savedCode;
+          console.log(`Found code for problem ${currentProblemIndex + 1} with key: ${key}`);
+          break;
+        }
+      }
+      
+      // ถ้าไม่พบ ใช้ starterCode จาก problem object
+      if (!foundCode && currentProblem.starterCode) {
+        foundCode = currentProblem.starterCode;
+        console.log(`Using starter code for problem ${currentProblemIndex + 1}`);
+      }
+      
+      // อัพเดท editorCodes state
+      if (foundCode) {
+        setEditorCodes(prev => ({
+          ...prev,
+          [currentProblemIndex]: foundCode
+        }));
+        
+        // อัพเดทค่าใน editor
+        if (editorRef.current) {
+          editorRef.current.setValue(foundCode);
+        }
+        
+        // อัพเดท code state ถ้ามี handler
+        if (handleCodeChange) {
+          handleCodeChange(foundCode);
+        }
+      }
+    };
+    
+    // โหลดข้อมูลเมื่อเปลี่ยน problem
+    loadProblemData();
+  }, [currentProblemIndex, problems, testType]);
+
+  const handleEditorChange = (value) => {
+    // เก็บโค้ดใน state
+    setEditorCodes(prev => ({
+      ...prev,
+      [currentProblemIndex]: value
+    }));
+    
+    // หา type ที่ถูกต้องของโปรเบลมปัจจุบัน
+    const currentProblem = problems && problems[currentProblemIndex];
+    const currentType = currentProblem ? currentProblem.type || testType : testType;
+    
+    // บันทึกลง localStorage ด้วย key ที่ถูกต้อง
+    localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
+    
+    // ถ้ามี handleCodeChange จาก props ก็เรียกใช้
+    if (typeof handleCodeChange === 'function') {
+      handleCodeChange(value);
+    }
+  };
 
   const handleResetAll = () => {
     setShowEmptyState(true);
-    setIsImported(false);
     
+    // ล้างค่าใน editor
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
 
-    // Clear all localStorage items
-    localStorage.removeItem('saved-problems');
-    localStorage.removeItem('problem-answers');
-    localStorage.removeItem('problem-outputs');
-    
-    // Clear all code-related localStorage items
-    for (let i = 0; i < 100; i++) {
-      localStorage.removeItem(`code-code-${i}`);
-      localStorage.removeItem(`code-output-${i}`);
-      localStorage.removeItem(`code-fill-${i}`);
-      localStorage.removeItem(`starter-code-${i}`);
-    }
-    
+    // ล้างค่าใน state
+    setEditorCodes({});
     setOutputAnswers({});
     setTitle('');
     setDescription('');
@@ -137,18 +170,73 @@ const EditorSection = ({
     setAnswers({});
     setSelectedDescriptionTab('Description');
 
+    // ล้างค่าใน localStorage แบบเฉพาะเจาะจงมากขึ้น
+    // ล้างทั้ง problem ปัจจุบันและทุก problem
+    const keysToRemove = [];
+    
+    // ล้างทุก key ที่เกี่ยวข้องกับ code
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        // ล้าง key ทั่วไป
+        if (key.startsWith('code-') || 
+            key.startsWith('editor-code-') || 
+            key === 'editorCode' ||
+            key.startsWith('starter-code-')) {
+          keysToRemove.push(key);
+        }
+        
+        // ล้าง key เฉพาะ problem ปัจจุบัน
+        if (key.includes(`-${currentProblemIndex}`)) {
+          keysToRemove.push(key);
+        }
+        
+        // ล้าง key ใน output และ fill
+        if (key === 'problem-outputs' || 
+            key === 'problem-answers' ||
+            key === 'problem-title' ||
+            key === 'problem-description') {
+          keysToRemove.push(key);
+        }
+      }
+    }
+    
+    // ล้าง key ทั้งหมดที่รวบรวมไว้
+    console.log("Removing keys:", keysToRemove);
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // ล้าง key เฉพาะ output
+    const outputKey = `output-${currentProblemIndex}`;
+    localStorage.removeItem(outputKey);
+    localStorage.removeItem('problem-outputs');
+    
+    // เรียกใช้ handler จาก props
     if (handleReset) {
       handleReset();
     }
+    
+    // ส่ง event ให้ parent component รู้ว่ามีการ reset
+    const resetEvent = new CustomEvent('code-reset', {
+      detail: { problemIndex: currentProblemIndex }
+    });
+    window.dispatchEvent(resetEvent);
+    
+    console.log("Reset complete for problem", currentProblemIndex);
   };
 
-  React.useEffect(() => {
-    if (problems && problems.length > 0 && problems[0].title) {
+  useEffect(() => {
+    console.log("Problems:", problems);
+    console.log("Current problem:", problems[currentProblemIndex]);
+    console.log("Test type:", testType);
+    
+    if (problems && problems.length > 0 && 
+        problems[currentProblemIndex] && 
+        (problems[currentProblemIndex].title || problems[currentProblemIndex].description)) {
       setShowEmptyState(false);
     } else {
       setShowEmptyState(true);
     }
-  }, [problems]);
+  }, [problems, currentProblemIndex, testType]);
 
   return (
     <div className="code-editor">
@@ -205,12 +293,9 @@ const EditorSection = ({
             ref={editorRef}
             isCodeQuestion={true}
             initialValue=""
-            onChange={(value) => {
-              if (value.trim() !== '') {
-                localStorage.setItem('editorCode', value);
-              }
-              handleCodeChange(value);
-            }}
+            onChange={handleEditorChange}
+            problemIndex={currentProblemIndex}
+            testType={testType}
           />
         </div>
       ) : (
@@ -219,83 +304,129 @@ const EditorSection = ({
     </div>
   );
 
-  function getSavedCode() {
-    // If we're using imported data, prioritize the code from problems array
-    if (isImported && problems && problems[currentProblemIndex]) {
-      // ตรวจสอบว่ามี code ใน problems หรือไม่
-      if (problems[currentProblemIndex].code) {
-        return problems[currentProblemIndex].code;
-      }
-      // ถ้าไม่มี code ให้ใช้ starterCode
-      return problems[currentProblemIndex].starterCode || '';
+  function renderEditorContent() {
+    console.log("Rendering with type:", testType);
+    
+    // ตรวจสอบว่ามีปัญหาที่เลือกไว้จริงๆ หรือไม่
+    if (!problems || !problems[currentProblemIndex]) {
+      console.log("No problem found at index", currentProblemIndex);
+      return <div className="empty-problem">ไม่พบข้อมูลของโจทย์ โปรดตรวจสอบการนำเข้าข้อมูล</div>;
     }
     
-    // Otherwise check localStorage
-    const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
-    if (savedCode) return savedCode;
+    const currentProblem = problems[currentProblemIndex];
+    console.log("Current problem:", currentProblem);
     
-    const starterCode = localStorage.getItem(`starter-code-${currentProblemIndex}`);
-    return starterCode || (problems[currentProblemIndex] ? 
-      (problems[currentProblemIndex].code || problems[currentProblemIndex].starterCode) : '');
-  }
+    // ใช้ type จาก problem object ถ้ามี
+    const effectiveTestType = currentProblem.type || testType;
+    console.log("Effective test type:", effectiveTestType);
+    
+    // ถ้า type ไม่ตรงกับที่เก็บใน state ให้อัพเดท
+    if (effectiveTestType !== testType && setTestType) {
+      console.log("Updating test type to", effectiveTestType);
+      setTestType(effectiveTestType);
+    }
+    
+    const getSavedCode = () => {
+      // ตรวจสอบจาก editorCodes state ก่อน
+      const stateCode = editorCodes[currentProblemIndex];
+      if (stateCode) {
+        console.log("Found code in state");
+        return stateCode;
+      }
+      
+      // ลองค้นหาจาก localStorage ด้วยหลาย key pattern
+      const keysToTry = [
+        `code-${effectiveTestType}-${currentProblemIndex}`,
+        `editor-code-${effectiveTestType}-${currentProblemIndex}`,
+        `code-code-${currentProblemIndex}`,
+        `starter-code-${currentProblemIndex}`
+      ];
+      
+      for (const key of keysToTry) {
+        const savedCode = localStorage.getItem(key);
+        if (savedCode) {
+          console.log(`Found code with key: ${key}`);
+          return savedCode;
+        }
+      }
+      
+      // ใช้ starterCode จาก problem object
+      if (currentProblem.starterCode) {
+        console.log("Using starter code from problem");
+        return currentProblem.starterCode;
+      }
+      
+      // ใช้ code จาก problem object (บางครั้งใช้ key นี้แทน starterCode)
+      if (currentProblem.code) {
+        console.log("Using code from problem");
+        return currentProblem.code;
+      }
+      
+      console.log("No code found, returning empty string");
+      return '';
+    };
 
-  function renderEditorContent() {
-    const renderHighlightedCode = (code) => (
-      <SyntaxHighlighter
-        language="python"
-        style={vs}
-        customStyle={{
-          margin: 0,
-          padding: '1rem',
-          background: 'transparent',
-          fontSize: '14px',
-          lineHeight: '1.6'
-        }}
-      >
-        {code}
-      </SyntaxHighlighter>
-    );
+    // แยกการรับโค้ดออกมาป้องกันปัญหา
+    let currentCode = '';
+    try {
+      currentCode = getSavedCode() || '';
+      console.log("Code loaded:", currentCode.substring(0, 50) + "...");
+    } catch (error) {
+      console.error("Error getting code:", error);
+      return <div className="error">เกิดข้อผิดพลาดในการโหลดโค้ด: {error.message}</div>;
+    }
 
-    switch (testType) {
+    switch (effectiveTestType) {
       case 'code':
+        console.log("Rendering code type");
         return (
           <Editor
             ref={editorRef}
             isCodeQuestion={true}
-            initialValue={getSavedCode()}
-            onChange={handleCodeChange}
+            initialValue={currentCode}
+            onChange={handleEditorChange}
+            problemIndex={currentProblemIndex}
+            testType={effectiveTestType}
           />
         );
       case 'output':
+        console.log("Rendering output type");
         return (
           <div className="output-question">
             <div className="question-title">
-              {problems[currentProblemIndex].title}
+              {currentProblem.title || ''}
             </div>
-            {problems[currentProblemIndex].description && (
-              <div className="question-description">
-                {problems[currentProblemIndex].description}
-              </div>
-            )}
+            <div className="question-description">
+              {currentProblem.description || ''}
+            </div>
             <div className="code-display">
-              {renderHighlightedCode(getSavedCode())}
+              <SyntaxHighlighter
+                language="python"
+                style={vs}
+                customStyle={{
+                  margin: 0,
+                  padding: '1rem',
+                  background: 'transparent',
+                  fontSize: '14px', 
+                  lineHeight: '1.6'
+                }}
+              >
+                {currentCode}
+              </SyntaxHighlighter>
             </div>
             <div className="answer-section">
               <textarea
-                placeholder="Enter your answer..."
+                placeholder="ใส่คำตอบของคุณ..."
                 className="output-input"
                 value={outputAnswers[currentProblemIndex] || ''}
                 onChange={(e) => {
-                  const newOutputAnswers = {
-                    ...outputAnswers,
-                    [currentProblemIndex]: e.target.value
-                  };
+                  const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: e.target.value };
                   setOutputAnswers(newOutputAnswers);
                   localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
                 }}
                 rows={1}
                 onInput={(e) => {
-                  e.target.style.height = 'auto';
+                  e.target.style.height = 'auto'; 
                   e.target.style.height = e.target.scrollHeight + 'px';
                 }}
               />
@@ -303,19 +434,31 @@ const EditorSection = ({
           </div>
         );
       case 'fill':
+        console.log("Rendering fill type");
+        if (!currentCode) {
+          return <div className="fill-question empty">ไม่พบข้อมูลสำหรับโจทย์นี้</div>;
+        }
+        
+        // ป้องกันข้อผิดพลาดเมื่อ split code
+        let codeParts = [];
+        try {
+          codeParts = currentCode.split('____');
+        } catch (error) {
+          console.error("Error splitting code:", error);
+          return <div className="error">เกิดข้อผิดพลาดในการแบ่งโค้ด: {error.message}</div>;
+        }
+        
         return (
           <div className="fill-question">
             <div className="question-title">
-              {problems[currentProblemIndex].title}
+              {currentProblem.title || ''}
             </div>
-            {problems[currentProblemIndex].description && (
-              <div className="question-description">
-                {problems[currentProblemIndex].description}
-              </div>
-            )}
+            <div className="question-description">
+              {currentProblem.description || ''}
+            </div>
             <div className="code-display">
               <pre style={{ margin: 0, background: 'transparent' }}>
-                {getSavedCode().split('____').map((part, index, array) => (
+                {codeParts.map((part, index, array) => (
                   <React.Fragment key={index}>
                     <SyntaxHighlighter
                       language="python"
@@ -355,7 +498,8 @@ const EditorSection = ({
           </div>
         );
       default:
-        return null;
+        console.warn("Unknown test type:", effectiveTestType);
+        return <div className="unknown-type">ไม่รู้จักประเภทโจทย์: {effectiveTestType}</div>;
     }
   }
 };
