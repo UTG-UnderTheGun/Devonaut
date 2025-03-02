@@ -238,6 +238,30 @@ const EditorSection = ({
     }
   }, [problems, currentProblemIndex, testType]);
 
+  // Add event listener for storage reset
+  useEffect(() => {
+    const handleStorageReset = (event) => {
+      console.log("Storage reset detected:", event.detail);
+      
+      // Reset editor codes state
+      setEditorCodes({});
+      
+      // Reset output answers
+      setOutputAnswers({});
+      
+      // Reset editor content if we have a reference
+      if (editorRef.current) {
+        editorRef.current.setValue('');
+      }
+      
+      // If this was triggered by an import, we don't need to clear localStorage
+      // as it was already cleared by the StorageManager
+    };
+    
+    window.addEventListener('storage-reset', handleStorageReset);
+    return () => window.removeEventListener('storage-reset', handleStorageReset);
+  }, []);
+
   return (
     <div className="code-editor">
       <div className="editor-header">

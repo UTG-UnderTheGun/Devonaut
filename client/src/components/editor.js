@@ -24,9 +24,22 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       }
     };
 
+    const handleStorageReset = () => {
+      // Reset the editor content
+      setCode('');
+      if (editorInstance) {
+        editorInstance.setValue('');
+      }
+    };
+
     window.addEventListener('ide-data-import', handleImport);
-    return () => window.removeEventListener('ide-data-import', handleImport);
-  }, []);
+    window.addEventListener('storage-reset', handleStorageReset);
+    
+    return () => {
+      window.removeEventListener('ide-data-import', handleImport);
+      window.removeEventListener('storage-reset', handleStorageReset);
+    };
+  }, [editorInstance]);
 
   const handleEditorDidMount = (editor, monaco) => {
     setEditorInstance(editor);

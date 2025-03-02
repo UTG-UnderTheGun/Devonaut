@@ -36,6 +36,36 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
     URL.revokeObjectURL(url);
   };
 
+  const clearLocalStorage = () => {
+    // Clear all code-related localStorage items
+    const keysToRemove = [];
+    
+    // Find all keys related to code, outputs, and answers
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+          key.startsWith('code-') || 
+          key.startsWith('editor-code-') || 
+          key.startsWith('starter-code-') ||
+          key === 'problem-outputs' ||
+          key === 'problem-answers' ||
+          key === 'editorCode'
+        )) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // Remove all collected keys
+    console.log("Clearing localStorage keys:", keysToRemove);
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Dispatch a custom event to notify components about the reset
+    const resetEvent = new CustomEvent('storage-reset', {
+      detail: { source: 'import' }
+    });
+    window.dispatchEvent(resetEvent);
+  };
+
   const importData = async (file) => {
     try {
       const text = await file.text();
@@ -46,20 +76,28 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         const isValid = data.every(item => 
           item.id && 
           item.type && 
-          item.code &&
-          typeof item.answers === 'string'
+          (item.code !== undefined)
         );
         if (!isValid) {
           throw new Error('Invalid problem format in array');
         }
       } else {
-        if (!data.id || !data.type || !data.code || typeof data.answers !== 'string') {
+        if (!data.id || !data.type || data.code === undefined) {
           throw new Error('Invalid problem format');
         }
       }
 
+      // Clear localStorage before importing new problems
+      clearLocalStorage();
+
       // Reset answers when importing new problem
-      data.answers = {};
+      if (Array.isArray(data)) {
+        data.forEach(item => {
+          item.answers = item.answers || {};
+        });
+      } else {
+        data.answers = data.answers || {};
+      }
 
       if (typeof onImport === 'function') {
         onImport(data);
