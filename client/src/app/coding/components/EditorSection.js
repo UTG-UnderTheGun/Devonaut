@@ -5,7 +5,6 @@ import Header from '@/components/header';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
-import { BiRefresh } from "react-icons/bi";
 import './EditorSection.css';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
@@ -173,8 +172,7 @@ const EditorSection = ({
 
   const handleResetAll = () => {
     setShowEmptyState(true);
-    
-    // ล้างค่าใน editor
+
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
@@ -350,17 +348,16 @@ const EditorSection = ({
             </button> */}
           </div>
           <div className="import-section">
-            <StorageManager 
+            <StorageManager
               onImport={handleImportWrapper}
               currentProblemIndex={currentProblemIndex}
               testType={testType}
             />
-            <button 
-              onClick={handleResetAll} 
+            <button
+              onClick={handleResetAll}
               className="icon-button"
               title="Reset"
             >
-              <BiRefresh size={18} />
             </button>
           </div>
           {/* Only show navigation when problems exist and not in empty state */}
