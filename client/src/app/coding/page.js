@@ -17,9 +17,12 @@ import { useProblemState } from './hooks/useProblemState';
 import DescriptionPanel from './components/DescriptionPanel';
 import EditorSection from './components/EditorSection';
 import ConsoleSection from './components/ConsoleSection';
+import useAntiCopyPaste from '@/hook/useAntiCopyPaste';
 
 export default function CodingPage() {
   useAuth();
+  useAntiCopyPaste();
+
   const problemState = useProblemState();
 
   const [chat, setChat] = useState([]);
@@ -84,20 +87,20 @@ export default function CodingPage() {
 
   const handleImport = (data) => {
     console.log("Importing data:", data);
-    
+
     // ตรวจสอบว่าข้อมูลถูกต้องไหม
     if (!data) {
       console.error("No data to import");
       return;
     }
-    
+
     // ถ้าเป็น array ตรวจสอบว่าไม่ว่างเปล่า
     if (Array.isArray(data)) {
       if (data.length === 0) {
         console.error("Empty problem array");
         return;
       }
-      
+
       // ตรวจสอบว่าแต่ละข้อมีข้อมูลครบถ้วน
       const validData = data.map((problem, index) => {
         return {
@@ -109,7 +112,7 @@ export default function CodingPage() {
           starterCode: problem.starterCode || problem.code || ''
         };
       });
-      
+
       console.log("Valid data:", validData);
       setProblems(validData);
       setCurrentProblemIndex(0);
@@ -123,12 +126,12 @@ export default function CodingPage() {
         description: data.description || '',
         starterCode: data.starterCode || data.code || ''
       };
-      
+
       console.log("Valid problem:", validProblem);
       setProblems([validProblem]);
       setCurrentProblemIndex(0);
     }
-    
+
     // บันทึกลง localStorage
     localStorage.setItem('saved-problems', JSON.stringify(Array.isArray(data) ? data : [data]));
   };
@@ -198,16 +201,16 @@ export default function CodingPage() {
 
   const handleCodeChange = (newCode) => {
     const key = `code-${testType}-${currentProblemIndex}`;
-    
+
     // เก็บโค้ดใน state
     setProblemCodes(prev => ({
       ...prev,
       [key]: newCode
     }));
-    
+
     // เก็บลง localStorage
     localStorage.setItem(key, newCode);
-    
+
     // อัพเดท current code
     setCode(newCode);
   };
@@ -290,23 +293,23 @@ export default function CodingPage() {
   // ปรับปรุง useEffect ที่ทำงานเมื่อเปลี่ยน problem
   useEffect(() => {
     if (!problems || !problems[currentProblemIndex]) return;
-    
+
     const currentProblem = problems[currentProblemIndex];
     console.log("Current problem changed to:", currentProblem);
-    
+
     // อัพเดทหัวข้อและคำอธิบาย
     setTitle(currentProblem.title || '');
     setDescription(currentProblem.description || '');
-    
+
     // กำหนด testType ให้ตรงกับ problem ปัจจุบัน
     if (currentProblem.type) {
       console.log("Setting test type to:", currentProblem.type);
       setTestType(currentProblem.type);
-      
+
       // โหลดหรือสร้าง starter code ถ้ายังไม่มี
       const key = `code-${currentProblem.type}-${currentProblemIndex}`;
       const savedCode = localStorage.getItem(key);
-      
+
       if (savedCode) {
         console.log("Loading saved code");
         setCode(savedCode);
@@ -333,15 +336,15 @@ export default function CodingPage() {
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
-    
+
     // Reset title and description
     setTitle('');
     setDescription('');
     setConsoleOutput('');
-    
+
     // Clear all problem-related state
     setCode('');
-    
+
     // Clear the specific problem data in the problem codes state
     setProblemCodes(prev => {
       const newCodes = { ...prev };
@@ -353,25 +356,25 @@ export default function CodingPage() {
       });
       return newCodes;
     });
-    
+
     // Reset any output answers for this problem
     const newOutputAnswers = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
     if (newOutputAnswers[currentProblemIndex]) {
       delete newOutputAnswers[currentProblemIndex];
       localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
     }
-    
+
     // Clear localStorage for this problem
     localStorage.removeItem('problem-title');
     localStorage.removeItem('problem-description');
-    
+
     // Remove all localStorage keys for this problem
     const typesToClear = ['code', 'output', 'fill'];
     typesToClear.forEach(type => {
       localStorage.removeItem(`code-${type}-${currentProblemIndex}`);
       localStorage.removeItem(`editor-code-${type}-${currentProblemIndex}`);
     });
-    
+
     console.log("Reset handler executed for problem", currentProblemIndex);
   };
 
@@ -380,7 +383,7 @@ export default function CodingPage() {
     const handleCodeReset = (event) => {
       const { problemIndex } = event.detail;
       console.log("Received code reset event for problem", problemIndex);
-      
+
       // ล้างข้อมูลใน state สำหรับ problem นี้
       setProblemCodes(prev => {
         const newCodes = { ...prev };
@@ -391,13 +394,13 @@ export default function CodingPage() {
         });
         return newCodes;
       });
-      
+
       // ถ้าเป็น problem ปัจจุบัน ให้ล้างค่า code ด้วย
       if (problemIndex === currentProblemIndex) {
         setCode('');
       }
     };
-    
+
     window.addEventListener('code-reset', handleCodeReset);
     return () => window.removeEventListener('code-reset', handleCodeReset);
   }, [currentProblemIndex]);
@@ -456,8 +459,8 @@ export default function CodingPage() {
   return (
     <div className="coding-container">
       <div className="main-content">
-        <DescriptionPanel 
-          {...descriptionProps} 
+        <DescriptionPanel
+          {...descriptionProps}
           selectedDescriptionTab={selectedDescriptionTab}
           setSelectedDescriptionTab={setSelectedDescriptionTab}
         />
