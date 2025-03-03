@@ -7,6 +7,8 @@ import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import { BiRefresh } from "react-icons/bi";
 import './EditorSection.css';
+import { useCodeContext } from '@/app/context/CodeContext';
+import axios from 'axios';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -32,13 +34,12 @@ const EditorSection = ({
   setTitle,
   description,
   setDescription,
-  setSelectedDescriptionTab,
-  handleRunCode,
-  handleSubmitCode
+  setSelectedDescriptionTab
 }) => {
   const [showEmptyState, setShowEmptyState] = useState(true);
   const [outputAnswers, setOutputAnswers] = useState({});
   const [editorCodes, setEditorCodes] = useState({});
+  const { setOutput, setError } = useCodeContext();
 
   const handleImportWrapper = (data) => {
     localStorage.setItem('saved-problems', JSON.stringify(data));
@@ -303,6 +304,32 @@ const EditorSection = ({
     }
   }, [problems, currentProblemIndex, testType]);
 
+  const handleRunCode = async () => {
+    try {
+      const response = await axios.post('http://localhost:8000/code/run-code', {
+        code,
+      }, { withCredentials: true });
+      if (response.data.error) {
+        setError(response.data.error);
+        setOutput('');
+        setConsoleOutput('');
+      } else {
+        setOutput(response.data.output);
+        setError('');
+        setConsoleOutput(response.data.output);
+      }
+    } catch (err) {
+      console.log(err);
+      setError('Error connecting to the server');
+      setOutput('');
+      setConsoleOutput('');
+    }
+  };
+
+  const handleSubmitCode = () => {
+    console.log('Submitting code...');
+  };
+
   return (
     <div className="code-editor">
       <div className="editor-header">
@@ -317,10 +344,10 @@ const EditorSection = ({
               <span className="action-icon">▶</span>
               Run
             </button>
-            <button onClick={handleSubmitCode} className="btn-compact">
+            {/* <button onClick={handleSubmitCode} className="btn-compact">
               <span className="action-icon">⬆</span>
               Submit
-            </button>
+            </button> */}
           </div>
           <div className="import-section">
             <StorageManager 
