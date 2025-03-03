@@ -13,23 +13,47 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
   const [selectedText, setSelectedText] = useState('');
   const [editorInstance, setEditorInstance] = useState(null);
 
+  // Load initial code for the specific problem
   useEffect(() => {
-    const savedCode = localStorage.getItem('editorCode');
-    if (savedCode) {
-      setCode(savedCode);
+    if (problemIndex !== undefined) {
+      const savedCode = localStorage.getItem(`problem-code-${problemIndex}`);
+      if (savedCode) {
+        setCode(savedCode);
+      } else if (initialValue) {
+        setCode(initialValue);
+        localStorage.setItem(`problem-code-${problemIndex}`, initialValue);
+      }
+    } else {
+      // Fallback for non-problem-specific code
+      const savedCode = localStorage.getItem('editorCode');
+      if (savedCode) {
+        setCode(savedCode);
+      } else if (initialValue) {
+        setCode(initialValue);
+      }
     }
-  }, []);
+  }, [initialValue, problemIndex]);
 
+  // Save code changes to localStorage
   useEffect(() => {
     if (code !== '# write code here') {
-      localStorage.setItem('editorCode', code);
+      if (problemIndex !== undefined) {
+        // Save problem-specific code
+        localStorage.setItem(`problem-code-${problemIndex}`, code);
+      } else {
+        // Save general code
+        localStorage.setItem('editorCode', code);
+      }
     }
-  }, [code]);
+  }, [code, problemIndex]);
 
   useEffect(() => {
     const handleImport = (event) => {
       if (event.detail && event.detail.code) {
         setCode(event.detail.code);
+        if (problemIndex !== undefined) {
+          localStorage.setItem(`problem-code-${problemIndex}`, event.detail.code);
+        }
       }
     };
 
@@ -38,6 +62,10 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       setCode('');
       if (editorInstance) {
         editorInstance.setValue('');
+      }
+      // Clear problem-specific code if applicable
+      if (problemIndex !== undefined) {
+        localStorage.removeItem(`problem-code-${problemIndex}`);
       }
     };
 
@@ -48,7 +76,7 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       window.removeEventListener('ide-data-import', handleImport);
       window.removeEventListener('storage-reset', handleStorageReset);
     };
-  }, [editorInstance]);
+  }, [editorInstance, problemIndex]);
 
   const handleEditorDidMount = (editor, monaco) => {
     setEditorInstance(editor);
@@ -71,7 +99,7 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
         verticalScrollbarSize: 12,
       },
       wordWrap: 'off',
-      contextmenu: true, // Enable context menu
+      contextmenu: true,
     });
 
     // Add custom context menu action for code explanation
@@ -92,15 +120,13 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
 
   const handleExplainCode = async (text) => {
     try {
-      // Create a user message object
       const userMessageObject = {
         id: Date.now(),
-        text: `Please explain this code:\n\`\`\`python\n${text}\n\`\`\``,
+        text: `Please explain this python code:\n\`\`\`\n${text}\n\`\`\``,
         isUser: true,
         timestamp: new Date()
       };
 
-      // Dispatch a custom event that the AI interface will listen for
       const event = new CustomEvent('add-chat-message', {
         detail: userMessageObject
       });
@@ -133,8 +159,8 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
   const handleChange = (newValue) => {
     setCode(newValue);
     // Save to problem-specific key
-    if (problemIndex !== undefined && testType) {
-      localStorage.setItem(`code-${testType}-${problemIndex}`, newValue);
+    if (problemIndex !== undefined) {
+      localStorage.setItem(`problem-code-${problemIndex}`, newValue);
     }
     onChange(newValue);
   };
@@ -163,7 +189,7 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
             lineNumbers: 'on',
             roundedSelection: true,
             selectOnLineNumbers: true,
-            contextmenu: false,
+            contextmenu: true,
           }}
           onMount={handleEditorDidMount}
         />
