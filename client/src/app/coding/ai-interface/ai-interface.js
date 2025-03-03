@@ -41,9 +41,12 @@ const AIChatInterface = ({ user_id }) => {
   const [newMessage, setNewMessage] = useState('');
   const [questionsRemaining, setQuestionsRemaining] = useState(10);
   const [maxQuestions, setMaxQuestions] = useState(10);
+  const [resetTimestamp, setResetTimestamp] = useState(null);
+  const [timeUntilReset, setTimeUntilReset] = useState('');
   const messagesEndRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const timerRef = useRef(null);
 
   const suggestions = [
     "How do I solve this problem?",
@@ -51,6 +54,54 @@ const AIChatInterface = ({ user_id }) => {
     "What's wrong with my solution?",
     "Give me a hint"
   ];
+
+  // Update timer display every minute
+  useEffect(() => {
+    const updateTimerDisplay = () => {
+      if (!resetTimestamp) return;
+
+      const now = new Date();
+      const timeDiff = resetTimestamp - now;
+
+      if (timeDiff <= 0) {
+        // Reset time has passed, refresh question count
+        fetchQuestionsRemaining();
+        return;
+      }
+
+      // Calculate hours and minutes
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutes = Math.ceil((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+      // Format display text
+      let displayText = '';
+      if (hours > 0) {
+        displayText = `${hours}h ${minutes}m`;
+      } else {
+        displayText = `${minutes}m`;
+      }
+
+      setTimeUntilReset(displayText);
+    };
+
+    // Initial update
+    updateTimerDisplay();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    // Set up timer to update every minute
+    timerRef.current = setInterval(updateTimerDisplay, 60000);
+
+    // Cleanup on unmount
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [resetTimestamp]);
 
   // Load chat history from localStorage when component mounts
   useEffect(() => {
@@ -73,6 +124,13 @@ const AIChatInterface = ({ user_id }) => {
       // Fetch questions remaining from API
       fetchQuestionsRemaining();
     }
+
+    // Cleanup function
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, [user_id]);
 
   const fetchQuestionsRemaining = async () => {
@@ -89,6 +147,13 @@ const AIChatInterface = ({ user_id }) => {
       const data = await response.json();
       setQuestionsRemaining(data.questions_remaining);
       setMaxQuestions(data.max_questions);
+
+      // If hours_until_reset is provided, calculate the reset timestamp
+      if (data.hours_until_reset !== undefined) {
+        const hoursInMs = data.hours_until_reset * 60 * 60 * 1000;
+        const resetTime = new Date(Date.now() + hoursInMs);
+        setResetTimestamp(resetTime);
+      }
     } catch (error) {
       console.error('Error fetching questions remaining:', error);
     } finally {
@@ -447,7 +512,9 @@ const AIChatInterface = ({ user_id }) => {
               style={{ minHeight: '24px', maxHeight: '150px', overflowY: 'auto' }}
             />
             <div className="questions-counter">
-              {isLoading ? `${questionsRemaining - 1} questions left` : `${questionsRemaining} questions left`}
+              {isLoading ?
+                `${questionsRemaining - 1} questions left` :
+                `${questionsRemaining} questions left${timeUntilReset ? ` • Reset in ${timeUntilReset}` : ''}`}
             </div>
             <button
               onClick={handleSendMessage}
