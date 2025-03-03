@@ -120,17 +120,26 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
 
   const handleExplainCode = async (text) => {
     try {
-      const userMessageObject = {
-        id: Date.now(),
-        text: `Please explain this python code:\n\`\`\`\n${text}\n\`\`\``,
-        isUser: true,
-        timestamp: new Date()
-      };
-
-      const event = new CustomEvent('add-chat-message', {
-        detail: userMessageObject
+      // First, switch to ASK AI tab
+      const switchEvent = new CustomEvent('switch-description-tab', {
+        detail: { tab: 'ASK AI' }
       });
-      window.dispatchEvent(event);
+      window.dispatchEvent(switchEvent);
+
+      // Wait a bit for the tab switch
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Then send the message
+      const messageEvent = new CustomEvent('add-chat-message', {
+        detail: {
+          id: Date.now(),
+          text: `Please explain this python code:\n\`\`\`\n${text}\n\`\`\``,
+          isUser: true,
+          timestamp: new Date()
+        }
+      });
+      window.dispatchEvent(messageEvent);
+
     } catch (err) {
       console.error('Error handling code explanation:', err);
       setError('Failed to explain code');

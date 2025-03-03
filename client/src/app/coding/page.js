@@ -405,6 +405,27 @@ export default function CodingPage() {
     return () => window.removeEventListener('code-reset', handleCodeReset);
   }, [currentProblemIndex]);
 
+  useEffect(() => {
+    const handleSwitchTab = (event) => {
+      const { tab, pendingMessage } = event.detail;
+      setSelectedDescriptionTab(tab);
+      
+      // If there's a pending message, wait for tab switch and then send it
+      if (pendingMessage) {
+        // Use requestAnimationFrame to ensure tab switch is complete
+        requestAnimationFrame(() => {
+          const messageEvent = new CustomEvent('add-chat-message', {
+            detail: pendingMessage
+          });
+          window.dispatchEvent(messageEvent);
+        });
+      }
+    };
+
+    window.addEventListener('switch-description-tab', handleSwitchTab);
+    return () => window.removeEventListener('switch-description-tab', handleSwitchTab);
+  }, []);
+
   if (isLoading) {
     return <CodingSkeleton />;
   }
