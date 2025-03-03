@@ -34,13 +34,17 @@ const TypingIndicator = () => (
   </div>
 );
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const AIChatInterface = ({ user_id }) => {
   const [chat, setChat] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [questionsLeft, setQuestionsLeft] = useState(10);
+  const [questionsRemaining, setQuestionsRemaining] = useState(10);
+  const [maxQuestions, setMaxQuestions] = useState(10);
   const messagesEndRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
-  
+  const [isLoading, setIsLoading] = useState(true);
+
   const suggestions = [
     "How do I solve this problem?",
     "Can you explain the code?",
@@ -48,7 +52,7 @@ const AIChatInterface = ({ user_id }) => {
     "Give me a hint"
   ];
 
-  // Load chat history and questions left from localStorage when component mounts
+  // Load chat history from localStorage when component mounts
   useEffect(() => {
     if (user_id) {
       // Load chat history
@@ -65,21 +69,36 @@ const AIChatInterface = ({ user_id }) => {
         // If no chat history, just show welcome message
         setChat([]);
       }
-      
-      // Load questions left
-      const savedQuestionsLeft = localStorage.getItem(`questionsLeft_${user_id}`);
-      if (savedQuestionsLeft) {
-        const questionsLeftValue = parseInt(savedQuestionsLeft, 10);
-        if (!isNaN(questionsLeftValue)) {
-          setQuestionsLeft(questionsLeftValue);
-        }
-      }
+
+      // Fetch questions remaining from API
+      fetchQuestionsRemaining();
     }
   }, [user_id]);
 
+  const fetchQuestionsRemaining = async () => {
+    if (!user_id) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai/questions/remaining?user_id=${user_id}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch questions remaining');
+      }
+
+      const data = await response.json();
+      setQuestionsRemaining(data.questions_remaining);
+      setMaxQuestions(data.max_questions);
+    } catch (error) {
+      console.error('Error fetching questions remaining:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
+      messagesEndRef.current.scrollIntoView({
         behavior: "smooth",
         block: "end"
       });
@@ -91,7 +110,7 @@ const AIChatInterface = ({ user_id }) => {
   }, [chat]);
 
   const handleSendMessage = async () => {
-    if (!user_id || !newMessage.trim() || questionsLeft <= 0) {
+    if (!user_id || !newMessage.trim() || questionsRemaining <= 0 || isLoading) {
       return;
     }
 
@@ -105,36 +124,32 @@ const AIChatInterface = ({ user_id }) => {
     // Update chat with user message
     const updatedChat = [...chat, userMessageObject];
     setChat(updatedChat);
-    
+
     // Save to localStorage
     localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChat));
-    
+
     setNewMessage('');
-    
-    // Update and save questions left
-    setQuestionsLeft(prev => {
-      const newValue = Math.max(0, prev - 1);
-      localStorage.setItem(`questionsLeft_${user_id}`, newValue.toString());
-      return newValue;
-    });
-    
     setIsTyping(true); // Show typing indicator
 
     try {
-      const response = await fetch('http://localhost:8000/ai/chat', {
+      const response = await fetch(`${API_BASE_URL}/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          user_id, 
-          prompt: newMessage 
+        body: JSON.stringify({
+          user_id,
+          prompt: newMessage
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || 'Network response was not ok');
       }
+
+      // Refresh questions remaining after successful API call
+      fetchQuestionsRemaining();
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -154,10 +169,10 @@ const AIChatInterface = ({ user_id }) => {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value, { stream: true });
         aiMessageObject.text += chunk;
-        
+
         setChat(prev => {
           const newChat = [...prev];
           const lastMessage = newChat[newChat.length - 1];
@@ -169,15 +184,15 @@ const AIChatInterface = ({ user_id }) => {
           return newChat;
         });
       }
-      
+
       // Update final message to remove streaming flag once complete
       setChat(prev => {
         const newChat = [...prev];
         const lastMessage = newChat[newChat.length - 1];
         if (!lastMessage.isUser) {
-          const updatedMessage = { 
-            ...lastMessage, 
-            isStreaming: false 
+          const updatedMessage = {
+            ...lastMessage,
+            isStreaming: false
           };
           newChat[newChat.length - 1] = updatedMessage;
           // Save the final state
@@ -187,13 +202,19 @@ const AIChatInterface = ({ user_id }) => {
       });
     } catch (error) {
       console.error('Error:', error);
+
+      // If we got a 403, it means we've reached the question limit
+      if (error.message.includes('Question limit reached')) {
+        setQuestionsRemaining(0);
+      }
+
       const errorMessage = {
         id: chat.length + 2,
-        text: 'Sorry, there was an error processing your request.',
+        text: error.message || 'Sorry, there was an error processing your request.',
         isUser: false,
         timestamp: new Date()
       };
-      
+
       // Add error message and save to localStorage
       const chatWithError = [...updatedChat, errorMessage];
       setChat(chatWithError);
@@ -246,37 +267,47 @@ const AIChatInterface = ({ user_id }) => {
   // Add event listener for code explanation
   useEffect(() => {
     const handleExplainCode = async (event) => {
+      if (questionsRemaining <= 0) {
+        // Notify user they've reached the limit
+        const errorMessage = {
+          id: chat.length + 1,
+          text: "You've reached your question limit. Please contact support for more questions.",
+          isUser: false,
+          timestamp: new Date()
+        };
+        setChat(prev => [...prev, errorMessage]);
+        localStorage.setItem(`chat_${user_id}`, JSON.stringify([...chat, errorMessage]));
+        return;
+      }
+
       const message = event.detail;
-      
+
       // Add user message and save to localStorage
       const updatedChat = [...chat, message];
       setChat(updatedChat);
       localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChat));
-      
-      // Decrement questions left and save
-      setQuestionsLeft(prev => {
-        const newValue = Math.max(0, prev - 1);
-        localStorage.setItem(`questionsLeft_${user_id}`, newValue.toString());
-        return newValue;
-      });
-      
+
       // Send message directly without setting input
       try {
         setIsTyping(true);
-        const response = await fetch('http://localhost:8000/ai/chat', {
+        const response = await fetch(`${API_BASE_URL}/ai/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ 
-            user_id, 
-            prompt: message.text 
+          body: JSON.stringify({
+            user_id,
+            prompt: message.text
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+          throw new Error(errorData.detail || 'Network response was not ok');
         }
+
+        // Refresh questions remaining after successful API call
+        fetchQuestionsRemaining();
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -298,7 +329,7 @@ const AIChatInterface = ({ user_id }) => {
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           aiMessageObject.text += chunk;
-          
+
           setChat(prev => {
             const newChat = [...prev];
             const lastMessage = newChat[newChat.length - 1];
@@ -314,15 +345,15 @@ const AIChatInterface = ({ user_id }) => {
             return newChat;
           });
         }
-        
+
         // Update final message to remove streaming flag once complete
         setChat(prev => {
           const newChat = [...prev];
           const lastMessage = newChat[newChat.length - 1];
           if (!lastMessage.isUser) {
-            const updatedMessage = { 
-              ...lastMessage, 
-              isStreaming: false 
+            const updatedMessage = {
+              ...lastMessage,
+              isStreaming: false
             };
             newChat[newChat.length - 1] = updatedMessage;
             // Save the final state
@@ -330,15 +361,21 @@ const AIChatInterface = ({ user_id }) => {
           }
           return newChat;
         });
-      } catch (err) {
-        console.error('Error sending message:', err);
+      } catch (error) {
+        console.error('Error sending message:', error);
+
+        // If we got a 403, it means we've reached the question limit
+        if (error.message.includes('Question limit reached')) {
+          setQuestionsRemaining(0);
+        }
+
         const errorMessage = {
           id: updatedChat.length + 1,
-          text: 'An error occurred while getting the response.',
+          text: error.message || 'An error occurred while getting the response.',
           isUser: false,
           timestamp: new Date()
         };
-        
+
         // Add error message and save to localStorage
         const chatWithError = [...updatedChat, errorMessage];
         setChat(chatWithError);
@@ -351,7 +388,7 @@ const AIChatInterface = ({ user_id }) => {
 
     window.addEventListener('add-chat-message', handleExplainCode);
     return () => window.removeEventListener('add-chat-message', handleExplainCode);
-  }, [chat, user_id]);
+  }, [chat, user_id, questionsRemaining]);
 
   // Function to clear chat history
   const clearChat = () => {
@@ -366,7 +403,7 @@ const AIChatInterface = ({ user_id }) => {
           <div className="message-wrapper ai">
             {renderMessage(WELCOME_MESSAGE)}
           </div>
-          
+
           {chat.map((message) => (
             <div
               key={message.id}
@@ -386,7 +423,7 @@ const AIChatInterface = ({ user_id }) => {
 
       <div className="bottom-section">
         <div className="suggestion-chips">
-          {questionsLeft > 0 && suggestions.map((suggestion, index) => (
+          {questionsRemaining > 0 && suggestions.map((suggestion, index) => (
             <button
               key={index}
               className="suggestion-chip"
@@ -396,7 +433,7 @@ const AIChatInterface = ({ user_id }) => {
             </button>
           ))}
         </div>
-        
+
         <div className="chat-input-container">
           <div className="chat-input-wrapper">
             <textarea
@@ -405,16 +442,16 @@ const AIChatInterface = ({ user_id }) => {
               onKeyPress={handleKeyPress}
               placeholder="Ask a question about your code..."
               className="chat-input"
-              disabled={questionsLeft === 0}
+              disabled={questionsRemaining === 0 || isLoading}
               rows={1}
               style={{ minHeight: '24px', maxHeight: '150px', overflowY: 'auto' }}
             />
             <div className="questions-counter">
-              {questionsLeft} questions left
+              {isLoading ? `${questionsRemaining - 1} questions left` : `${questionsRemaining} questions left`}
             </div>
-            <button 
+            <button
               onClick={handleSendMessage}
-              disabled={questionsLeft === 0 || newMessage.trim() === ''}
+              disabled={questionsRemaining === 0 || newMessage.trim() === '' || isLoading}
               className="send-button"
             >
               <SendIcon />
