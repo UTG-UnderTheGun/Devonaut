@@ -130,13 +130,13 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
     }
   };
 
-  const handleEditorChange = (value) => {
-    setCode(value);
+  const handleChange = (newValue) => {
+    setCode(newValue);
     // Save to problem-specific key
     if (problemIndex !== undefined && testType) {
-      localStorage.setItem(`code-${testType}-${problemIndex}`, value);
+      localStorage.setItem(`code-${testType}-${problemIndex}`, newValue);
     }
-    onChange(value);
+    onChange(newValue);
   };
 
   return (
@@ -146,15 +146,15 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
           height="100%"
           width="100%"
           language="python"
-          theme="light" // Using the default light theme
+          theme="transparentTheme"
           value={code}
-          onChange={handleEditorChange}
+          onChange={handleChange}
           options={{
             scrollBeyondLastLine: false,
             minimap: { enabled: false },
             scrollbar: {
               horizontal: 'visible',
-              vertical: 'visible',
+              vertical: 'hidden',
               horizontalScrollbarSize: 12,
               verticalScrollbarSize: 12,
             },
@@ -163,6 +163,7 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
             lineNumbers: 'on',
             roundedSelection: true,
             selectOnLineNumbers: true,
+            contextmenu: false,
           }}
           onMount={handleEditorDidMount}
         />

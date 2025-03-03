@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Editor from '@/components/editor';
 import StorageManager from '@/components/StorageManager';
+import Header from '@/components/header';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
@@ -31,7 +32,9 @@ const EditorSection = ({
   setTitle,
   description,
   setDescription,
-  setSelectedDescriptionTab
+  setSelectedDescriptionTab,
+  handleRunCode,
+  handleSubmitCode
 }) => {
   const [showEmptyState, setShowEmptyState] = useState(true);
   const [outputAnswers, setOutputAnswers] = useState({});
@@ -303,11 +306,22 @@ const EditorSection = ({
   return (
     <div className="code-editor">
       <div className="editor-header">
+        <Header />
         <div className="file-section">
           {/* Test type selector removed */}
         </div>
 
         <div className="right-section">
+          <div className="coding-actions">
+            <button onClick={handleRunCode} className="btn-compact">
+              <span className="action-icon">▶</span>
+              Run
+            </button>
+            <button onClick={handleSubmitCode} className="btn-compact">
+              <span className="action-icon">⬆</span>
+              Submit
+            </button>
+          </div>
           <div className="import-section">
             <StorageManager 
               onImport={handleImportWrapper}

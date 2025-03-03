@@ -284,3 +284,33 @@
   height: 100%;
   color: #8c8c8c;
 }
+
+.coding-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.coding-actions button {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #374151;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.coding-actions button:hover {
+  border-color: #7c3aed;
+  color: #7c3aed;
+  background: #f9fafb;
+}
+
+.coding-actions button:active {
+  background: #e5e7eb;
+  transform: scale(0.95);
+}
