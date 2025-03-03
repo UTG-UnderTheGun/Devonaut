@@ -14,8 +14,17 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
   const [editorInstance, setEditorInstance] = useState(null);
 
   useEffect(() => {
-    setCode(initialValue);
-  }, [initialValue]);
+    const savedCode = localStorage.getItem('editorCode');
+    if (savedCode) {
+      setCode(savedCode);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (code !== '# write code here') {
+      localStorage.setItem('editorCode', code);
+    }
+  }, [code]);
 
   useEffect(() => {
     const handleImport = (event) => {
@@ -121,13 +130,13 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
     }
   };
 
-  const handleChange = (newValue) => {
-    setCode(newValue);
+  const handleEditorChange = (value) => {
+    setCode(value);
     // Save to problem-specific key
     if (problemIndex !== undefined && testType) {
-      localStorage.setItem(`code-${testType}-${problemIndex}`, newValue);
+      localStorage.setItem(`code-${testType}-${problemIndex}`, value);
     }
-    onChange(newValue);
+    onChange(value);
   };
 
   return (
@@ -137,15 +146,15 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
           height="100%"
           width="100%"
           language="python"
-          theme="transparentTheme"
+          theme="light" // Using the default light theme
           value={code}
-          onChange={handleChange}
+          onChange={handleEditorChange}
           options={{
             scrollBeyondLastLine: false,
             minimap: { enabled: false },
             scrollbar: {
               horizontal: 'visible',
-              vertical: 'hidden',
+              vertical: 'visible',
               horizontalScrollbarSize: 12,
               verticalScrollbarSize: 12,
             },
@@ -154,7 +163,6 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
             lineNumbers: 'on',
             roundedSelection: true,
             selectOnLineNumbers: true,
-            contextmenu: false,
           }}
           onMount={handleEditorDidMount}
         />
