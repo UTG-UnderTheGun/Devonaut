@@ -37,30 +37,40 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             problemAnswers[key] = allAnswers[key];
           }
         });
-        
-        // Extract blanks for fill-in-the-blank problems
-        const blanks = [];
-        if (problemType === 'fill' && currentCode) {
-          // For fill problems, extract answers as blanks
-          Object.keys(problemAnswers).forEach(key => {
-            if (problemAnswers[key]) {
-              blanks.push(problemAnswers[key]);
-            }
-          });
-        }
-        
-        // Create export object for this problem
-        return {
+
+        // สร้าง export object ตามประเภทของโจทย์
+        const baseExport = {
           id: index + 1,
           title: problem.title || '',
           description: problem.description || '',
           code: currentCode,
           type: problemType,
-          blanks: blanks,
-          expectedOutput: allOutputs[index] || '',
-          userAnswers: problemAnswers, // Include user answers
-          outputAnswer: allOutputs[index] || '' // Include output answer
+          userAnswers: {} // เริ่มต้นด้วย empty object
         };
+
+        // เพิ่มข้อมูลเฉพาะตามประเภทของโจทย์
+        switch (problemType) {
+          case 'fill':
+            if (Object.keys(problemAnswers).length > 0) {
+              baseExport.userAnswers.fillAnswers = problemAnswers;
+            }
+            break;
+          case 'output':
+            if (allOutputs[index]) {
+              baseExport.userAnswers.outputAnswer = allOutputs[index];
+            }
+            break;
+          case 'code':
+            if (currentCode && currentCode !== problem.code) {
+              baseExport.userAnswers.codeAnswer = currentCode;
+            }
+            if (allOutputs[index]) {
+              baseExport.userAnswers.outputAnswer = allOutputs[index];
+            }
+            break;
+        }
+
+        return baseExport;
       });
       
       // Convert to JSON and create download
