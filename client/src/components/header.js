@@ -149,7 +149,7 @@ const Header = () => {
         </div>
 
         <div className="header-center">
-          {isCodingPage && (
+          {/* {isCodingPage && (
             <div className="coding-actions">
               <button onClick={handleRunCode} className="action-button run">
                 <span className="action-icon">▶</span>
@@ -160,7 +160,7 @@ const Header = () => {
                 Submit
               </button>
             </div>
-          )}
+          )} */}
         </div>
 
         <div className="header-right">
