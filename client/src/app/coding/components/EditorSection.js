@@ -33,18 +33,24 @@ const EditorSection = ({
   setTitle,
   description,
   setDescription,
-  setSelectedDescriptionTab
+  setSelectedDescriptionTab,
+  handleClearImport
 }) => {
   const [showEmptyState, setShowEmptyState] = useState(true);
   const [outputAnswers, setOutputAnswers] = useState({});
   const [editorCodes, setEditorCodes] = useState({});
   const { setOutput, setError } = useCodeContext();
+  const [isImport, setIsImport] = useState(false)
 
-  const handleImportWrapper = (data) => {
+  // This wrapper is used when StorageManager calls onImport.
+  const handleImportWrapper = async (data) => {
+    handleClearImport()
     localStorage.setItem('saved-problems', JSON.stringify(data));
     handleImport(data);
   };
 
+  // Load saved problems and other data from localStorage on mount.
+  // IMPORTANT: We removed the call to handleImport here to avoid double importing.
   useEffect(() => {
     const savedProblems = localStorage.getItem('saved-problems');
     const savedAnswers = localStorage.getItem('problem-answers');
@@ -55,22 +61,18 @@ const EditorSection = ({
       const parsedProblems = JSON.parse(savedProblems);
       if (parsedProblems.length > 0) {
         setShowEmptyState(false);
-        if (typeof handleImport === 'function') {
-          handleImport(parsedProblems);
-          
-          // Check if problems have expectedOutput and populate output answers
-          const newOutputAnswers = {...outputAnswers};
-          parsedProblems.forEach((problem, index) => {
-            if (problem.expectedOutput && !newOutputAnswers[index]) {
-              newOutputAnswers[index] = problem.expectedOutput;
-            }
-          });
-          
-          // Update state and localStorage if we found any expectedOutput values
-          if (Object.keys(newOutputAnswers).length > 0) {
-            setOutputAnswers(newOutputAnswers);
-            localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+        // Instead of calling handleImport(parsedProblems) here,
+        // we assume the parent already imported problems on initial load.
+        // However, we still update outputAnswers if expectedOutput is found.
+        const newOutputAnswers = { ...outputAnswers };
+        parsedProblems.forEach((problem, index) => {
+          if (problem.expectedOutput && !newOutputAnswers[index]) {
+            newOutputAnswers[index] = problem.expectedOutput;
           }
+        });
+        if (Object.keys(newOutputAnswers).length > 0) {
+          setOutputAnswers(newOutputAnswers);
+          localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
         }
       }
     }
@@ -86,32 +88,28 @@ const EditorSection = ({
     if (savedOutputs) {
       setOutputAnswers(JSON.parse(savedOutputs));
     }
+    // We intentionally use an empty dependency array so this runs only once.
   }, []);
 
   useEffect(() => {
     const loadProblemData = () => {
       if (!problems || !problems[currentProblemIndex]) return;
-      
-      // ตรวจสอบ type ของโปรเบลมปัจจุบัน
+
       const currentProblem = problems[currentProblemIndex];
       const currentType = currentProblem.type || testType;
-      
-      // กำหนด testType ให้ตรงกับโปรเบลมปัจจุบัน
+
       if (setTestType && currentType !== testType) {
         setTestType(currentType);
       }
-      
-      // ลองค้นหาโค้ดจากหลายๆ รูปแบบของ key
+
       const keysToTry = [
         `code-${currentType}-${currentProblemIndex}`,
         `editor-code-${currentType}-${currentProblemIndex}`,
         `code-${testType}-${currentProblemIndex}`,
         `starter-code-${currentProblemIndex}`
       ];
-      
+
       let foundCode = null;
-      
-      // ค้นหาโค้ดจาก localStorage
       for (const key of keysToTry) {
         const savedCode = localStorage.getItem(key);
         if (savedCode) {
@@ -120,51 +118,37 @@ const EditorSection = ({
           break;
         }
       }
-      
-      // ถ้าไม่พบ ใช้ starterCode จาก problem object
+
       if (!foundCode && currentProblem.starterCode) {
         foundCode = currentProblem.starterCode;
         console.log(`Using starter code for problem ${currentProblemIndex + 1}`);
       }
-      
-      // อัพเดท editorCodes state
+
       if (foundCode) {
         setEditorCodes(prev => ({
           ...prev,
           [currentProblemIndex]: foundCode
         }));
-        
-        // อัพเดทค่าใน editor
         if (editorRef.current) {
           editorRef.current.setValue(foundCode);
         }
-        
-        // อัพเดท code state ถ้ามี handler
         if (handleCodeChange) {
           handleCodeChange(foundCode);
         }
       }
     };
-    
-    // โหลดข้อมูลเมื่อเปลี่ยน problem
+
     loadProblemData();
   }, [currentProblemIndex, problems, testType]);
 
   const handleEditorChange = (value) => {
-    // เก็บโค้ดใน state
     setEditorCodes(prev => ({
       ...prev,
       [currentProblemIndex]: value
     }));
-    
-    // หา type ที่ถูกต้องของโปรเบลมปัจจุบัน
     const currentProblem = problems && problems[currentProblemIndex];
     const currentType = currentProblem ? currentProblem.type || testType : testType;
-    
-    // บันทึกลง localStorage ด้วย key ที่ถูกต้อง
     localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
-    
-    // ถ้ามี handleCodeChange จาก props ก็เรียกใช้
     if (typeof handleCodeChange === 'function') {
       handleCodeChange(value);
     }
@@ -172,12 +156,9 @@ const EditorSection = ({
 
   const handleResetAll = () => {
     setShowEmptyState(true);
-
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
-
-    // ล้างค่าใน state
     setEditorCodes({});
     setOutputAnswers({});
     setTitle('');
@@ -186,57 +167,44 @@ const EditorSection = ({
     setAnswers({});
     setSelectedDescriptionTab('Description');
 
-    // ล้างค่าใน localStorage แบบเฉพาะเจาะจงมากขึ้น
-    // ล้างทั้ง problem ปัจจุบันและทุก problem
     const keysToRemove = [];
-    
-    // ล้างทุก key ที่เกี่ยวข้องกับ code
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {
-        // ล้าง key ทั่วไป
-        if (key.startsWith('code-') || 
-            key.startsWith('editor-code-') || 
-            key === 'editorCode' ||
-            key.startsWith('starter-code-')) {
+        if (
+          key.startsWith('code-') ||
+          key.startsWith('editor-code-') ||
+          key === 'editorCode' ||
+          key.startsWith('starter-code-')
+        ) {
           keysToRemove.push(key);
         }
-        
-        // ล้าง key เฉพาะ problem ปัจจุบัน
         if (key.includes(`-${currentProblemIndex}`)) {
           keysToRemove.push(key);
         }
-        
-        // ล้าง key ใน output และ fill
-        if (key === 'problem-outputs' || 
-            key === 'problem-answers' ||
-            key === 'problem-title' ||
-            key === 'problem-description') {
+        if (
+          key === 'problem-outputs' ||
+          key === 'problem-answers' ||
+          key === 'problem-title' ||
+          key === 'problem-description'
+        ) {
           keysToRemove.push(key);
         }
       }
     }
-    
-    // ล้าง key ทั้งหมดที่รวบรวมไว้
     console.log("Removing keys:", keysToRemove);
     keysToRemove.forEach(key => localStorage.removeItem(key));
-    
-    // ล้าง key เฉพาะ output
     const outputKey = `output-${currentProblemIndex}`;
     localStorage.removeItem(outputKey);
     localStorage.removeItem('problem-outputs');
-    
-    // เรียกใช้ handler จาก props
+
     if (handleReset) {
       handleReset();
     }
-    
-    // ส่ง event ให้ parent component รู้ว่ามีการ reset
     const resetEvent = new CustomEvent('code-reset', {
       detail: { problemIndex: currentProblemIndex }
     });
     window.dispatchEvent(resetEvent);
-    
     console.log("Reset complete for problem", currentProblemIndex);
   };
 
@@ -244,55 +212,35 @@ const EditorSection = ({
     console.log("Problems:", problems);
     console.log("Current problem:", problems[currentProblemIndex]);
     console.log("Test type:", testType);
-    
-    if (problems && problems.length > 0 && 
-        problems[currentProblemIndex] && 
-        (problems[currentProblemIndex].title || problems[currentProblemIndex].description)) {
+    if (problems && problems.length > 0 && problems[currentProblemIndex] &&
+      (problems[currentProblemIndex].title || problems[currentProblemIndex].description)) {
       setShowEmptyState(false);
     } else {
       setShowEmptyState(true);
     }
   }, [problems, currentProblemIndex, testType]);
 
-  // Add event listener for storage reset
   useEffect(() => {
     const handleStorageReset = (event) => {
       console.log("Storage reset detected:", event.detail);
-      
-      // Reset editor codes state
       setEditorCodes({});
-      
-      // Reset output answers
       setOutputAnswers({});
-      
-      // Reset editor content if we have a reference
       if (editorRef.current) {
         editorRef.current.setValue('');
       }
-      
-      // If this was triggered by an import, we don't need to clear localStorage
-      // as it was already cleared by the StorageManager
     };
-    
     window.addEventListener('storage-reset', handleStorageReset);
     return () => window.removeEventListener('storage-reset', handleStorageReset);
   }, []);
 
-  // Add a useEffect to update outputAnswers when problems change
   useEffect(() => {
-    // Only proceed if we have problems and we're on an output type problem
     if (problems && problems.length > 0 && problems[currentProblemIndex] && testType === 'output') {
       const currentProblem = problems[currentProblemIndex];
-      
-      // Check if this problem has an expectedOutput that should be displayed
       if (currentProblem.expectedOutput && currentProblem.expectedOutput.trim() !== '') {
-        // Update the outputAnswers state with this value
         setOutputAnswers(prev => {
-          const newOutputAnswers = {...prev};
+          const newOutputAnswers = { ...prev };
           if (!newOutputAnswers[currentProblemIndex]) {
             newOutputAnswers[currentProblemIndex] = currentProblem.expectedOutput;
-            
-            // Also save to localStorage
             localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
             console.log(`Set output answer for problem ${currentProblemIndex} to: ${currentProblem.expectedOutput}`);
           }
@@ -304,9 +252,7 @@ const EditorSection = ({
 
   const handleRunCode = async () => {
     try {
-      const response = await axios.post('http://localhost:8000/code/run-code', {
-        code,
-      }, { withCredentials: true });
+      const response = await axios.post('http://localhost:8000/code/run-code', { code }, { withCredentials: true });
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
@@ -332,53 +278,28 @@ const EditorSection = ({
     <div className="code-editor">
       <div className="editor-header">
         <Header />
-        <div className="file-section">
-          {/* Test type selector removed */}
-        </div>
-
+        <div className="file-section">{/* Test type selector removed */}</div>
         <div className="right-section">
           <div className="coding-actions">
             <button onClick={handleRunCode} className="btn-compact">
               <span className="action-icon">▶</span>
               Run
             </button>
-            {/* <button onClick={handleSubmitCode} className="btn-compact">
-              <span className="action-icon">⬆</span>
-              Submit
-            </button> */}
           </div>
           <div className="import-section">
-            <StorageManager
-              onImport={handleImportWrapper}
-              currentProblemIndex={currentProblemIndex}
-              testType={testType}
-            />
-            <button
-              onClick={handleResetAll}
-              className="icon-button"
-              title="Reset"
-            >
-            </button>
+            <StorageManager onImport={handleImportWrapper} currentProblemIndex={currentProblemIndex} testType={testType} />
+            <button onClick={handleResetAll} className="icon-button" title="Reset"></button>
           </div>
-          {/* Only show navigation when problems exist and not in empty state */}
           {!showEmptyState && problems && problems.length > 0 && problems[0].title && (
             <div className="navigation-section">
               <span className="problem-count">
                 Problem {currentProblemIndex + 1} of {problems.length}
               </span>
               <div className="nav-arrows">
-                <button
-                  className="nav-button"
-                  onClick={handlePreviousProblem}
-                  disabled={currentProblemIndex === 0}
-                >
+                <button className="nav-button" onClick={handlePreviousProblem} disabled={currentProblemIndex === 0}>
                   ←
                 </button>
-                <button
-                  className="nav-button"
-                  onClick={handleNextProblem}
-                  disabled={currentProblemIndex === problems.length - 1}
-                >
+                <button className="nav-button" onClick={handleNextProblem} disabled={currentProblemIndex === problems.length - 1}>
                   →
                 </button>
               </div>
@@ -406,42 +327,30 @@ const EditorSection = ({
 
   function renderEditorContent() {
     console.log("Rendering with type:", testType);
-    
-    // ตรวจสอบว่ามีปัญหาที่เลือกไว้จริงๆ หรือไม่
     if (!problems || !problems[currentProblemIndex]) {
       console.log("No problem found at index", currentProblemIndex);
       return <div className="empty-problem">ไม่พบข้อมูลของโจทย์ โปรดตรวจสอบการนำเข้าข้อมูล</div>;
     }
-    
     const currentProblem = problems[currentProblemIndex];
     console.log("Current problem:", currentProblem);
-    
-    // ใช้ type จาก problem object ถ้ามี
     const effectiveTestType = currentProblem.type || testType;
     console.log("Effective test type:", effectiveTestType);
-    
-    // ถ้า type ไม่ตรงกับที่เก็บใน state ให้อัพเดท
     if (effectiveTestType !== testType && setTestType) {
       console.log("Updating test type to", effectiveTestType);
       setTestType(effectiveTestType);
     }
-    
     const getSavedCode = () => {
-      // ตรวจสอบจาก editorCodes state ก่อน
       const stateCode = editorCodes[currentProblemIndex];
       if (stateCode) {
         console.log("Found code in state");
         return stateCode;
       }
-      
-      // ลองค้นหาจาก localStorage ด้วยหลาย key pattern
       const keysToTry = [
         `code-${effectiveTestType}-${currentProblemIndex}`,
         `editor-code-${effectiveTestType}-${currentProblemIndex}`,
-        `code-code-${currentProblemIndex}`,
+        `code-${testType}-${currentProblemIndex}`,
         `starter-code-${currentProblemIndex}`
       ];
-      
       for (const key of keysToTry) {
         const savedCode = localStorage.getItem(key);
         if (savedCode) {
@@ -449,24 +358,18 @@ const EditorSection = ({
           return savedCode;
         }
       }
-      
-      // ใช้ starterCode จาก problem object
       if (currentProblem.starterCode) {
         console.log("Using starter code from problem");
         return currentProblem.starterCode;
       }
-      
-      // ใช้ code จาก problem object (บางครั้งใช้ key นี้แทน starterCode)
       if (currentProblem.code) {
         console.log("Using code from problem");
         return currentProblem.code;
       }
-      
       console.log("No code found, returning empty string");
       return '';
     };
 
-    // แยกการรับโค้ดออกมาป้องกันปัญหา
     let currentCode = '';
     try {
       currentCode = getSavedCode() || '';
@@ -493,24 +396,10 @@ const EditorSection = ({
         console.log("Rendering output type");
         return (
           <div className="output-question">
-            <div className="question-title">
-              {currentProblem.title || ''}
-            </div>
-            <div className="question-description">
-              {currentProblem.description || ''}
-            </div>
+            <div className="question-title">{currentProblem.title || ''}</div>
+            <div className="question-description">{currentProblem.description || ''}</div>
             <div className="code-display">
-              <SyntaxHighlighter
-                language="python"
-                style={vs}
-                customStyle={{
-                  margin: 0,
-                  padding: '1rem',
-                  background: 'transparent',
-                  fontSize: '14px', 
-                  lineHeight: '1.6'
-                }}
-              >
+              <SyntaxHighlighter language="python" style={vs} customStyle={{ margin: 0, padding: '1rem', background: 'transparent', fontSize: '14px', lineHeight: '1.6' }}>
                 {currentCode}
               </SyntaxHighlighter>
             </div>
@@ -527,7 +416,7 @@ const EditorSection = ({
                 }}
                 rows={1}
                 onInput={(e) => {
-                  e.target.style.height = 'auto'; 
+                  e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
                 }}
               />
@@ -539,8 +428,6 @@ const EditorSection = ({
         if (!currentCode) {
           return <div className="fill-question empty">ไม่พบข้อมูลสำหรับโจทย์นี้</div>;
         }
-        
-        // ป้องกันข้อผิดพลาดเมื่อ split code
         let codeParts = [];
         try {
           codeParts = currentCode.split('____');
@@ -548,15 +435,10 @@ const EditorSection = ({
           console.error("Error splitting code:", error);
           return <div className="error">เกิดข้อผิดพลาดในการแบ่งโค้ด: {error.message}</div>;
         }
-        
         return (
           <div className="fill-question">
-            <div className="question-title">
-              {currentProblem.title || ''}
-            </div>
-            <div className="question-description">
-              {currentProblem.description || ''}
-            </div>
+            <div className="question-title">{currentProblem.title || ''}</div>
+            <div className="question-description">{currentProblem.description || ''}</div>
             <div className="code-display">
               <pre style={{ margin: 0, background: 'transparent' }}>
                 {codeParts.map((part, index, array) => (
@@ -564,14 +446,7 @@ const EditorSection = ({
                     <SyntaxHighlighter
                       language="python"
                       style={vs}
-                      customStyle={{
-                        margin: 0,
-                        padding: 0,
-                        background: 'transparent',
-                        display: 'inline',
-                        fontSize: '14px',
-                        lineHeight: '1.6'
-                      }}
+                      customStyle={{ margin: 0, padding: 0, background: 'transparent', display: 'inline', fontSize: '14px', lineHeight: '1.6' }}
                       PreTag="span"
                     >
                       {part}
@@ -583,10 +458,7 @@ const EditorSection = ({
                         placeholder="เติมคำตอบ..."
                         value={answers[`blank-${currentProblemIndex + 1}-${index}`] || ''}
                         onChange={(e) => {
-                          const newAnswers = {
-                            ...answers,
-                            [`blank-${currentProblemIndex + 1}-${index}`]: e.target.value
-                          };
+                          const newAnswers = { ...answers, [`blank-${currentProblemIndex + 1}-${index}`]: e.target.value };
                           setAnswers(newAnswers);
                           localStorage.setItem('problem-answers', JSON.stringify(newAnswers));
                         }}
@@ -605,4 +477,4 @@ const EditorSection = ({
   }
 };
 
-export default EditorSection; 
+export default EditorSection;

@@ -10,11 +10,16 @@ const SendIcon = () => (
 );
 
 const formatTime = (date) => {
+  if (!date) return "Invalid Date"; // Handle missing date
+
+  const parsedDate = new Date(date);
+  if (isNaN(parsedDate.getTime())) return "Invalid Date"; // Handle incorrect format
+
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true
-  }).format(new Date(date));
+  }).format(parsedDate);
 };
 
 const WELCOME_MESSAGE = {
@@ -36,7 +41,7 @@ const TypingIndicator = () => (
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const AIChatInterface = ({ user_id }) => {
+const AIChatInterface = ({ user_id, exercise_id }) => {
   const [chat, setChat] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [questionsRemaining, setQuestionsRemaining] = useState(10);
@@ -47,6 +52,8 @@ const AIChatInterface = ({ user_id }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const timerRef = useRef(null);
+  const previousExerciseIdRef = useRef(exercise_id);
+  const initialLoadRef = useRef(true);
 
   const suggestions = [
     "How do I solve this problem?",
@@ -103,24 +110,40 @@ const AIChatInterface = ({ user_id }) => {
     };
   }, [resetTimestamp]);
 
-  // Load chat history from localStorage when component mounts
+  // Listen for reset-chat-history event
+  useEffect(() => {
+    const handleResetChat = () => {
+      console.log('Resetting AIChatInterface chat history');
+      setChat([]);
+      // Clear local storage for this specific exercise if available
+      const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+      localStorage.removeItem(chatKey);
+    };
+
+    window.addEventListener('reset-chat-history', handleResetChat);
+    return () => window.removeEventListener('reset-chat-history', handleResetChat);
+  }, [user_id, exercise_id]);
+
+  // Track exercise_id changes and reset chat accordingly
+  useEffect(() => {
+    if (previousExerciseIdRef.current !== exercise_id) {
+      console.log(`Exercise ID changed from ${previousExerciseIdRef.current} to ${exercise_id}`);
+      previousExerciseIdRef.current = exercise_id;
+
+      // If we're switching to a different exercise, reset the chat state
+      setChat([]);
+
+      // Load chat for the new exercise
+      if (user_id && exercise_id) {
+        loadChatForExercise();
+      }
+    }
+  }, [exercise_id, user_id]);
+
+  // Load chat history from localStorage when component mounts or exercise changes
   useEffect(() => {
     if (user_id) {
-      // Load chat history
-      const savedChat = localStorage.getItem(`chat_${user_id}`);
-      if (savedChat) {
-        try {
-          const parsedChat = JSON.parse(savedChat);
-          setChat(parsedChat);
-        } catch (error) {
-          console.error('Error parsing saved chat:', error);
-          localStorage.removeItem(`chat_${user_id}`);
-        }
-      } else {
-        // If no chat history, just show welcome message
-        setChat([]);
-      }
-
+      loadChatForExercise();
       // Fetch questions remaining from API
       fetchQuestionsRemaining();
     }
@@ -131,14 +154,81 @@ const AIChatInterface = ({ user_id }) => {
         clearInterval(timerRef.current);
       }
     };
-  }, [user_id]);
+  }, [user_id, exercise_id]);
+
+  const loadChatForExercise = async () => {
+    if (!user_id) return;
+
+    // Build the localStorage key
+    const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+    console.log(`Loading chat for ${chatKey}`);
+
+    try {
+      // Build the API URL to fetch conversation history
+      let url = `${API_BASE_URL}/ai/conversations?user_id=${user_id}`;
+      if (exercise_id) {
+        url += `&exercise_id=${exercise_id}`;
+      }
+
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        // Transform backend messages to the frontend format
+        // Assuming each message in the backend is stored with { role, content, timestamp? }
+        if (data.messages && Array.isArray(data.messages)) {
+          const backendChat = data.messages.map((msg, index) => ({
+            id: index + 1,
+            text: msg.content,
+            isUser: msg.role === "user",
+            // If timestamp is provided in your DB records, use it; otherwise, use current time
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+          }));
+          setChat(backendChat);
+          localStorage.setItem(chatKey, JSON.stringify(backendChat));
+          console.log(`Loaded ${backendChat.length} messages from API for ${chatKey}`);
+          return;
+        } else {
+          console.log('No messages found or invalid response structure:', data);
+        }
+      } else {
+        console.log(`API response not OK: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error fetching conversation from backend:", error);
+    }
+
+    // Fallback: load chat from localStorage if backend fetch fails
+    console.log(`Attempting to load chat from localStorage: ${chatKey}`);
+    const savedChat = localStorage.getItem(chatKey);
+    if (savedChat) {
+      try {
+        const parsedChat = JSON.parse(savedChat);
+        setChat(parsedChat);
+        console.log(`Loaded ${parsedChat.length} messages from localStorage for ${chatKey}`);
+      } catch (error) {
+        console.error("Error parsing saved chat:", error);
+        localStorage.removeItem(chatKey);
+        setChat([]);
+      }
+    } else {
+      console.log(`No saved chat found in localStorage for ${chatKey}`);
+      setChat([]);
+    }
+  };
 
   const fetchQuestionsRemaining = async () => {
     if (!user_id) return;
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/ai/questions/remaining?user_id=${user_id}`);
+      // Build the URL with exercise_id if available
+      let url = `${API_BASE_URL}/ai/questions/remaining?user_id=${user_id}`;
+      if (exercise_id) {
+        url += `&exercise_id=${exercise_id}`;
+      }
+
+      console.log(`Fetching questions remaining from: ${url}`);
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch questions remaining');
@@ -190,22 +280,31 @@ const AIChatInterface = ({ user_id }) => {
     const updatedChat = [...chat, userMessageObject];
     setChat(updatedChat);
 
-    // Save to localStorage
-    localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChat));
+    // Save to localStorage with exercise-specific key if available
+    const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+    localStorage.setItem(chatKey, JSON.stringify(updatedChat));
 
     setNewMessage('');
     setIsTyping(true); // Show typing indicator
 
     try {
+      // Include exercise_id in the request if available
+      const requestBody = {
+        user_id,
+        prompt: newMessage
+      };
+
+      if (exercise_id) {
+        requestBody.exercise_id = exercise_id;
+      }
+
+      console.log(`Sending chat request with exercise_id: ${exercise_id}`);
       const response = await fetch(`${API_BASE_URL}/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_id,
-          prompt: newMessage
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -229,7 +328,7 @@ const AIChatInterface = ({ user_id }) => {
       // Add initial AI message and save to localStorage
       const chatWithAiMessage = [...updatedChat, aiMessageObject];
       setChat(chatWithAiMessage);
-      localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithAiMessage));
+      localStorage.setItem(chatKey, JSON.stringify(chatWithAiMessage));
 
       while (true) {
         const { done, value } = await reader.read();
@@ -244,7 +343,7 @@ const AIChatInterface = ({ user_id }) => {
           if (!lastMessage.isUser) {
             newChat[newChat.length - 1] = { ...aiMessageObject };
             // Save updated chat with new AI message content
-            localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+            localStorage.setItem(chatKey, JSON.stringify(newChat));
           }
           return newChat;
         });
@@ -261,7 +360,7 @@ const AIChatInterface = ({ user_id }) => {
           };
           newChat[newChat.length - 1] = updatedMessage;
           // Save the final state
-          localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+          localStorage.setItem(chatKey, JSON.stringify(newChat));
         }
         return newChat;
       });
@@ -283,7 +382,7 @@ const AIChatInterface = ({ user_id }) => {
       // Add error message and save to localStorage
       const chatWithError = [...updatedChat, errorMessage];
       setChat(chatWithError);
-      localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithError));
+      localStorage.setItem(chatKey, JSON.stringify(chatWithError));
     } finally {
       setIsTyping(false);
     }
@@ -341,7 +440,10 @@ const AIChatInterface = ({ user_id }) => {
           timestamp: new Date()
         };
         setChat(prev => [...prev, errorMessage]);
-        localStorage.setItem(`chat_${user_id}`, JSON.stringify([...chat, errorMessage]));
+
+        // Save to localStorage with exercise-specific key if available
+        const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+        localStorage.setItem(chatKey, JSON.stringify([...chat, errorMessage]));
         return;
       }
 
@@ -350,20 +452,31 @@ const AIChatInterface = ({ user_id }) => {
       // Add user message and save to localStorage
       const updatedChat = [...chat, message];
       setChat(updatedChat);
-      localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChat));
+
+      // Save to localStorage with exercise-specific key if available
+      const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+      localStorage.setItem(chatKey, JSON.stringify(updatedChat));
 
       // Send message directly without setting input
       try {
         setIsTyping(true);
+
+        // Include exercise_id in the request if available
+        const requestBody = {
+          user_id,
+          prompt: message.text
+        };
+
+        if (exercise_id) {
+          requestBody.exercise_id = exercise_id;
+        }
+
         const response = await fetch(`${API_BASE_URL}/ai/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            user_id,
-            prompt: message.text
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -387,7 +500,7 @@ const AIChatInterface = ({ user_id }) => {
         // Add initial AI message
         const chatWithAiMessage = [...updatedChat, aiMessageObject];
         setChat(chatWithAiMessage);
-        localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithAiMessage));
+        localStorage.setItem(chatKey, JSON.stringify(chatWithAiMessage));
 
         while (true) {
           const { done, value } = await reader.read();
@@ -401,10 +514,10 @@ const AIChatInterface = ({ user_id }) => {
             if (!lastMessage.isUser) {
               newChat[newChat.length - 1] = { ...aiMessageObject };
               // Save updated chat with new AI message content
-              localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+              localStorage.setItem(chatKey, JSON.stringify(newChat));
             } else {
               const updatedChatWithAi = [...newChat, aiMessageObject];
-              localStorage.setItem(`chat_${user_id}`, JSON.stringify(updatedChatWithAi));
+              localStorage.setItem(chatKey, JSON.stringify(updatedChatWithAi));
               return updatedChatWithAi;
             }
             return newChat;
@@ -422,7 +535,7 @@ const AIChatInterface = ({ user_id }) => {
             };
             newChat[newChat.length - 1] = updatedMessage;
             // Save the final state
-            localStorage.setItem(`chat_${user_id}`, JSON.stringify(newChat));
+            localStorage.setItem(chatKey, JSON.stringify(newChat));
           }
           return newChat;
         });
@@ -444,7 +557,7 @@ const AIChatInterface = ({ user_id }) => {
         // Add error message and save to localStorage
         const chatWithError = [...updatedChat, errorMessage];
         setChat(chatWithError);
-        localStorage.setItem(`chat_${user_id}`, JSON.stringify(chatWithError));
+        localStorage.setItem(chatKey, JSON.stringify(chatWithError));
       } finally {
         setIsTyping(false);
         scrollToBottom();
@@ -453,13 +566,7 @@ const AIChatInterface = ({ user_id }) => {
 
     window.addEventListener('add-chat-message', handleExplainCode);
     return () => window.removeEventListener('add-chat-message', handleExplainCode);
-  }, [chat, user_id, questionsRemaining]);
-
-  // Function to clear chat history
-  const clearChat = () => {
-    setChat([]);
-    localStorage.removeItem(`chat_${user_id}`);
-  };
+  }, [chat, user_id, questionsRemaining, exercise_id]);
 
   return (
     <div className="chat-interface">
@@ -513,7 +620,7 @@ const AIChatInterface = ({ user_id }) => {
             />
             <div className="questions-counter">
               {isLoading ?
-                `${questionsRemaining - 1} questions left` :
+                `${questionsRemaining > 0 ? questionsRemaining - 1 : 0} questions left${timeUntilReset ? ` • Reset in ${timeUntilReset}` : ''}` :
                 `${questionsRemaining} questions left${timeUntilReset ? ` • Reset in ${timeUntilReset}` : ''}`}
             </div>
             <button

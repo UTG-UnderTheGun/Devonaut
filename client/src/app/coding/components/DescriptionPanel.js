@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import AIChatInterface from '../ai-interface/ai-interface';
 
 const DescriptionPanel = ({
@@ -11,8 +11,14 @@ const DescriptionPanel = ({
   description,
   handleTitleChange,
   handleDescriptionChange,
-  user_id
+  user_id,
+  exercise_id  // New prop for exercise-specific chats
 }) => {
+  // Log exercise_id changes for debugging
+  useEffect(() => {
+    console.log(`DescriptionPanel: exercise_id changed to ${exercise_id}`);
+  }, [exercise_id]);
+
   return (
     <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
       <div className="panel-header">
@@ -39,7 +45,6 @@ const DescriptionPanel = ({
           {isDescriptionFolded ? '►' : '◄'}
         </button>
       </div>
-
       <div className="panel-content">
         {selectedDescriptionTab === 'Description' && testType === 'code' ? (
           <>
@@ -59,7 +64,12 @@ const DescriptionPanel = ({
           </>
         ) : (
           <div className="ask-ai-content">
-            <AIChatInterface user_id={user_id} />
+            {/* Pass exercise_id and key to force re-render when exercise changes */}
+            <AIChatInterface
+              user_id={user_id}
+              exercise_id={exercise_id}
+              key={`chat-${exercise_id || 'global'}`}
+            />
           </div>
         )}
       </div>
@@ -67,4 +77,4 @@ const DescriptionPanel = ({
   );
 };
 
-export default DescriptionPanel; 
+export default DescriptionPanel;
