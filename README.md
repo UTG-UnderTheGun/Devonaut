@@ -44,6 +44,11 @@ docker compose up -d --build
 ```
 # 👀 Previews
 
+![Screenshot 2025-03-06 194219](https://github.com/user-attachments/assets/7057aa9a-d3c3-4079-b535-cfead39e2805)
+
+![Screenshot 2025-03-06 194314](https://github.com/user-attachments/assets/fb791345-0569-4542-b15a-213c27e55905)
+
+
 # 📚 v0.9.0 Documentation
 https://thanagrith.atlassian.net/wiki/pages/resumedraft.action?draftId=49021006
 
