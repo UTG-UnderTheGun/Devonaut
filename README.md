@@ -19,6 +19,7 @@ docker compose up -d --build
 ---
 # 👀 Previews
 
+<img width="847" alt="Screenshot 2568-03-06 at 19 54 48" src="https://github.com/user-attachments/assets/c4410ad3-c570-43dd-a5e5-70c451bb2895" />
 
 ---
 # 📚 v0.1.0 Documentation
