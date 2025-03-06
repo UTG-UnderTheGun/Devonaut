@@ -26,10 +26,11 @@ docker compose up -d --build
 
 # 👀 Previews
 
-<img width="845" alt="Screenshot 2568-03-06 at 20 00 28" src="https://github.com/user-attachments/assets/99079231-ad4f-4263-afc0-cc64c7448a6a" />
+![Screenshot 2025-03-06 181418](https://github.com/user-attachments/assets/f42465ae-7d10-42ba-bac8-5a9fbd90d256)
 
-<img width="865" alt="Screenshot 2568-03-06 at 20 01 59" src="https://github.com/user-attachments/assets/b5ae2569-c2f3-41f7-bb2b-4d1ee33a6445" />
+![Screenshot 2025-03-06 181520](https://github.com/user-attachments/assets/1338a88f-7f27-4301-a50f-b7a608815346)
 
+![Screenshot 2025-03-06 181636](https://github.com/user-attachments/assets/69ee90f9-f33e-4459-9707-c8a6928036dd)
 
 # 📚 v0.3.0 Documentation
 https://thanagrith.atlassian.net/wiki/spaces/OOP/pages/49086594/v0.3.0+Documentation
