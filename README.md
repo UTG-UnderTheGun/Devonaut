@@ -66,3 +66,12 @@ docker compose up -d --build
 
 # 📚 v0.1.0 Documentation
 https://thanagrith.atlassian.net/wiki/pages/resumedraft.action?draftId=49020983
+
+
+# ⚙️ Test Techniques
+
+<img width="897" alt="Screenshot 2568-03-06 at 22 05 56" src="https://github.com/user-attachments/assets/7c5f7aec-e20f-4e9e-993d-8a3fdd95a5bb" />
+<img width="756" alt="Screenshot 2568-03-06 at 22 07 08" src="https://github.com/user-attachments/assets/70ac19c2-ea66-42ae-b04f-c3625f319271" />
+
+
+
