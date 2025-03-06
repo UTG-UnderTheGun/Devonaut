@@ -3,6 +3,8 @@
 ### ✨ New Features
 
 ✅ Improve Code Editor UI
+    - เปลี่ยนMonacoEditor เป็น Light Mode และปรับปรุงการแสดงผลในหน้า Coding 
+    - แก้บัคต่างๆ ,แก้ปุ่ม unfold ให้กลับมาทำงานได้
 
 ### ✨ Old Features
 
