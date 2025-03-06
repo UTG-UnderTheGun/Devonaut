@@ -1,4 +1,3 @@
-![Screenshot 2025-03-06 184405](https://github.com/user-attachments/assets/36d393db-e244-442f-bb31-ec712ec0e5e8)# ✨v0.5.0 Features
 
 ### ✨ New Features
 
