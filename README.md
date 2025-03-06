@@ -3,8 +3,9 @@
 ### ✨ New Features
 
 ✅ Improve Code Editor UI
-    - เปลี่ยนMonacoEditor เป็น Light Mode และปรับปรุงการแสดงผลในหน้า Coding 
-    - แก้บัคต่างๆ ,แก้ปุ่ม unfold ให้กลับมาทำงานได้
+        - เพิ่ม UI ตาม 3 ประเภทของโจทย์
+        - อัพเดตหน้าต่าง Ai interface
+        - เพิ่ม useAuth เพื่อให้กลับมาหน้า Sign in เมื่อไม่ได้ใช้เป็นเวลานาน
 
 ### ✨ Old Features
 
