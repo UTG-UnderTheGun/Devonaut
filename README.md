@@ -44,13 +44,7 @@ docker compose up -d --build
 
 ![Screenshot 2025-03-06 185316](https://github.com/user-attachments/assets/00a17dae-f6a0-41df-8d70-870649d25b48)
 
-![Screenshot 2025-03-06 192040](https://github.com/user-attachments/assets/4d5b3359-3e4a-438e-b302-2912fa56a2d4)
-
-![Screenshot 2025-03-06 192128](https://github.com/user-attachments/assets/4a9438e9-30f8-40fa-be5c-cb74a0972877)
-
-![Screenshot 2025-03-06 192213](https://github.com/user-attachments/assets/835418fd-3a74-42af-84c1-a9bade293848)
-
-![Screenshot 2025-03-06 192322](https://github.com/user-attachments/assets/c94b011e-54c8-42c6-9198-3cb0d21da9ff)
+![image-20250306-154956](https://github.com/user-attachments/assets/7edf64be-bb5f-4e0b-a0e7-36a968ca07c2)
 
 
 
