@@ -26,6 +26,8 @@ docker compose up -d --build
 ```
 # 👀 Previews
 
+![Screenshot 2025-03-06 182438](https://github.com/user-attachments/assets/db487bd0-a0af-4b38-afd6-3142a0feb3f1)
+
 <img width="1147" alt="Screenshot 2568-03-06 at 04 32 41" src="https://github.com/user-attachments/assets/0454541c-ed8a-408d-ad5e-beb280c89941" />
 
 <img width="1121" alt="Screenshot 2568-03-06 at 20 07 34" src="https://github.com/user-attachments/assets/8a06a3f5-b836-4070-af72-72db8002a3e8" />
