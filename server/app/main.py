@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_limiter import FastAPILimiter
 import redis.asyncio as redis
@@ -82,23 +82,79 @@ async def lifespan(app: CustomFastAPI):
             await redis_instance.close()
 
 
-app = CustomFastAPI(lifespan=lifespan, debug=True)
+# Get environment variables with appropriate defaults for production
+debug_mode = os.getenv("DEBUG", "False").lower() == "true"
+environment = os.getenv("ENVIRONMENT", "production")
+
+# Configure FastAPI with production-ready settings
+app = CustomFastAPI(
+    lifespan=lifespan,
+    debug=debug_mode,
+    title="DevOnaut API",
+    description="Backend API for DevOnaut application",
+    version="1.0.0",
+    # Set root_path for working behind a proxy that strips /api prefix
+    root_path="/api" if environment == "production" else "",
+)
+
+
+# Middleware to handle X-Forwarded-For headers from Nginx
+@app.middleware("http")
+async def trusted_host_middleware(request: Request, call_next):
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # Set client host from the X-Forwarded-For header
+        request.scope["client"] = (forwarded_for.split(",")[0].strip(), 0)
+    
+    # Get the forwarded proto (http or https)
+    forwarded_proto = request.headers.get("X-Forwarded-Proto")
+    if forwarded_proto:
+        request.scope["scheme"] = forwarded_proto
+        
+    return await call_next(request)
+
+
+# Configure CORS for production
+allowed_origins = [
+    "http://localhost:3000",  # Development
+]
+
+# In production, add your domain
+if environment == "production":
+    domain = os.getenv("DOMAIN", "")
+    if domain:
+        allowed_origins.extend([
+            f"https://{domain}",
+            f"http://{domain}"
+        ])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Root endpoint for health checks
+@app.get("/")
+async def health_check():
+    return {"status": "ok", "service": "DevOnaut API"}
+
+# Include all the API routes
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(code.router, prefix="/code", tags=["api"])
 app.include_router(ai.router, prefix="/ai", tags=["ai"])
 app.include_router(test.router, prefix="/test", tags=["test"])
 
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "app.main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=debug_mode
+    )

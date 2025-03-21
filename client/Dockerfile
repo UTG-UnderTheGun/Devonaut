@@ -1,35 +1,35 @@
-# Use an appropriate Node.js version for your application
 FROM node:18-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
+RUN npm ci
 
-# Install all dependencies (including dev dependencies)
-RUN npm install
-
-# Copy the application code
+# Copy the rest of the application
 COPY . .
 
 # Build the application
 RUN npm run build
 
-# Use a minimal server image for production
-FROM node:18-alpine AS production
+# Production image
+FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy the built files from the builder stage
-COPY --from=builder /app ./
+# Copy package files
+COPY package*.json ./
 
-# Install only production dependencies (not needed in production)
-RUN npm install 
+# Copy next.config.js only if it exists (won't fail if missing)
+COPY --from=builder /app/next.config.js* ./
 
-# Expose the port your app runs on
+# Copy necessary folders
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+
+# Expose port for the application
 EXPOSE 3000
 
-# Start the Next.js application
+# Start the application
 CMD ["npm", "start"]
