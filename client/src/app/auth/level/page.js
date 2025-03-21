@@ -7,6 +7,7 @@ import './level.css';
 import Loading from "@/app/loading";
 
 export default function SkillLevel() {
+	  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const [skill, setSkill] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function SkillLevel() {
     setIsLoading(true);
     try {
       // Call API to save skill level
-      const response = await fetch('http://localhost:8000/users/skill-level', {
+      const response = await fetch(`${API_BASE}/users/skill-level`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

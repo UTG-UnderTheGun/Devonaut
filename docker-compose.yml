@@ -44,7 +44,6 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - API_BASE=http://54.169.175.114/api
     deploy:
       resources:
         limits:
@@ -103,14 +102,10 @@ services:
     environment:
       - NODE_ENV=production # Changed to production for deployment
       - SERVER_API=http://server:8000 # This only affects build-time API calls
-      - NEXT_PUBLIC_API_URL=/api # For client-side requests, they'll go through Nginx
+      - NEXT_PUBLIC_API_URL=http://54.169.175.114/api # For client-side requests, they'll go through Nginx
+      - API_BASE=http://54.169.175.114/api
     networks:
       - app-network
-    deploy:
-      resources:
-        limits:
-          cpus: "0.3"
-          memory: 512M
     command: npm run start # Changed from dev to start for production
 
 networks:

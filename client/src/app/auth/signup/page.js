@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function Register() {
+	const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -52,7 +53,7 @@ export default function Register() {
 
     try {
       // Register the user
-      const response = await axios.post('http://localhost:8000/auth/register', {
+      const response = await axios.post(`${API_BASE}/auth/register`, {
         username: formData.email,
         password: formData.password,
         email: formData.email,
@@ -60,7 +61,7 @@ export default function Register() {
       });
 
       // If registration successful, automatically log them in
-      const loginResponse = await axios.post('http://localhost:8000/auth/token', {
+      const loginResponse = await axios.post(`${API_BASE}/auth/token`, {
         username: formData.email,
         password: formData.password,
       }, {

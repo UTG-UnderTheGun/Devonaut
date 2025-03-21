@@ -1,14 +1,14 @@
 'use client'
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import './signin.css';
 import Loading from "@/app/loading";
 
 export default function Login() {
-  const API_BASE = process.env.API_BASE || 'http://localhost:8000/';
+	const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -18,6 +18,12 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+	useEffect(() => {
+		console.log('API URL:', API_BASE);
+		console.log('ENV URL:', process.env.NEXT_PUBLIC_API_URL);
+		console.log('ENV URL:', process.env.API_BASE);
+	}, [])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

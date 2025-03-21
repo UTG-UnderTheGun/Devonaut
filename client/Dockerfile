@@ -26,7 +26,7 @@ COPY --from=builder /app/next.config.js* ./
 # Copy necessary folders
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
+# COPY --from=builder /app/node_modules ./node_modules
 
 # Expose port for the application
 EXPOSE 3000
