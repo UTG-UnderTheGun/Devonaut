@@ -1,4 +1,4 @@
-®use client'
+'use client'
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
@@ -8,6 +8,7 @@ import './signin.css';
 import Loading from "@/app/loading";
 
 export default function Login() {
+  const API_BASE = process.env.API_BASE || 'http://localhost:8000/';
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,7 +32,7 @@ export default function Login() {
     console.log("This is google sign in")
 
     try {
-      window.location.href = 'api/auth/google'
+      window.location.href = `${API_BASE}/auth/google`
     } catch (err) {
       console.error('Error during google login request')
     }
@@ -45,7 +46,7 @@ export default function Login() {
     setSuccess('');
 
     try {
-      const response = await axios.post('api/auth/token', {
+      const response = await axios.post(`${API_BASE}/auth/token`, {
         username: formData.username,
         password: formData.password,
       }, {
@@ -65,7 +66,7 @@ export default function Login() {
 
       setSuccess('Login successful! Redirecting...');
 
-      const userResponse = await fetch('api/users/me', {
+      const userResponse = await fetch(`${API_BASE}users/me`, {
         credentials: 'include'
       });
       const userData = await userResponse.json();
@@ -167,10 +168,10 @@ export default function Login() {
           </button>
 
           <div className="signup-link">
-            Don't have an account? <Link href="/auth/signup">Sign up</Link>
+            Don't have an account? <Link href='/auth/signup'>Sign up</Link>
           </div>
         </form>
       </main>
-    </div>
+    </div >
   );
 }

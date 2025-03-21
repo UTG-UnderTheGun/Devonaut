@@ -20,9 +20,9 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
+          cpus: "0.2"
           memory: 128M
-  
+
   server:
     build:
       context: ./server
@@ -44,14 +44,15 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - API_BASE=http://54.169.175.114/api
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     networks:
       - app-network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload  # Consider removing --reload in production
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Consider removing --reload in production
 
   redis:
     image: redis:alpine
@@ -66,7 +67,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
+          cpus: "0.2"
           memory: 256M
     command: redis-server --appendonly yes
 
@@ -86,7 +87,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
+          cpus: "0.3"
           memory: 512M
 
   client:
@@ -100,17 +101,17 @@ services:
     depends_on:
       - server
     environment:
-      - NODE_ENV=production  # Changed to production for deployment
-      - SERVER_API=http://server:8000  # This only affects build-time API calls
-      - NEXT_PUBLIC_API_URL=/api  # For client-side requests, they'll go through Nginx
+      - NODE_ENV=production # Changed to production for deployment
+      - SERVER_API=http://server:8000 # This only affects build-time API calls
+      - NEXT_PUBLIC_API_URL=/api # For client-side requests, they'll go through Nginx
     networks:
       - app-network
     deploy:
       resources:
         limits:
-          cpus: '0.3'
+          cpus: "0.3"
           memory: 512M
-    command: npm run start  # Changed from dev to start for production
+    command: npm run start # Changed from dev to start for production
 
 networks:
   app-network:
