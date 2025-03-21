@@ -103,7 +103,7 @@ services:
     environment:
       - NODE_ENV=production # Changed to production for deployment
       - SERVER_API=http://server:8000 # This only affects build-time API calls
-      - NEXT_PUBLIC_API_URL=/api # For client-side requests, they'll go through Nginx
+      - NEXT_PUBLIC_API_URL=http://54.169.175.114/api # For client-side requests, they'll go through Nginx
     networks:
       - app-network
     deploy:
