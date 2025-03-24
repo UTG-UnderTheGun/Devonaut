@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation';
  * - Uses withCredentials to send cookies with the request
  */
 const useAuth = () => {
+	const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const router = useRouter()
@@ -37,7 +38,7 @@ const useAuth = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/users/me', {
+        const response = await axios.get(`${API_BASE}/users/me`, {
           withCredentials: true,
         });
         setUser(response.data);

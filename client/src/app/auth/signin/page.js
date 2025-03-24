@@ -66,7 +66,7 @@ export default function Login() {
 
       setSuccess('Login successful! Redirecting...');
 
-      const userResponse = await fetch(`${API_BASE}users/me`, {
+      const userResponse = await fetch(`${API_BASE}/users/me`, {
         credentials: 'include'
       });
       const userData = await userResponse.json();
