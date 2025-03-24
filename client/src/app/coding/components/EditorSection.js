@@ -252,7 +252,7 @@ const EditorSection = ({
 
   const handleRunCode = async () => {
     try {
-      const response = await axios.post('http://localhost:8000/code/run-code', { code }, { withCredentials: true });
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, { code }, { withCredentials: true });
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');

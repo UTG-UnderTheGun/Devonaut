@@ -84,7 +84,7 @@ export default function CodingPage() {
       console.error('Error clearing conversation history:', error);
     }
   };
-  
+
   // Handle file imports, with option to force reset chat
   const handleImport = async (data, forceReset = false) => {
     console.log("Importing data:", data);
@@ -169,17 +169,17 @@ export default function CodingPage() {
     const onFileImportEvent = async (event) => {
       const data = event.detail; // new file data (problems array or single object)
       console.log("Received file-import event with data:", data);
-      
+
       // Remove flag so that this new import is treated as a new file
       localStorage.removeItem('problemsImported');
-      
+
       // Force reset chat on new file import (true parameter)
       await handleImport(data, true);
-      
+
       // Force re-render the AIChatInterface by updating its key
       setAiChatKey(Date.now());
     };
-    
+
     window.addEventListener('file-import', onFileImportEvent);
     return () => window.removeEventListener('file-import', onFileImportEvent);
   }, [user_id]);
@@ -206,7 +206,7 @@ export default function CodingPage() {
           const parsedProblems = JSON.parse(storedProblems);
           if (Array.isArray(parsedProblems) && parsedProblems.length > 0) {
             setProblems(parsedProblems);
-            
+
             // On refresh we load the problems but do not force a chat reset
             if (user_id && !localStorage.getItem('problemsImported')) {
               // This will upload exercise data to backend but not reset chat
