@@ -1,247 +1,189 @@
 .header {
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 10;
-  }
-  
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.header-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 40px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+/* Fixed header for coding page */
+.header.coding-header {
+  height: 40px;
+  display: flex;
+  justify-content: center; /* Center the header container horizontally */
+  position: fixed; /* Make header fixed */
+}
+
+.header.coding-header .header-container {
+  padding: 2px 20px;
+  max-width: 100%;
+  width: 100%;
+}
+
+.header.coding-header .logo-img {
+  width: 24px;
+  height: 24px;
+}
+
+.header.coding-header .logo-text {
+  font-size: 18px;
+}
+
+.header.coding-header .user-info {
+  padding: 3px 8px;
+}
+
+.header.coding-header .user-avatar {
+  width: 24px;
+  height: 24px;
+}
+
+.header-left {
+  justify-self: start;
+}
+
+.header-center {
+  justify-self: center;
+}
+
+.header-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  text-decoration: none;
+}
+
+.logo-text {
+  font-size: 24px;
+  font-weight: 500;
+  color: white;
+}
+
+/* Toolbar styles */
+.toolbar {
+  display: flex;
+  gap: 12px;
+}
+
+
+.sign-in-button {
+  padding: 8px 20px;
+  background: #7C3AED;
+  border-radius: 12px;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.sign-in-button:hover {
+  transform: translateY(-1px);
+  background: #9161FF;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
   .header-container {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 10px 40px;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-  }
-  
-  .header-left {
-    justify-self: start;
-  }
-  
-  .header-center {
-    justify-self: center;
-  }
-  
-  .header-right {
-    justify-self: end;
-    display: flex;
-    align-items: center;
+    padding: 12px 20px;
+    grid-template-columns: auto auto auto;
     gap: 20px;
   }
-  
-  .logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 13px;
-    text-decoration: none;
-  }
-  
+
   .logo-text {
-    font-size: 24px;
-    font-weight: 500;
-    color: white;
+    font-size: 20px;
   }
-  
-  /* Toolbar styles */
-  .toolbar {
-    display: flex;
-    gap: 12px;
-  }
-  
+
   .button {
     padding: 8px 16px;
-    border-radius: 8px;
     font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid #E5E7EB;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-}
-
-.button.run {
-    color: #1F2937;
-    background: white;
-}
-
-.button.run:hover {
-    background: #F3F4F6;
-}
-
-.button.submit {
-    color: #047857;
-    background: #ECFDF5;
-    border-color: #A7F3D0;
-}
-
-.button.submit:hover {
-    background: #D1FAE5;
-}
-
-  
-  /* User profile styles */
-  .user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: white;
-  }
-  
-
-  
-  .sign-in-button {
-    padding: 8px 20px;
-    background: #7C3AED;
-    border-radius: 12px;
-    color: white;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 16px;
-    transition: all 0.2s ease;
-  }
-  
-  .sign-in-button:hover {
-    transform: translateY(-1px);
-    background: #9161FF;
-  }
-  
-  /* Responsive styles */
-  @media (max-width: 768px) {
-    .header-container {
-      padding: 12px 20px;
-      grid-template-columns: auto auto auto;
-      gap: 20px;
-    }
-  
-    .logo-text {
-      font-size: 20px;
-    }
-  
-    .button {
-      padding: 8px 16px;
-      font-size: 14px;
-    }
-  
-    .user-name {
-      font-size: 14px;
-    }
-  
-    .user-avatar {
-      width: 32px;
-      height: 32px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .header-container {
-      padding: 10px 15px;
-      gap: 10px;
-    }
-  
-    .logo-text {
-      font-size: 18px;
-    }
-  
-    .button {
-      padding: 6px 12px;
-      font-size: 13px;
-    }
-  
-    .user-avatar {
-      width: 28px;
-      height: 28px;
-    }
-  
-    .user-name {
-      font-size: 13px;
-    }
   }
 
-.coding-actions {
-  display: flex;
-  gap: 0.125rem;
-  align-items: center;
-  background: #ffffff;
-  padding: 0.125rem;
-  border-radius: 0.25rem;
+  .user-name {
+    font-size: 14px;
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+  }
 }
 
-.action-button {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.125rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: transparent;
-  color: #000000;
-}
+@media (max-width: 480px) {
+  .header-container {
+    padding: 10px 15px;
+    gap: 10px;
+  }
 
-.action-button.run {
-  background-color: #ffffff;
-  color: #000000;
-}
+  .logo-text {
+    font-size: 18px;
+  }
 
-.action-button.submit {
-  color: #2cbb5d;
-}
+  .button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
 
-.action-icon {
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
 
-.action-button:hover {
-  opacity: 0.9;
-}
-
-.action-button:active {
-  transform: scale(0.97);
+  .user-name {
+    font-size: 13px;
+  }
 }
 
 /* Adjust header spacing */
 .header-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 1rem;
+display: flex;
+align-items: center;
+justify-content: center;
+padding: 0 1rem;
 }
 
 /* Add these styles to your existing header.css */
 
 .menu-item.sign-out {
-  position: relative;
-  transition: all 0.3s ease;
+position: relative;
+transition: all 0.3s ease;
 }
 
 .menu-item.sign-out:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  background: #f3f4f6;
+opacity: 0.7;
+cursor: not-allowed;
+background: #f3f4f6;
 }
 
 /* Optional: Add a subtle animation for the "Signing out..." text */
 @keyframes ellipsis {
-  0% { content: ""; }
-  25% { content: "."; }
-  50% { content: ".."; }
-  75% { content: "..."; }
-  100% { content: ""; }
+0% { content: ""; }
+25% { content: "."; }
+50% { content: ".."; }
+75% { content: "..."; }
+100% { content: ""; }
 }
 
 .menu-item.sign-out:disabled::after {
-  content: "";
-  animation: ellipsis 1.5s infinite;
-  position: absolute;
-  right: 8px;
+content: "";
+animation: ellipsis 1.5s infinite;
+position: absolute;
+right: 8px;
 }

@@ -132,7 +132,7 @@ const Header = () => {
   }
 
   return (
-    <header className="header">
+    <header className={`header ${pathname === '/coding' ? 'coding-header' : ''}`}>
       <div className="header-container">
         <div className="header-left">
           <Link href="#" onClick={handleLogoClick} className="logo">
@@ -173,7 +173,7 @@ const Header = () => {
           {shouldShowProfile && (
             <div className="user-menu-container">
               <div
-                className="user-info"
+                className={`user-info ${isMenuOpen ? 'active' : ''}`}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 ref={profileRef}
               >

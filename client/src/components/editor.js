@@ -15,13 +15,29 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
 
   // Load initial code for the specific problem
   useEffect(() => {
+    // Skip loading if this is a result of a reset
+    const wasReset = localStorage.getItem('editor_reset_timestamp');
+    if (wasReset) {
+      // If this was recently reset, don't load old code
+      const resetTime = parseInt(wasReset);
+      if (Date.now() - resetTime < 1000) {
+        console.log("Editor was recently reset, skipping code load");
+        return;
+      }
+    }
+
     if (problemIndex !== undefined) {
+      // First try problem-specific code
       const savedCode = localStorage.getItem(`problem-code-${problemIndex}`);
       if (savedCode) {
         setCode(savedCode);
       } else if (initialValue) {
         setCode(initialValue);
-        localStorage.setItem(`problem-code-${problemIndex}`, initialValue);
+        // Only store initial value if we're not in a reset state
+        const isImported = localStorage.getItem('is-imported') === 'true';
+        if (isImported) {
+          localStorage.setItem(`problem-code-${problemIndex}`, initialValue);
+        }
       }
     } else {
       // Fallback for non-problem-specific code
@@ -34,16 +50,29 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
     }
   }, [initialValue, problemIndex]);
 
-  // Save code changes to localStorage
+  // Save code changes to localStorage - only store in ONE location to prevent duplicates
   useEffect(() => {
-    if (code !== '# write code here') {
-      if (problemIndex !== undefined) {
-        // Save problem-specific code
-        localStorage.setItem(`problem-code-${problemIndex}`, code);
-      } else {
-        // Save general code
-        localStorage.setItem('editorCode', code);
+    if (code === undefined || code === null) return;
+    if (code === '# write code here') return;
+    
+    // Check if we're in a reset state
+    const wasReset = localStorage.getItem('editor_reset_timestamp');
+    if (wasReset) {
+      const resetTime = parseInt(wasReset);
+      if (Date.now() - resetTime < 1000) {
+        console.log("Editor was recently reset, skipping code save");
+        return;
       }
+    }
+
+    // Only store in problem-code-* format, not in both places
+    if (problemIndex !== undefined) {
+      localStorage.setItem(`problem-code-${problemIndex}`, code);
+      // Remove the old key format if it exists
+      localStorage.removeItem(`code-code-${problemIndex}`);
+      localStorage.removeItem(`code-${problemIndex}`);
+    } else {
+      localStorage.setItem('editorCode', code);
     }
   }, [code, problemIndex]);
 
@@ -57,24 +86,55 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       }
     };
 
-    const handleStorageReset = () => {
-      // Reset the editor content
+    const handleStorageReset = (event) => {
+      console.log("Storage reset detected in editor.js:", event.detail);
+      
+      // Set a reset timestamp to prevent immediate reloading
+      localStorage.setItem('editor_reset_timestamp', Date.now().toString());
+      
+      // Reset the editor content immediately
       setCode('');
       if (editorInstance) {
         editorInstance.setValue('');
       }
+      
       // Clear problem-specific code if applicable
       if (problemIndex !== undefined) {
         localStorage.removeItem(`problem-code-${problemIndex}`);
+        localStorage.removeItem(`code-code-${problemIndex}`);
+        localStorage.removeItem(`code-${problemIndex}`);
       }
+      
+      // Clear all problem-code-* items for complete reset
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (
+            key.startsWith('problem-code-') || 
+            key.startsWith('code-code-') ||
+            key === 'problem-code' ||
+            key === 'editorCode'
+        )) {
+          console.log("Editor.js removing key:", key);
+          localStorage.removeItem(key);
+        }
+      }
+
+      // Force another editor refresh after a small delay
+      setTimeout(() => {
+        if (editorInstance) {
+          editorInstance.setValue('');
+        }
+      }, 50);
     };
 
     window.addEventListener('ide-data-import', handleImport);
     window.addEventListener('storage-reset', handleStorageReset);
+    window.addEventListener('code-reset', handleStorageReset);
     
     return () => {
       window.removeEventListener('ide-data-import', handleImport);
       window.removeEventListener('storage-reset', handleStorageReset);
+      window.removeEventListener('code-reset', handleStorageReset);
     };
   }, [editorInstance, problemIndex]);
 

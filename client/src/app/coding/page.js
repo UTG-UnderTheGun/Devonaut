@@ -511,7 +511,9 @@ export default function CodingPage() {
     setDescription,
     setSelectedDescriptionTab,
     user_id,
-    handleClearImport
+    handleClearImport,
+    isConsoleFolded,
+    setIsConsoleFolded
   };
 
   const consoleProps = {
