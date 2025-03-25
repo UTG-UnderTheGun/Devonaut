@@ -38,7 +38,7 @@ const Header = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isHomePage = pathname === '/'
-  const isCodingPage = pathname === '/coding'
+  const isCodingPage = pathname.startsWith('/coding')
   const shouldShowProfile = !isHomePage && pathname !== '/auth/signin' && pathname !== '/auth/signup'
   const { code, setOutput, setError, setOpenTerm, output, error } = useCodeContext();
 
@@ -132,7 +132,7 @@ const Header = () => {
   }
 
   return (
-    <header className={`header ${pathname === '/coding' ? 'coding-header' : ''}`}>
+    <header className={`header ${isCodingPage ? 'coding-header' : ''}`}>
       <div className="header-container">
         <div className="header-left">
           <Link href="#" onClick={handleLogoClick} className="logo">
