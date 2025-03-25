@@ -11,8 +11,8 @@ services:
       - "8000:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./server:/app  # Bind mount local server directory to container
-      - /app/__pycache__/  # Prevent caching issues
+      - ./server:/app # Bind mount local server directory to container
+      - /app/__pycache__/ # Prevent caching issues
     depends_on:
       - mongo
       - redis
@@ -25,11 +25,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     networks:
       - app-network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload  # Enable auto-reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Enable auto-reload
 
   redis:
     image: redis:alpine
@@ -43,7 +43,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
+          cpus: "0.2"
           memory: 256M
     command: redis-server --appendonly yes
 
@@ -62,7 +62,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
+          cpus: "0.3"
           memory: 512M
 
   client:
@@ -73,8 +73,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./client:/app  
-      - /app/node_modules  
+      - ./client:/app
+      - /app/node_modules
     depends_on:
       - server
     environment:

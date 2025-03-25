@@ -1,0 +1,122 @@
+version: "3.8"
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: devonaut-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    depends_on:
+      - server
+      - client
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: devonaut-server
+    env_file:
+      - ./server/.env
+    # Remove public port mapping - only expose to internal network
+    expose:
+      - "8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
+      - SECRET_KEY=SDflkjsdS:DLKFJ
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - API_BASE=http://54.169.175.114/api
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - app-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Consider removing --reload in production
+
+  redis:
+    image: redis:alpine
+    container_name: devonaut-redis
+    # Remove public port mapping - only expose to internal network
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 256M
+    command: redis-server --appendonly yes
+
+  mongo:
+    image: mongo:latest
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    # Remove public port mapping - only expose to internal network
+    expose:
+      - "27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 512M
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: devonaut-client
+    # Remove public port mapping - only expose to internal network
+    expose:
+      - "3000"
+    depends_on:
+      - server
+    environment:
+      - NODE_ENV=production # Changed to production for deployment
+      - SERVER_API=http://server:8000 # This only affects build-time API calls
+      - NEXT_PUBLIC_API_URL=http://54.169.175.114/api # For client-side requests, they'll go through Nginx
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 512M
+    command: npm run start # Changed from dev to start for production
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  mongo-data:
