@@ -45,24 +45,9 @@ async def run_code(
         result = await run_code_service(safe_code, user_id)
         execution_time = time.time() - start_time
         
-        try:
-            # Save code execution history
-            history_data = {
-                "user_id": user_id,
-                "username": user.get("username", ""),  # Add username to history
-                "code": safe_code.code,
-                "output": result.get("output", ""),
-                "error": result.get("error", ""),
-                "execution_time": execution_time,
-                "created_at": datetime.utcnow(),
-                "action_type": "run"
-            }
-            
-            # Store in MongoDB
-            await request.app.mongodb["code_history"].insert_one(history_data)
-        except Exception as history_error:
-            # Log error but continue with code execution
-            print(f"Error saving run history: {str(history_error)}")
+        # We're removing the history saving code from here
+        # as it's now being handled explicitly by the frontend
+        # This prevents duplicate entries in the database
         
         return result
     except Exception as e:
