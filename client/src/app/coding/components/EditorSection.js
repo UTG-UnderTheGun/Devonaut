@@ -437,21 +437,29 @@ const EditorSection = ({
     }
     
     try {
+      // Show loading state in console
+      setConsoleOutput('Running code...');
+      
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, { code }, { withCredentials: true });
+      
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
-        setConsoleOutput('');
+        setConsoleOutput(response.data.error);
       } else {
         setOutput(response.data.output);
         setError('');
         setConsoleOutput(response.data.output);
       }
+      
+      // Code history is now automatically saved on the server side
+      console.log('Code execution saved to history');
     } catch (err) {
-      console.log(err);
-      setError('Error connecting to the server');
+      console.error('Error running code:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Error connecting to the server';
+      setError(errorMessage);
       setOutput('');
-      setConsoleOutput('');
+      setConsoleOutput(`Error: ${errorMessage}`);
     }
   };
 
