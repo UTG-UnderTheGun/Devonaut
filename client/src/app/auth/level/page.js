@@ -16,7 +16,7 @@ export default function SkillLevel() {
     if (!skill) {
       return;
     }
-	  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     setIsLoading(true);
     try {
@@ -94,8 +94,8 @@ export default function SkillLevel() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="btn btn-primary"
             disabled={!skill || isLoading}
           >
