@@ -16,11 +16,12 @@ export default function SkillLevel() {
     if (!skill) {
       return;
     }
+	  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     setIsLoading(true);
     try {
       // Call API to save skill level
-      const response = await fetch('http://localhost:8000/users/skill-level', {
+      const response = await fetch(`${API_BASE}/users/skill-level`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
