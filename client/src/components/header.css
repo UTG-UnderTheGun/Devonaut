@@ -94,7 +94,7 @@
   transition: all 0.2s ease;
 }
 
-.sign-in-button:hover {
+.sign-in-button:hover { 
   transform: translateY(-1px);
   background: #9161FF;
 }

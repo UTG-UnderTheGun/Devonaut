@@ -44,3 +44,12 @@ class Code(BaseModel):
 
 class SkillLevel(BaseModel):
     skill_level: str
+
+
+class KeystrokeData(BaseModel):
+    code: str
+    problem_index: int
+    test_type: str
+    cursor_position: Optional[dict] = None
+    timestamp: Optional[datetime] = None
+    user_id: Optional[str] = None

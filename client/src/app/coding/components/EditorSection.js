@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Editor from '@/components/editor';
 import StorageManager from '@/components/StorageManager';
 import Header from '@/components/header';
@@ -8,6 +8,7 @@ import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import './EditorSection.css';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
+import _ from 'lodash';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -44,6 +45,8 @@ const EditorSection = ({
   const { setOutput, setError } = useCodeContext();
   const [isImport, setIsImport] = useState(false);
   const [isImported, setIsImported] = useState(false);
+  const [lastKeystrokeTime, setLastKeystrokeTime] = useState(null);
+  const KEYSTROKE_DEBOUNCE_TIME = 1000; // 1 second
 
   // This wrapper is used when StorageManager calls onImport.
   const handleImportWrapper = async (data) => {
@@ -208,16 +211,64 @@ const EditorSection = ({
     loadProblemData();
   }, [currentProblemIndex, problems, testType]);
 
+  // Create a debounced function to save keystrokes
+  const debouncedSaveKeystrokes = useCallback(
+    _.debounce(async (code, cursorPosition) => {
+      try {
+        const keystrokeData = {
+          code: code,
+          problem_index: currentProblemIndex,
+          test_type: testType,
+          cursor_position: cursorPosition,
+          timestamp: new Date().toISOString()
+        };
+
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,
+          keystrokeData,
+          { withCredentials: true }
+        );
+        console.log('Keystrokes tracked successfully');
+      } catch (err) {
+        console.error('Error tracking keystrokes:', err);
+      }
+    }, KEYSTROKE_DEBOUNCE_TIME),
+    [currentProblemIndex, testType]
+  );
+
+  // Update the handleEditorChange function
   const handleEditorChange = (value) => {
     setEditorCodes(prev => ({
       ...prev,
       [currentProblemIndex]: value
     }));
+    
     const currentProblem = problems && problems[currentProblemIndex];
     const currentType = currentProblem ? currentProblem.type || testType : testType;
     localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
+    
     if (typeof handleCodeChange === 'function') {
       handleCodeChange(value);
+    }
+
+    // Get cursor position if editor reference is available
+    let cursorPosition = null;
+    if (editorRef.current) {
+      const model = editorRef.current.getModel();
+      const selection = editorRef.current.getSelection();
+      if (model && selection) {
+        cursorPosition = {
+          lineNumber: selection.positionLineNumber,
+          column: selection.positionColumn
+        };
+      }
+    }
+
+    // Track keystrokes with debouncing
+    const now = Date.now();
+    if (!lastKeystrokeTime || now - lastKeystrokeTime >= KEYSTROKE_DEBOUNCE_TIME) {
+      debouncedSaveKeystrokes(value, cursorPosition);
+      setLastKeystrokeTime(now);
     }
   };
 
