@@ -132,6 +132,26 @@ const EditorSection = ({
     // We intentionally use an empty dependency array so this runs only once.
   }, []);
 
+  const trackProblemAccess = async () => {
+    try {
+      const historyData = {
+        code: code || '',
+        problem_index: currentProblemIndex,
+        test_type: testType,
+        action_type: 'access'
+      };
+      
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-code-access`,
+        historyData,
+        { withCredentials: true }
+      );
+      console.log(`Access to problem ${currentProblemIndex + 1} tracked`);
+    } catch (err) {
+      console.error('Error tracking problem access:', err);
+    }
+  };
+
   // Load problem-specific title and description when currentProblemIndex changes
   useEffect(() => {
     const savedTitle = localStorage.getItem(`problem-title-${currentProblemIndex}`);
@@ -158,6 +178,11 @@ const EditorSection = ({
       setDescription(problems[currentProblemIndex].description);
       // Save to localStorage for future
       localStorage.setItem(`problem-description-${currentProblemIndex}`, problems[currentProblemIndex].description);
+    }
+
+    // Track problem access
+    if (problems && problems[currentProblemIndex]) {
+      trackProblemAccess();
     }
   }, [currentProblemIndex, problems]);
 
@@ -498,6 +523,30 @@ const EditorSection = ({
         setError('');
         setConsoleOutput(response.data.output);
       }
+      
+      // Save code history with problem index
+      try {
+        const historyData = {
+          code: code,
+          problem_index: currentProblemIndex,
+          test_type: testType,
+          output: response.data.output || '',
+          error: response.data.error || '',
+          is_submission: false,
+          action_type: 'run'
+        };
+        
+        // Explicitly save history with all the data we want to track
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/save-code-history`,
+          historyData,
+          { withCredentials: true }
+        );
+        console.log('Code history saved successfully with problem index:', currentProblemIndex);
+      } catch (historyError) {
+        console.error('Error saving code history:', historyError);
+      }
+      
     } catch (err) {
       console.log(err);
       setError('Error connecting to the server');
@@ -506,8 +555,42 @@ const EditorSection = ({
     }
   };
 
-  const handleSubmitCode = () => {
+  const handleSubmitCode = async () => {
     console.log('Submitting code...');
+    
+    try {
+      // We should preserve this code since submission is a special type of history
+      // that the backend run-code endpoint doesn't handle automatically
+      
+      // First run the code to get output
+      const runResponse = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, 
+        { code }, 
+        { withCredentials: true }
+      );
+      
+      // Then save the submission history with the special is_submission flag
+      const historyData = {
+        code: code,
+        problem_index: currentProblemIndex,
+        test_type: testType,
+        output: runResponse.data.output || '',
+        error: runResponse.data.error || '',
+        is_submission: true,
+        action_type: 'submit'
+      };
+      
+      // This is still needed because the backend run-code endpoint 
+      // doesn't mark submissions differently
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/save-code-history`,
+        historyData,
+        { withCredentials: true }
+      );
+      console.log('Code submission history saved successfully');
+    } catch (err) {
+      console.error('Error saving code submission history:', err);
+    }
   };
 
   return (

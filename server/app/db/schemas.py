@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
@@ -40,6 +40,37 @@ class TokenData(BaseModel):
 
 class Code(BaseModel):
     code: str
+
+
+class CodeHistory(BaseModel):
+    user_id: Optional[str] = None  # Will be set by the server
+    username: Optional[str] = None  # Store the username for easier identification
+    problem_index: Optional[int] = None
+    test_type: Optional[str] = None
+    code: str  # Only required field from client
+    output: Optional[str] = None
+    error: Optional[str] = None
+    execution_time: Optional[float] = None
+    is_submission: Optional[bool] = False
+    action_type: Optional[str] = "run"
+    created_at: Optional[datetime] = None  # Will be set by the server
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "user_id": "user123",
+                "username": "johndoe",
+                "problem_index": 1,
+                "test_type": "code",
+                "code": "print('Hello, world!')",
+                "output": "Hello, world!",
+                "error": "",
+                "execution_time": 0.05,
+                "is_submission": False,
+                "action_type": "run",
+                "created_at": "2023-03-03T12:00:00"
+            }
+        }
 
 
 class SkillLevel(BaseModel):
