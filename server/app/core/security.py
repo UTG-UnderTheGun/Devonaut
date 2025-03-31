@@ -43,3 +43,18 @@ async def get_current_user(request: Request):
     user_id = str(user["_id"])  # Convert ObjectId to string if necessary
 
     return user, user_id
+
+def verify_role(user: dict, allowed_roles: list):
+    if user.get('role') not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to access this resource"
+        )
+
+async def get_current_user_with_role(request: Request, allowed_roles: list = None):
+    user, user_id = await get_current_user(request)
+    
+    if allowed_roles:
+        verify_role(user, allowed_roles)
+    
+    return user, user_id

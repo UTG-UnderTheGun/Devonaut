@@ -56,12 +56,14 @@ export default function Login() {
         },
       });
 
-      const { access_token } = response.data;
+      const { access_token, role } = response.data;
 
       if (formData.rememberMe) {
         localStorage.setItem('token', access_token);
+        localStorage.setItem('userRole', role);
       } else {
         sessionStorage.setItem('token', access_token);
+        sessionStorage.setItem('userRole', role);
       }
 
       setSuccess('Login successful! Redirecting...');
@@ -72,7 +74,9 @@ export default function Login() {
       const userData = await userResponse.json();
 
       setTimeout(() => {
-        if (userData.skill_level) {
+        if (role === 'teacher') {
+          router.push('/teacher/dashboard');
+        } else if (userData.skill_level) {
           router.push('/dashboard');
         } else {
           router.push('/auth/level');

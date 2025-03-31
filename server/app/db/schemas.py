@@ -9,6 +9,7 @@ class User(BaseModel):
     email: Optional[str] = None
     name: Optional[str] = None
     skill_level: Optional[str] = None
+    role: Optional[str] = "student"  # Default role is student
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -17,6 +18,7 @@ class UserInDB(BaseModel):
     username: str
     hashed_password: str
     skill_level: Optional[str] = None
+    role: str = "student"  # Add role field
 
 
 class CodeSubmission(BaseModel):

@@ -18,8 +18,11 @@ import {
   ITEMS_PER_PAGE 
 } from '@/data/mockData.js';
 import './dashboard.css';
+import useAuth from '@/hook/useAuth';
+
 
 const TeacherDashboard = () => {
+  useAuth(['teacher']);
   const searchParams = useSearchParams();
   const [activeView, setActiveView] = useState(searchParams.get('view') || 'students');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
