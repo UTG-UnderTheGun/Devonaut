@@ -1,9 +1,10 @@
 .header {
   width: 100%;
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   z-index: 10;
+  height: 60px;
 }
 
 .header-container {
@@ -20,8 +21,8 @@
 .header.coding-header {
   height: 40px;
   display: flex;
-  justify-content: center; /* Center the header container horizontally */
-  position: fixed; /* Make header fixed */
+  justify-content: center;
+  background: var(--background-gradient);
 }
 
 .header.coding-header .header-container {
