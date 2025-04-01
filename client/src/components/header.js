@@ -154,6 +154,11 @@ const Header = () => {
     }
   }, [shouldShowProfile]);
 
+  // Function to get the first letter of the user's name
+  const getInitial = (name) => {
+    return name ? name.charAt(0).toUpperCase() : '';
+  };
+
   // Show loading screen when logging out
   if (isLoggingOut) {
     return <Loading />;
@@ -210,7 +215,9 @@ const Header = () => {
                   <span className="user-name">{userData.fullName.split(' ')[0]}</span>
                 </div>
                 <div className="user-profile">
-                  <div className="user-avatar"></div>
+                  <div className="user-avatar">
+                    {getInitial(userData.fullName)}
+                  </div>
                 </div>
               </div>
 

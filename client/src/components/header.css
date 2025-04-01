@@ -190,3 +190,15 @@ animation: ellipsis 1.5s infinite;
 position: absolute;
 right: 8px;
 }
+
+.user-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  color: #7C3AED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+}
