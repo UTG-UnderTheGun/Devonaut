@@ -82,7 +82,8 @@ export default function Login() {
 
       setTimeout(() => {
         if (userData.skill_level) {
-          router.push('/dashboard');
+          // router.push('/dashboard');
+          router.push('/coding');
         } else {
           router.push('/auth/level');
         }
@@ -159,7 +160,7 @@ export default function Login() {
         if (role === 'teacher') {
           console.log('Redirecting to teacher dashboard...'); // Debug log
           // router.push('/teacher/dashboard');
-          router.push('coding');
+          router.push('/coding');
         } else if (userData.skill_level) {
           // router.push('/dashboard');
           router.push('/coding');
