@@ -34,7 +34,7 @@ export default function SkillLevel() {
         throw new Error('Failed to set skill level');
       }
 
-      router.push('/dashboard');
+      router.push('/coding');
     } catch (error) {
       console.error('Error setting skill level:', error);
     } finally {
