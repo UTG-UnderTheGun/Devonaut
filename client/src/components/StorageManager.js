@@ -1,9 +1,133 @@
 // StorageManager.js
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import '@/components/StorageManager.css';
 
 const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   const fileInputRef = useRef(null);
+
+  // Add useEffect to listen for reset events
+  useEffect(() => {
+    const handleResetEvent = (event) => {
+      console.log("Reset event detected in StorageManager:", event.detail);
+      // Perform a cleanup of specific localStorage items
+      clearProblemCode();
+    };
+
+    // Listen for both reset events
+    window.addEventListener('code-reset', handleResetEvent);
+    window.addEventListener('storage-reset', handleResetEvent);
+    
+    return () => {
+      // Clean up event listeners
+      window.removeEventListener('code-reset', handleResetEvent);
+      window.removeEventListener('storage-reset', handleResetEvent);
+    };
+  }, []);
+
+  const clearLocalStorage = () => {
+    // New approach: first collect ALL keys, then filter what to remove
+    const allKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        allKeys.push(key);
+      }
+    }
+    
+    // Define patterns to match for removal
+    const patternsToRemove = [
+      /^code-/,           // code-*
+      /^editor-code-/,    // editor-code-*
+      /^problem-code-/,   // problem-code-*
+      /^starter-code-/,   // starter-code-*
+      /^problem-title-/,  // problem-title-*
+      /^problem-description-/, // problem-description-*
+      /^output-/,         // output-*
+      /^editorCode$/,     // editorCode (exact match)
+      /^problem-code$/,   // problem-code (exact match)
+      /^problem-outputs$/,// problem-outputs (exact match)
+      /^problem-answers$/,// problem-answers (exact match)
+      /^problem-title$/,  // problem-title (exact match)
+      /^problem-description$/,// problem-description (exact match)
+      /^is-imported$/,    // is-imported (exact match)
+      /^saved-problems$/, // saved-problems (exact match)
+    ];
+    
+    // Filter keys that match any pattern
+    const keysToRemove = allKeys.filter(key => 
+      patternsToRemove.some(pattern => pattern.test(key))
+    );
+    
+    console.log("Clearing ALL code-related localStorage keys:", keysToRemove);
+    
+    // Remove all matched keys
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error(`Failed to remove key: ${key}`, error);
+      }
+    });
+    
+    // Do a final verification to make sure ALL problem-code-* entries are definitely gone
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('problem-code-') || key === 'problem-code')) {
+        console.warn(`Key ${key} still exists after cleanup, forcing removal...`);
+        localStorage.removeItem(key);
+      }
+    }
+    
+    // Dispatch a custom event to notify components about the reset
+    const resetEvent = new CustomEvent('storage-reset', {
+      detail: { source: 'import', complete: true, timestamp: Date.now() }
+    });
+    window.dispatchEvent(resetEvent);
+  };
+
+  // Add a specific function to clear problem code
+  const clearProblemCode = () => {
+    console.log("Performing complete problem code cleanup");
+    
+    // Directly try to remove the most common keys first
+    localStorage.removeItem('problem-code');
+    localStorage.removeItem('editorCode');
+    
+    // Then do a thorough scan for all problem code related keys
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+          key.startsWith('code-') ||
+          key.startsWith('editor-code-') ||
+          key === 'editorCode' ||
+          key === 'problem-code' ||
+          key.startsWith('problem-code-')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    console.log("StorageManager: Clearing problem code keys:", keysToRemove);
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error(`Failed to remove key: ${key}`, error);
+      }
+    });
+    
+    // Do a final check to make sure all problem-code-* are gone
+    setTimeout(() => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('problem-code-') || key === 'problem-code')) {
+          console.warn(`Key ${key} still exists after cleanup, forcing removal again...`);
+          localStorage.removeItem(key);
+        }
+      }
+    }, 10);
+  };
 
   const handleExport = () => {
     // Get all saved problems
@@ -90,36 +214,6 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
     }
   };
 
-  const clearLocalStorage = () => {
-    // Clear all code-related localStorage items
-    const keysToRemove = [];
-    
-    // Find all keys related to code, outputs, and answers
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (
-          key.startsWith('code-') || 
-          key.startsWith('editor-code-') || 
-          key.startsWith('starter-code-') ||
-          key === 'problem-outputs' ||
-          key === 'problem-answers' ||
-          key === 'editorCode'
-        )) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    // Remove all collected keys
-    console.log("Clearing localStorage keys:", keysToRemove);
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    
-    // Dispatch a custom event to notify components about the reset
-    const resetEvent = new CustomEvent('storage-reset', {
-      detail: { source: 'import' }
-    });
-    window.dispatchEvent(resetEvent);
-  };
-
   const importData = async (file) => {
     try {
       const text = await file.text();
@@ -143,6 +237,9 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
 
       // Clear localStorage before importing new problems
       clearLocalStorage();
+      
+      // Set the imported flag
+      localStorage.setItem('is-imported', 'true');
 
       // Prepare to collect all answers and outputs
       const allAnswers = {};
@@ -150,7 +247,16 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       
       // Process the imported data to extract answers and outputs
       if (Array.isArray(data)) {
+        // Save individual problem titles and descriptions
         data.forEach((item, index) => {
+          // Store title and description in localStorage for each problem
+          if (item.title) {
+            localStorage.setItem(`problem-title-${index}`, item.title);
+          }
+          if (item.description) {
+            localStorage.setItem(`problem-description-${index}`, item.description);
+          }
+
           // Save user answers if they exist
           if (item.userAnswers) {
             Object.keys(item.userAnswers).forEach(key => {
@@ -170,6 +276,13 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         });
       } else {
         // Single problem case
+        if (data.title) {
+          localStorage.setItem('problem-title-0', data.title);
+        }
+        if (data.description) {
+          localStorage.setItem('problem-description-0', data.description);
+        }
+
         if (data.userAnswers) {
           Object.keys(data.userAnswers).forEach(key => {
             allAnswers[key] = data.userAnswers[key];

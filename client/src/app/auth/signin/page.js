@@ -56,23 +56,54 @@ export default function Login() {
         },
       });
 
-      const { access_token } = response.data;
+      console.log('Full login response:', response.data); // Debug log
 
+      // Destructure and verify role
+      const { access_token, role } = response.data;
+      console.log('Extracted role:', role); // Debug log
+
+      if (!role) {
+        console.error('No role received from server');
+        setError('Authentication error: No role assigned');
+        setIsLoading(false);
+        return;
+      }
+
+      // Store role in localStorage/sessionStorage
       if (formData.rememberMe) {
         localStorage.setItem('token', access_token);
+        localStorage.setItem('userRole', role);
       } else {
         sessionStorage.setItem('token', access_token);
+        sessionStorage.setItem('userRole', role);
       }
+
+      console.log('Stored role:', localStorage.getItem('userRole') || sessionStorage.getItem('userRole')); // Verify storage
 
       setSuccess('Login successful! Redirecting...');
 
-      const userResponse = await fetch(`${API_BASE}users/me`, {
-        credentials: 'include'
+      // Add role to headers for subsequent requests
+      axios.defaults.headers.common['X-User-Role'] = role;
+
+      const userResponse = await fetch(`${API_BASE}/users/me`, {
+        credentials: 'include',
+        headers: {
+          'X-User-Role': role
+        }
       });
+      
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
       const userData = await userResponse.json();
+      console.log('User data from /users/me:', userData); // Debug log
 
       setTimeout(() => {
-        if (userData.skill_level) {
+        if (role === 'teacher') {
+          console.log('Redirecting to teacher dashboard...'); // Debug log
+          router.push('/teacher/dashboard');
+        } else if (userData.skill_level) {
           router.push('/dashboard');
         } else {
           router.push('/auth/level');

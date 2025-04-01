@@ -14,6 +14,7 @@ export default function Register() {
     email: '',
     name: '',
     password: '',
+    role: 'student',
     termsAccepted: false
   });
   const [error, setError] = useState('');
@@ -26,6 +27,14 @@ export default function Register() {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Add role selection for teachers (you might want to restrict this or handle it differently)
+  const handleRoleChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      role: e.target.value
     }));
   };
 
@@ -56,7 +65,8 @@ export default function Register() {
         username: formData.email,
         password: formData.password,
         email: formData.email,
-        name: formData.name
+        name: formData.name,
+        role: formData.role
       });
 
       // If registration successful, automatically log them in

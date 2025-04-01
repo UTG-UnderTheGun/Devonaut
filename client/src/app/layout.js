@@ -20,8 +20,6 @@ export default function RootLayout({ children }) {
         <div className="landing-page">
           <CodeProvider>
             <Header />
-            <div className='after-header'>
-            </div>
             {children}
           </CodeProvider>
         </div>

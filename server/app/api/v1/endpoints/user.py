@@ -12,6 +12,8 @@ class UserResponse(BaseModel):
     username: str
     user_id: str
     skill_level: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
 
 class UserList(BaseModel):
     total_users: int
@@ -34,7 +36,9 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     return {
         "username": user["username"],
         "user_id": str(user_id),
-        "skill_level": user.get("skill_level", None)  # Return None if not set
+        "skill_level": user.get("skill_level", None),
+        "name": user.get("name", None),
+        "email": user.get("email", None)
     }
 
 @router.get("/all", response_model=UserList,

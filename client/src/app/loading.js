@@ -1,6 +1,23 @@
+'use client'
+
 import './loading.css'
+import { useEffect } from 'react'
 
 export default function Loading() {
+  // Add effect to prevent scrolling when component mounts
+  useEffect(() => {
+    // Save original body style
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    
+    // Prevent scrolling
+    document.body.style.overflow = 'hidden';
+    
+    // Restore scrolling when component unmounts
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, []);
+
   return (
     <div className="loading-container">
       <div className="loading-content">
