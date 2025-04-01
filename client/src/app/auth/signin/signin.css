@@ -222,3 +222,60 @@
     font-size: 14px;
   }
 }
+
+.btn-tu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #e84a27; /* TU primary color - orange */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  margin-top: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.btn-tu:hover {
+  background-color: #d43d1c; /* Darker orange for hover */
+}
+
+.btn-tu .tu-icon {
+  margin-right: 10px;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  margin-top: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.tu-login-title {
+  text-align: center;
+  color: #e84a27;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.tu-icon {
+  object-fit: contain;
+  background-color: white;
+  padding: 2px;
+  border-radius: 2px;
+}

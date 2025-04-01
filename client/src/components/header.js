@@ -86,8 +86,16 @@ const Header = () => {
         console.log(err);
         setError('Error connecting to the server');
         setOutput('');
+      } else {
+        setOutput(response.data.output);
+        setError('');
       }
-    };
+    } catch (err) {
+      console.log(err);
+      setError('Error connecting to the server');
+      setOutput('');
+    }
+  };
 
   const handleSignOut = async () => {
     try {

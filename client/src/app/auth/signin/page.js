@@ -18,6 +18,11 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showTULogin, setShowTULogin] = useState(false);
+  const [tuFormData, setTuFormData] = useState({
+    username: '',
+    password: ''
+  });
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -27,17 +32,68 @@ export default function Login() {
     }));
   };
 
+  const handleTUChange = (e) => {
+    const { name, value } = e.target;
+    setTuFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const googleSignin = async (e) => {
     e.preventDefault();
-    console.log("This is google sign in")
+    console.log("This is google sign in");
 
     try {
-      window.location.href = `${API_BASE}/auth/google`
+      window.location.href = `${API_BASE}/auth/google`;
     } catch (err) {
-      console.error('Error during google login request')
+      console.error('Error during google login request');
     }
+  };
 
-  }
+  const tuSignin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await axios.post(`${API_BASE}/api/auth/tu/login`, {
+        username: tuFormData.username,
+        password: tuFormData.password,
+      }, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const { token } = response.data;
+
+      // Store token in sessionStorage
+      sessionStorage.setItem('token', token);
+
+      setSuccess('TU Authentication successful! Redirecting...');
+
+      const userResponse = await fetch(`${API_BASE}/users/me`, {
+        credentials: 'include'
+      });
+      const userData = await userResponse.json();
+
+      setTimeout(() => {
+        if (userData.skill_level) {
+          router.push('/dashboard');
+        } else {
+          router.push('/auth/level');
+        }
+      }, 1500);
+
+    } catch (err) {
+      console.error('Error during TU signin:', err);
+      setError(err.response?.data?.detail || 'TU Login failed. Please check your credentials.');
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -119,6 +175,11 @@ export default function Login() {
     }
   };
 
+  const toggleTULogin = () => {
+    setShowTULogin(!showTULogin);
+    setError('');
+  };
+
   if (isLoading) {
     return <Loading />;
   }
@@ -132,79 +193,148 @@ export default function Login() {
           <div className="step inactive">2</div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && <div className="error-message">{error}</div>}
-          {success && <div className="success-message">{success}</div>}
+        {showTULogin ? (
+          <form onSubmit={tuSignin}>
+            <h2 className="tu-login-title">Thammasat University Login</h2>
+            {error && <div className="error-message">{error}</div>}
+            {success && <div className="success-message">{success}</div>}
 
-          <div className="form-group">
-            <label className="form-label">Email</label>
-            <input
-              type="text"
-              name="username"
-              className="form-input"
-              required
-              placeholder="Enter your Email"
-              value={formData.username}
-              onChange={handleChange}
+            <div className="form-group">
+              <label className="form-label">TU Username</label>
+              <input
+                type="text"
+                name="username"
+                className="form-input"
+                required
+                placeholder="Enter your TU username"
+                value={tuFormData.username}
+                onChange={handleTUChange}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">TU Password</label>
+              <input
+                type="password"
+                name="password"
+                className="form-input"
+                required
+                placeholder="Enter your TU password"
+                value={tuFormData.password}
+                onChange={handleTUChange}
+                disabled={isLoading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
               disabled={isLoading}
-            />
-          </div>
+            >
+              {isLoading ? 'SIGNING IN...' : 'SIGN IN WITH TU'}
+            </button>
 
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              name="password"
-              className="form-input"
-              required
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleChange}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={toggleTULogin}
               disabled={isLoading}
-            />
-          </div>
+            >
+              BACK TO REGULAR LOGIN
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            {error && <div className="error-message">{error}</div>}
+            {success && <div className="success-message">{success}</div>}
 
-          <div className="remember-me">
-            <input
-              type="checkbox"
-              id="remember-me"
-              name="rememberMe"
-              checked={formData.rememberMe}
-              onChange={handleChange}
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="text"
+                name="username"
+                className="form-input"
+                required
+                placeholder="Enter your Email"
+                value={formData.username}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                name="password"
+                className="form-input"
+                required
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="remember-me">
+              <input
+                type="checkbox"
+                id="remember-me"
+                name="rememberMe"
+                checked={formData.rememberMe}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
+              <label htmlFor="remember-me">Remember Me</label>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
               disabled={isLoading}
-            />
-            <label htmlFor="remember-me">Remember Me</label>
-          </div>
+            >
+              {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
+            </button>
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isLoading}
-          >
-            {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
-          </button>
+            <button
+              type="button"
+              className="btn btn-google"
+              disabled={isLoading}
+              onClick={googleSignin}
+            >
+              <Image
+                className="google-icon"
+                src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738324966/7123025_logo_google_g_icon_1_apq8zk.png"
+                alt="Google"
+                width={24}
+                height={24}
+              />
+              <span>SIGN IN WITH GOOGLE</span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-google"
-            disabled={isLoading}
-            onClick={googleSignin}
-          >
-            <Image
-              className="google-icon"
-              src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738324966/7123025_logo_google_g_icon_1_apq8zk.png"
-              alt="Google"
-              width={24}
-              height={24}
-            />
-            <span>SIGN IN WITH GOOGLE</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-tu"
+              disabled={isLoading}
+              onClick={toggleTULogin}
+            >
+              <Image
+                className="tu-icon"
+                src="https://www.tu.ac.th/uploads/logo-tu-5.svg"
+                alt="Thammasat University"
+                width={24}
+                height={24}
+              />
+              <span>SIGN IN WITH THAMMASAT</span>
+            </button>
 
-          <div className="signup-link">
-            Don't have an account? <Link href='/auth/signup'>Sign up</Link>
-          </div>
-        </form>
+            <div className="signup-link">
+              Don't have an account? <Link href='/auth/signup'>Sign up</Link>
+            </div>
+          </form>
+        )}
       </main>
-    </div >
+    </div>
   );
 }
