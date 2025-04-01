@@ -35,3 +35,6 @@ yarn-error.log*
 next-env.d.ts
 Devonaut.pem
 Devonaut-RSA.pem
+nginx/certbot/conf/archive/
+nginx/certbot/conf/accounts/
+nginx/certbot/conf/live/

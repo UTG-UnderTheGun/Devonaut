@@ -21,7 +21,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Copy next.config.js only if it exists (won't fail if missing)
-COPY --from=builder /app/next.config.js* ./
+COPY --from=builder /app/next.config.mjs ./
 
 # Copy necessary folders
 COPY --from=builder /app/public ./public

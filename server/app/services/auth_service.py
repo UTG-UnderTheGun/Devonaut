@@ -21,17 +21,14 @@ GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = "http://localhost:8000/auth/google/callback"
+GOOGLE_REDIRECT_URI = "https://www.mari0nette.com/api/auth/google/callback"
 
 
 async def register(user: User):
     # Check if username already exists
     if get_user(collection, user.username):
-        raise HTTPException(
-            status_code=400, 
-            detail="Username already registered"
-        )
-    
+        raise HTTPException(status_code=400, detail="Username already registered")
+
     # Create user document
     user_doc = {
         "username": user.username,
@@ -41,18 +38,16 @@ async def register(user: User):
         "role": user.role or "student",  # Default to student if not specified
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
-        "_id": ObjectId()
+
+        "_id": ObjectId(),  # Generate MongoDB ID
     }
 
     try:
         # Insert into MongoDB
         result = collection.insert_one(user_doc)
-        
+
         if not result.inserted_id:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create user"
-            )
+            raise HTTPException(status_code=500, detail="Failed to create user")
 
         # Remove password from response
         user_doc.pop("hashed_password")
@@ -60,15 +55,16 @@ async def register(user: User):
             "message": "User registered successfully",
             "user": {
                 **user_doc,
-                "_id": str(user_doc["_id"])
-            }
+
+                "_id": str(user_doc["_id"]),  # Convert ObjectId to string
+            },
+
         }
 
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail="Internal server error during registration"
+            status_code=500, detail="Internal server error during registration"
         )
 
 
@@ -178,7 +174,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     )
     data = {"message": "Login successful", "token": jwt_token}
 
-    redirect = RedirectResponse(url="http://localhost:3000/coding")
+    redirect = RedirectResponse(url="https://www.mari0nette.com/coding")
 
     redirect.set_cookie(
         key="access_token",

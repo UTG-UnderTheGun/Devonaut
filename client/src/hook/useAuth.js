@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
-
 /**
  * A custom React hook for handling user authentication and role-based access
  * 
@@ -31,21 +30,19 @@ import { usePathname } from 'next/navigation';
  * - Uses withCredentials to send cookies with the request
  */
 const useAuth = (allowedRoles = null) => {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-
   useEffect(() => {
     const checkAuth = async () => {
       try {
         console.log('Checking auth for path:', pathname);
-
         // Get stored role
         const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
         console.log('Stored role:', storedRole);
-
         if (pathname.startsWith('/teacher') && storedRole !== 'teacher') {
           console.log('Unauthorized: Not a teacher, redirecting to dashboard');
           router.push('/dashboard');
@@ -53,8 +50,7 @@ const useAuth = (allowedRoles = null) => {
           setIsLoading(false);
           return;
         }
-
-        const response = await axios.get('http://localhost:8000/users/me', {
+        const response = await axios.get(`${API_BASE}/users/me`, {
           withCredentials: true,
           headers: {
             'X-User-Role': storedRole
@@ -69,14 +65,12 @@ const useAuth = (allowedRoles = null) => {
         
         console.log('User data with role:', userWithRole);
         setUser(userWithRole);
-
         if (allowedRoles && !allowedRoles.includes(storedRole)) {
           console.log('Unauthorized role, redirecting to dashboard');
           router.push('/dashboard');
           setError('Unauthorized access');
           return;
         }
-
       } catch (err) {
         console.error('Auth check error:', err);
         setError('Not authenticated');
@@ -89,11 +83,8 @@ const useAuth = (allowedRoles = null) => {
         setIsLoading(false);
       }
     };
-
     checkAuth();
   }, [router, pathname, allowedRoles]);
-
   return { user, error, isLoading };
 };
-
 export default useAuth;
