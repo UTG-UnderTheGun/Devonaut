@@ -12,15 +12,24 @@ export async function middleware(request) {
   try {
     // Decode the JWT token
     const decoded = jwtDecode(token.value);
-    const userRole = decoded.role || 'student';
+    
+    // Log the decoded token to verify the role (you can remove this in production)
+    console.log('Decoded token:', decoded);
+    
+    // Access role directly from decoded token
+    const userRole = decoded.role;
 
     // Check if trying to access teacher routes
-    if (request.nextUrl.pathname.startsWith('/teacher') && userRole !== 'teacher') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+    if (request.nextUrl.pathname.startsWith('/teacher')) {
+      if (userRole !== 'teacher') {
+        console.log('Access denied: User role is', userRole); // For debugging
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
     }
 
     return NextResponse.next();
   } catch (error) {
+    console.error('Token validation error:', error); // For debugging
     // If token is invalid, redirect to login
     return NextResponse.redirect(new URL('/auth/signin', request.url));
   }

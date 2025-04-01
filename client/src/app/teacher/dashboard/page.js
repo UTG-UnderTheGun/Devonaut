@@ -1,5 +1,5 @@
 'use client'
-import { useState,useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Stats from '@/components/stats/stats.js';
 import StudentTable from '@/components/tables/student-table.js';
 import AssignmentTable from '@/components/tables/assignment-table.js';
@@ -8,7 +8,7 @@ import Pagination from '@/components/controls/pagination.js';
 import PendingAssignments from '@/components/tables/pendingassignment.js';
 import SectionView from '@/components/sections/section.js';
 import StudentAssignment from '@/components/assignment/student-assignment';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   students, 
   assignments, 
@@ -20,17 +20,27 @@ import {
 import './dashboard.css';
 import useAuth from '@/hook/useAuth';
 
-
 const TeacherDashboard = () => {
-  useAuth(['teacher']);
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, error, isLoading } = useAuth(['teacher']);
+  
   const [activeView, setActiveView] = useState(searchParams.get('view') || 'students');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+
+  useEffect(() => {
+    const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
+    console.log('TeacherDashboard - Stored role:', storedRole);
+
+    if (!isLoading && (!storedRole || storedRole !== 'teacher')) {
+      console.log('Unauthorized access attempt - redirecting...');
+      router.push('/dashboard');
+    }
+  }, [isLoading, router]);
 
   useEffect(() => {
     const view = searchParams.get('view');
@@ -38,6 +48,21 @@ const TeacherDashboard = () => {
       setActiveView(view);
     }
   }, [searchParams]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    console.log('TeacherDashboard - Error:', error);
+    return <div>Access denied: {error}</div>;
+  }
+
+  if (!user) {
+    return <div>Please log in</div>;
+  }
+
+  console.log('TeacherDashboard - User data:', user);
 
   const handleStatClick = (statId) => {
     setActiveView(statId);

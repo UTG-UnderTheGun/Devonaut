@@ -33,54 +33,67 @@ import { usePathname } from 'next/navigation';
 const useAuth = (allowedRoles = null) => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/users/me', {
-          withCredentials: true,
-        });
-        
-        const userData = response.data;
-        setUser(userData);
+        console.log('Checking auth for path:', pathname);
 
-        // Check if path starts with /teacher
-        const isTeacherRoute = pathname.startsWith('/teacher');
-        
-        // Role-based access control
-        if (isTeacherRoute && userData.role !== 'teacher') {
-          // If trying to access teacher route without teacher role
-          console.log('Unauthorized access attempt to teacher route');
+        // Get stored role
+        const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
+        console.log('Stored role:', storedRole);
+
+        if (pathname.startsWith('/teacher') && storedRole !== 'teacher') {
+          console.log('Unauthorized: Not a teacher, redirecting to dashboard');
           router.push('/dashboard');
-          setError('Unauthorized access');
+          setError('Unauthorized access - Teacher role required');
+          setIsLoading(false);
           return;
         }
 
-        // Check for specific allowed roles if provided
-        if (allowedRoles && !allowedRoles.includes(userData.role)) {
-          console.log('Unauthorized role');
+        const response = await axios.get('http://localhost:8000/users/me', {
+          withCredentials: true,
+          headers: {
+            'X-User-Role': storedRole
+          }
+        });
+        
+        const userData = response.data;
+        const userWithRole = {
+          ...userData,
+          role: storedRole
+        };
+        
+        console.log('User data with role:', userWithRole);
+        setUser(userWithRole);
+
+        if (allowedRoles && !allowedRoles.includes(storedRole)) {
+          console.log('Unauthorized role, redirecting to dashboard');
           router.push('/dashboard');
           setError('Unauthorized access');
           return;
         }
 
       } catch (err) {
-        console.error('Error fetching user:', err);
+        console.error('Auth check error:', err);
         setError('Not authenticated');
         
-        // Only redirect to signin if not already there
         if (!pathname.includes('/auth/')) {
+          console.log('Not authenticated, redirecting to signin');
           router.push('/auth/signin');
         }
+      } finally {
+        setIsLoading(false);
       }
     };
 
     checkAuth();
   }, [router, pathname, allowedRoles]);
 
-  return { user, error };
+  return { user, error, isLoading };
 };
 
 export default useAuth;
