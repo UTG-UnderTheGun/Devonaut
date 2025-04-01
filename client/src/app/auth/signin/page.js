@@ -102,9 +102,11 @@ export default function Login() {
       setTimeout(() => {
         if (role === 'teacher') {
           console.log('Redirecting to teacher dashboard...'); // Debug log
-          router.push('/teacher/dashboard');
+          // router.push('/teacher/dashboard');
+          router.push('coding');
         } else if (userData.skill_level) {
-          router.push('/dashboard');
+	  // router.push('/dashboard');
+          router.push('/coding');
         } else {
           router.push('/auth/level');
         }
