@@ -16,6 +16,7 @@
   gap: 0.5rem;
   padding: 0.5rem;
   margin-top: 40px; /* Fixed margin-top to match header height */
+  margin-bottom: 0.25rem;
   height: calc(100vh - 40px); /* Calculate height based on viewport minus header */
   overflow: hidden;
 }
