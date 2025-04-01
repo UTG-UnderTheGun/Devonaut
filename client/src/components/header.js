@@ -11,6 +11,7 @@ import axios from 'axios';  // เพิ่มบรรทัดนี้
 import Loading from "@/app/loading";
 
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const ChevronDown = () => (
   <svg
@@ -71,7 +72,7 @@ const Header = () => {
 
   const handleRunCode = async () => {
       try {
-        const response = await axios.post('http://localhost:8000/code/run-code', {
+        const response = await axios.post(`${API_BASE}/code/run-code`, {
           code,
         }, { withCredentials: true });
         if (response.data.error) {
@@ -93,7 +94,7 @@ const Header = () => {
       setIsLoggingOut(true); // Start loading
 
       // Call the logout endpoint
-      await axios.post('http://localhost:8000/users/logout', {}, {
+      await axios.post(`${API_BASE}/users/logout`, {}, {
         withCredentials: true
       });
 
@@ -135,7 +136,7 @@ const Header = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/users/me', {
+        const response = await axios.get(`${API_BASE}/users/me`, {
           withCredentials: true
         });
         setUserData({
