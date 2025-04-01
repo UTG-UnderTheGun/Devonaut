@@ -1,9 +1,10 @@
 .header {
   width: 100%;
-  position: absolute;
+  position: relative;
   top: 0;
   left: 0;
   z-index: 10;
+  height: 60px;
 }
 
 .header-container {
@@ -14,20 +15,22 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  background: transparent; /* Ensure no background color */
 }
 
 /* Fixed header for coding page */
 .header.coding-header {
   height: 40px;
   display: flex;
-  justify-content: center; /* Center the header container horizontally */
-  position: fixed; /* Make header fixed */
+  justify-content: center;
+  position: fixed;
 }
 
 .header.coding-header .header-container {
   padding: 2px 20px;
   max-width: 100%;
   width: 100%;
+  background: transparent; /* Ensure no background color */
 }
 
 .header.coding-header .logo-img {
@@ -94,7 +97,7 @@
   transition: all 0.2s ease;
 }
 
-.sign-in-button:hover {
+.sign-in-button:hover { 
   transform: translateY(-1px);
   background: #9161FF;
 }
@@ -186,4 +189,16 @@ content: "";
 animation: ellipsis 1.5s infinite;
 position: absolute;
 right: 8px;
+}
+
+.user-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  color: #7C3AED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
 }

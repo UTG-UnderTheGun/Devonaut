@@ -27,7 +27,6 @@ body {
 .dashboard {
     width: 100%;
     min-height: 100vh;
-    padding: 1rem;
 }
 
 .dashboard-content {
@@ -41,7 +40,7 @@ body {
 /* Tabs */
 .tabs {
     max-width: 1100px;
-    margin: 3rem auto 1rem;
+    margin: 0 auto 1rem;
     padding: 0.5rem;
     background: white;
     border-radius: 12px;

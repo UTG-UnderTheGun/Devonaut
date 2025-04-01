@@ -1,0 +1,154 @@
+[
+    {
+      "id": 1,
+      "title": "การคำนวณและการแสดงผลตัวแปร",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "x = 3\ny = 5\na = x + y * (5 + 1)\nb = y + 16 // x\nprint(x, a, b)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 2,
+      "title": "การรับอินพุตและฟอร์แมตสตริง",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร? สมมติว่าผู้ใช้ป้อนค่า 1 และ 5 ตามลำดับ",
+      "code": "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nprint(f'{x+10*5:.2f}', end='-')\nx = 3\nprint(f'{x+y**2:.2f}')",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 3,
+      "title": "การใช้คำสั่ง if-else",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "a = 10\nif a > 5:\n  print('A',end='-')\nif a > 7:\n  print('B',end='-')\n  a = 1\nif a > 9:\n  print('C',end='-')\nelse:\n  print('D')",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 4,
+      "title": "การทำงานกับตัวดำเนินการตรรกะ",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "lst1 = [1, 5, 7]\nlst2 = [12, 7, 4]\nx = (lst2[1] < lst1[1]) or (lst2[-1] < lst1[0])\ny = x and (10 != 20) and (10 == 10)\nif y:\n  print('A',end='-')\nelif x:\n  print('B',end='-')\nprint('D')",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 5,
+      "title": "การใช้งานลูป for",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "total = 0\nfor i in range(1, 7, 2):\n  total += i\nfor j in range(5 , 1, -2):\n  total += j\nprint(i, j, total)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 6,
+      "title": "การใช้งานลูป while",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "total = 0\nx = 1\nwhile True:\n  total = x*5\n  x *= 2\n  if x > 9:\n    break\nprint(x, total)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 7,
+      "title": "การแก้ไขค่าในลิสต์",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "lst1 = [5, 8, 10, 12]\nfor i in range(0, len(lst1)):\n  if lst1[i] % 5 == 0:\n    lst1[i] = lst1[i//2]\n  else:\n    lst1[i] = 0\nprint(lst1)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 8,
+      "title": "การทำงานร่วมกันของลูป for และ while",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "x = 1\ny = 0\nwhile x < 8:\n  print(x, end='-')\n  for i in range(1, x, 2):\n    y += i\n  x += 3\n  print(y, end =':')\nprint(x)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 9,
+      "title": "การดำเนินการกับลิสต์",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "my_list = [1,5]\nyour_list = [10,12,14]\nlst1 = my_list*3\nlst2 = my_list*2 + your_list\nprint(lst1)\nprint(lst2)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 10,
+      "title": "การทำงานกับลิสต์และลูป for",
+      "description": "โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?",
+      "code": "seqs = [2, 5, 7, 10]\nx = 0\nfor i in range(len(seqs)):\n  if seqs[i] % 2 == 1:\n    x = seqs[i+1]\n  elif seqs[i]%2 == 0:\n    seqs[i] = x+1\nprint(seqs)\n\nfor i in range(0, len(seqs), 1+3//2):\n  seqs[i] = seqs[i+1] + 1\nprint(seqs)",
+      "type": "output",
+      "userAnswers": {
+        "outputAnswer": ""
+      }
+    },
+    {
+      "id": 11,
+      "title": "การคำนวณสมการทางคณิตศาสตร์",
+      "description": "เติมโค้ดในช่องว่างเพื่อคำนวณสมการ z = (x+1)²/2(y-1)³",
+      "code": "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nz = ____",
+      "type": "fill",
+      "userAnswers": {
+        "fillAnswers": {
+          "blank-0": ""
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "พื้นที่และเส้นรอบวงของวงกลม",
+      "description": "เขียนโค้ดเพื่อคำนวณหาพื้นที่ของวงกลม (πr²) และเส้นรอบวง (2πr) โดยกำหนดให้ π มีค่าเท่ากับ 3.14 ต้องใช้ Named Constants และแสดงผลลัพธ์เป็นทศนิยม 3 ตำแหน่ง",
+      "code": "# เขียนโค้ดของคุณที่นี่\n\n\n\n",
+      "type": "code",
+      "userAnswers": {
+        "codeAnswer": ""
+      }
+    },
+    {
+      "id": 13,
+      "title": "การคำนวณค่าไฟฟ้า",
+      "description": "เขียนโปรแกรมคำนวณค่าไฟฟ้าที่ต้องจ่ายตามอัตราก้าวหน้า โดยมีรายละเอียดดังนี้:\n\nค่าไฟฟ้าที่ต้องจ่าย = จำนวนหน่วยที่ใช้ x อัตราค่าไฟ + ค่าบริการรายเดือน\n\nโดยที่อัตราค่าไฟเป็นแบบก้าวหน้า ดังนี้:\n\n0-50 หน่วย: 3.25 บาท/หน่วย\n51-100 หน่วย: 4.00 บาท/หน่วย\n101-200 หน่วย: 4.50 บาท/หน่วย\n201 หน่วยขึ้นไป: 5.00 บาท/หน่วย\n\nแสดงผลลัพธ์เป็นทศนิยม 2 ตำแหน่ง",
+      "code": "# เขียนโค้ดของคุณที่นี่\n\n\n\n",
+      "type": "code",
+      "userAnswers": {
+        "codeAnswer": ""
+      }
+    },
+    {
+      "id": 14,
+      "title": "การคำนวณ BMI และตรวจสอบข้อมูล",
+      "description": "เขียนโปรแกรมเพื่อคำนวณดัชนีมวลกาย (BMI) และแสดงหมวดหมู่ของค่าที่ได้ตามเกณฑ์:\n\n- น้ำหนักต่ำกว่าเกณฑ์: BMI < 18.5\n- น้ำหนักปกติ: 18.5 <= BMI < 25\n- น้ำหนักเกิน: 25 <= BMI < 30\n- อ้วน: BMI >= 30\n\nโดย BMI = น้ำหนัก (kg) / (ส่วนสูง (m))²\n\nต้องตรวจสอบว่าส่วนสูงอยู่ระหว่าง 0-2.5 เมตร และน้ำหนักอยู่ระหว่าง 0-300 กิโลกรัม หากไม่ถูกต้องให้ถามผู้ใช้จนกว่าจะได้ค่าที่ถูกต้อง และต้องใช้ Named Constants",
+      "code": "# เขียนโค้ดของคุณที่นี่\n\n\n\n",
+      "type": "code",
+      "userAnswers": {
+        "codeAnswer": ""
+      }
+    },
+    {
+      "id": 15,
+      "title": "โปรแกรมแปลงอุณหภูมิ",
+      "description": "เขียนโปรแกรมที่แปลงอุณหภูมิระหว่างหน่วยฟาเรนไฮต์และเซลเซียส โปรแกรมควรแสดงเมนูให้ผู้ใช้เลือกระหว่าง:\n\n- A. แปลงเซลเซียสเป็นฟาเรนไฮต์: F = (C × 1.8) + 32\n- B. แปลงฟาเรนไฮต์เป็นเซลเซียส: C = (F - 32) ÷ 1.8\n- X. ออกจากโปรแกรม\n\nแสดงผลลัพธ์เป็นทศนิยม 1 ตำแหน่ง",
+      "code": "# เขียนโค้ดของคุณที่นี่\n\n\n\n",
+      "type": "code",
+      "userAnswers": {
+        "codeAnswer": ""
+      }
+    }
+  ]

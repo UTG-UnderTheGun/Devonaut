@@ -3,142 +3,39 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import './dashboard.css';
 import useAuth from '@/hook/useAuth';
+
 export default function Dashboard() {
   useAuth();
   const [activeTab, setActiveTab] = useState('UPCOMING');
   const [indicatorStyle, setIndicatorStyle] = useState({});
   const tabsRef = useRef({});
+  const [chapters, setChapters] = useState([]);
+  const [performance, setPerformance] = useState({
+    totalScore: 0,
+    totalPossible: 0,
+    chapters: []
+  });
 
-  // Organize chapters by status
-  const [chapters] = useState([
-    {
-      id: 1,
-      title: 'For Loop Chapter',
-      chapter: 'Chapter 6: For Loop',
-      dueTime: '23:59',
-      dueDate: '2024-02-25',
-      totalPoints: 40,
-      currentProblem: 1,
-      totalProblems: 4,
-      progress: 25,
-      status: 'UPCOMING',
-      link: '/coding',
-      problems: [
-        {
-          type: 'explain',
-          title: 'Understanding For Loops',
-          points: 10,
-          completed: true
-        },
-        {
-          type: 'coding',
-          title: 'Implement Basic For Loop',
-          points: 10,
-          completed: false
-        },
-        {
-          type: 'fill',
-          title: 'Fill in the Loop Components',
-          points: 10,
-          completed: false
-        },
-        {
-          type: 'coding',
-          title: 'Advanced For Loop Challenge',
-          points: 10,
-          completed: false
-        }
-      ]
-    },
-    {
-      id: 2,
-      title: 'While Loop Chapter',
-      chapter: 'Chapter 7: While Loop',
-      dueTime: '23:59',
-      dueDate: '2024-01-30', // Past date for OVERDUE example
-      totalPoints: 30,
-      currentProblem: 1,
-      totalProblems: 3,
-      progress: 0,
-      status: 'OVERDUE',
-      link: '/coding',
-      problems: [
-        {
-          type: 'explain',
-          title: 'While Loop Concepts',
-          points: 10,
-          completed: false
-        },
-        {
-          type: 'coding',
-          title: 'While Loop Implementation',
-          points: 10,
-          completed: false
-        },
-        {
-          type: 'fill',
-          title: 'Complete the While Loop',
-          points: 10,
-          completed: false
-        }
-      ]
-    },
-    {
-      id: 3,
-      title: 'Variables Chapter',
-      chapter: 'Chapter 1: Variables',
-      dueTime: '23:59',
-      dueDate: '2024-01-15',
-      totalPoints: 20,
-      currentProblem: 3,
-      totalProblems: 3,
-      progress: 100,
-      status: 'COMPLETED',
-      link: '/coding',
-      problems: [
-        {
-          type: 'explain',
-          title: 'Understanding Variables',
-          points: 10,
-          completed: true
-        },
-        {
-          type: 'coding',
-          title: 'Variable Declaration',
-          points: 10,
-          completed: true
-        },
-        {
-          type: 'fill',
-          title: 'Variable Usage',
-          points: 10,
-          completed: true
-        }
-      ]
-    }
-  ]);
+  useEffect(() => {
+    // Fetch chapters and performance data
+    const fetchData = async () => {
+      try {
+        // Fetch chapters
+        const chaptersResponse = await fetch('/api/chapters', { credentials: 'include' });
+        const chaptersData = await chaptersResponse.json();
+        setChapters(chaptersData);
 
-  // Performance data
-  const performance = {
-    totalScore: 25,
-    totalPossible: 70,
-    chapters: [
-      {
-        id: 'Ch.6',
-        title: 'For Loops',
-        score: 10,
-        total: 40,
-        completed: false
-      },
-      {
-        id: 'Ch.7',
-        title: 'While Loops',
-        score: 0,
-        total: 30,
-        completed: false
+        // Fetch performance
+        const performanceResponse = await fetch('/api/performance', { credentials: 'include' });
+        const performanceData = await performanceResponse.json();
+        setPerformance(performanceData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
-    ]
-  };
+    };
+
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const activeTabElement = tabsRef.current[activeTab];
@@ -151,7 +48,7 @@ export default function Dashboard() {
         transform: `translateX(${tabRect.left - parentLeft}px)`
       });
     }
-  }, [activeTab]);
+  }, [activeTab, chapters]);
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
@@ -193,7 +90,6 @@ export default function Dashboard() {
     }
   };
 
-  // Filter chapters based on active tab
   const filteredChapters = chapters.filter(chapter => {
     switch (activeTab) {
       case 'UPCOMING':
@@ -207,7 +103,6 @@ export default function Dashboard() {
     }
   });
 
-  // Get count for each tab
   const getTabCount = (status) => {
     return chapters.filter(chapter => chapter.status === status).length;
   };
@@ -215,7 +110,6 @@ export default function Dashboard() {
   const completionPercentage = (performance.totalScore / performance.totalPossible) * 100;
 
   return (
-    
     <div className="dashboard">
       <nav className="tabs">
         <div className="tab-container">

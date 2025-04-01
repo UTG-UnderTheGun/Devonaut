@@ -3,29 +3,31 @@
   display: flex;
   flex-direction: column;
   background: var(--background-gradient);
-  overflow: hidden; /* Prevent scrolling on the coding page */
-  position: fixed; /* Ensure the container is fixed to the viewport */
-  width: 100%; /* Make sure it takes up full width */
-  height: 100vh; /* Force full viewport height */
+  position: fixed;
+  width: 100%;
+  height: 100vh;
   top: 0;
   left: 0;
+  overflow: hidden;
 }
 
 .main-content {
   display: flex;
   gap: 0.5rem;
-  padding: 1rem;
-  margin-top: 3.5rem;
-  height: calc(100vh - 4.5rem);
+  padding: 0.5rem;
+  margin-top: 40px; /* Fixed margin-top to match header height */
+  margin-bottom: 0.25rem;
+  height: calc(100vh - 40px); /* Calculate height based on viewport minus header */
+  overflow: hidden;
 }
 
-/* Add this new rule for the optimized layout with compact header */
+/* Remove redundant rules */
 .coding-container .main-content {
-  margin-top: 40px; /* Adjusted to match new compact header height of 40px */
-  height: calc(100vh - 40px - 5px); /* Reduced the bottom buffer from 10px to 5px */
-  padding: 0.25rem 0.5rem 0.25rem 0.5rem; /* Reduced bottom padding */
-  max-height: calc(100vh - 40px - 5px); /* Ensure it doesn't overflow */
-  overflow: hidden; /* Prevent any overflow issues */
+  margin-top: 40px;
+  height: calc(100vh - 40px);
+  padding: 0.25rem 0.5rem;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
   flex: 1;
 }
 
