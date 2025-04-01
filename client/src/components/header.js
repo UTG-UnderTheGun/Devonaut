@@ -36,6 +36,11 @@ const Header = () => {
   const menuRef = useRef(null)
   const profileRef = useRef(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [userData, setUserData] = useState({
+    username: '',
+    fullName: '',
+    email: ''
+  });
 
   const isHomePage = pathname === '/'
   const isCodingPage = pathname.startsWith('/coding')
@@ -126,6 +131,29 @@ const Header = () => {
     }
   }
 
+  // Add this useEffect to fetch user data when component mounts
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/users/me', {
+          withCredentials: true
+        });
+        setUserData({
+          username: response.data.username,
+          // If you want to add full name and email, you'll need to update the backend to include these
+          fullName: response.data.name || response.data.username,
+          email: response.data.email || ''
+        });
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+      }
+    };
+
+    if (shouldShowProfile) {
+      fetchUserData();
+    }
+  }, [shouldShowProfile]);
+
   // Show loading screen when logging out
   if (isLoggingOut) {
     return <Loading />;
@@ -179,7 +207,7 @@ const Header = () => {
               >
                 <div className="user-name-container">
                   <ChevronDown />
-                  <span className="user-name">Nattakit</span>
+                  <span className="user-name">{userData.fullName.split(' ')[0]}</span>
                 </div>
                 <div className="user-profile">
                   <div className="user-avatar"></div>
@@ -191,8 +219,8 @@ const Header = () => {
                 className={`user-menu ${isMenuOpen ? 'active' : ''}`}
               >
                 <div className="menu-header">
-                  <div className="user-full-name">Nattakit Ngamsanga</div>
-                  <div className="user-email">nattakit.nga@example.com</div>
+                  <div className="user-full-name">{userData.fullName}</div>
+                  <div className="user-email">{userData.email}</div>
                 </div>
 
                 <div className="menu-items">
