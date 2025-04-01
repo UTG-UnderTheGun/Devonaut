@@ -27,11 +27,8 @@ GOOGLE_REDIRECT_URI = "https://www.mari0nette.com/auth/google/callback"
 async def register(user: User):
     # Check if username already exists
     if get_user(collection, user.username):
-        raise HTTPException(
-            status_code=400, 
-            detail="Username already registered"
-        )
-    
+        raise HTTPException(status_code=400, detail="Username already registered")
+
     # Create user document
     user_doc = {
         "username": user.username,
@@ -40,18 +37,15 @@ async def register(user: User):
         "name": user.name,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
-        "_id": ObjectId()  # Generate MongoDB ID
+        "_id": ObjectId(),  # Generate MongoDB ID
     }
 
     try:
         # Insert into MongoDB
         result = collection.insert_one(user_doc)
-        
+
         if not result.inserted_id:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create user"
-            )
+            raise HTTPException(status_code=500, detail="Failed to create user")
 
         # Remove password from response
         user_doc.pop("hashed_password")
@@ -59,15 +53,14 @@ async def register(user: User):
             "message": "User registered successfully",
             "user": {
                 **user_doc,
-                "_id": str(user_doc["_id"])  # Convert ObjectId to string
-            }
+                "_id": str(user_doc["_id"]),  # Convert ObjectId to string
+            },
         }
 
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail="Internal server error during registration"
+            status_code=500, detail="Internal server error during registration"
         )
 
 
