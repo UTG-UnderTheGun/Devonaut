@@ -58,7 +58,7 @@ export default function Login() {
     setSuccess('');
 
     try {
-      const response = await axios.post(`${API_BASE}/api/auth/tu/login`, {
+      const response = await axios.post(`${API_BASE}/auth/tu/login`, {
         username: tuFormData.username,
         password: tuFormData.password,
       }, {
@@ -147,7 +147,7 @@ export default function Login() {
           'X-User-Role': role
         }
       });
-      
+
       if (!userResponse.ok) {
         throw new Error('Failed to fetch user data');
       }
@@ -161,7 +161,7 @@ export default function Login() {
           // router.push('/teacher/dashboard');
           router.push('coding');
         } else if (userData.skill_level) {
-	  // router.push('/dashboard');
+          // router.push('/dashboard');
           router.push('/coding');
         } else {
           router.push('/auth/level');
@@ -195,6 +195,15 @@ export default function Login() {
 
         {showTULogin ? (
           <form onSubmit={tuSignin}>
+            <div className="tu-icon-container">
+              <Image
+                className="tu-icon"
+                src="https://res.cloudinary.com/dotqm6po2/image/upload/v1743528711/2048px-Emblem_of_Thammasat_University.svg_le62nb.png"
+                alt="Thammasat University"
+                width={150}
+                height={150}
+              />
+            </div>
             <h2 className="tu-login-title">Thammasat University Login</h2>
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">{success}</div>}
@@ -229,7 +238,7 @@ export default function Login() {
 
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-tu"
               disabled={isLoading}
             >
               {isLoading ? 'SIGNING IN...' : 'SIGN IN WITH TU'}
@@ -321,7 +330,7 @@ export default function Login() {
             >
               <Image
                 className="tu-icon"
-                src="https://www.tu.ac.th/uploads/logo-tu-5.svg"
+                src="https://res.cloudinary.com/dotqm6po2/image/upload/v1743528711/2048px-Emblem_of_Thammasat_University.svg_le62nb.png"
                 alt="Thammasat University"
                 width={24}
                 height={24}

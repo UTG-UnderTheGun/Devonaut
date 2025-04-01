@@ -52,7 +52,6 @@ async def register(user: User):
         "role": user.role or "student",  # Default to student if not specified
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
-
         "_id": ObjectId(),  # Generate MongoDB ID
     }
 
@@ -69,10 +68,8 @@ async def register(user: User):
             "message": "User registered successfully",
             "user": {
                 **user_doc,
-
                 "_id": str(user_doc["_id"]),  # Convert ObjectId to string
             },
-
         }
 
     except Exception as e:
@@ -100,22 +97,19 @@ async def login(response: Response, user: User):
     access_token = create_access_token(
         data={
             "sub": user.username,
-            "role": user_data.get("role", "student")  # Include role in token
+            "role": user_data.get("role", "student"),  # Include role in token
         },
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
 
     response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        samesite="lax"
+        key="access_token", value=access_token, httponly=True, samesite="lax"
     )
 
     return {
         "message": "Login successful",
         "token": access_token,
-        "role": user_data.get("role", "student")
+        "role": user_data.get("role", "student"),
     }
 
 
@@ -134,9 +128,9 @@ async def login_with_tu(response: Response, username: str, password: str):
                     "Application-Key": TU_APPLICATION_KEY,
                 },
             )
-            logger.error(
-                f"TU API Response: {auth_response.status_code} - {auth_response.text}"
-            )
+            # logger.error(
+            #     f"TU API Response: {auth_response.status_code} - {auth_response.text}"
+            # )
 
             # Check if the response is successful
             if auth_response.status_code != 200:
@@ -331,4 +325,3 @@ async def logout(response: Response):
     """
     response.delete_cookie(key="access_token")
     return {"message": "Successfully logged out"}
-
