@@ -21,7 +21,7 @@ GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = "http://localhost:8000/auth/google/callback"
+GOOGLE_REDIRECT_URI = "https://www.mari0nette.com/auth/google/callback"
 
 
 async def register(user: User):
@@ -166,7 +166,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     )
     data = {"message": "Login successful", "token": jwt_token}
 
-    redirect = RedirectResponse(url="http://localhost:3000/coding")
+    redirect = RedirectResponse(url="https://www.mari0nette.com/coding")
 
     redirect.set_cookie(
         key="access_token",

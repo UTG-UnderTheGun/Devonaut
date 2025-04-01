@@ -9,8 +9,9 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certbot/conf:/etc/letsencrypt:ro
-      - ./nginx/certbot/www:/var/www/certbot:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
     depends_on:
       - server
       - client
@@ -21,8 +22,7 @@ services:
         limits:
           cpus: "0.2"
           memory: 128M
-    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
-
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
   certbot:
     image: certbot/certbot
     container_name: devonaut-certbot
@@ -32,15 +32,7 @@ services:
     depends_on:
       - nginx
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    command: >
-      certonly --webroot 
-      --webroot-path=/var/www/certbot 
-      --email tanakrit.mae@dome.tu.ac.th 
-      --agree-tos 
-      --no-eff-email 
-      -d mari0nette.com 
-      -d www.mari0nette.com
-
+    command: certonly --webroot -w /var/www/certbot --force-renewal --email tanakrit.mae@dome.tu.ac.th -d 13.229.116.7 --agree-tos
   server:
     build:
       context: ./server
@@ -61,7 +53,7 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - API_BASE=https://mari0nette.com/api # Updated to domain with HTTPS
+      - API_BASE=https://13.229.116.7/api  # Updated to HTTPS
     deploy:
       resources:
         limits:
@@ -70,7 +62,6 @@ services:
     networks:
       - app-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
   redis:
     image: redis:alpine
     container_name: devonaut-redis
@@ -86,7 +77,6 @@ services:
           cpus: "0.2"
           memory: 256M
     command: redis-server --appendonly yes
-
   mongo:
     image: mongo:latest
     container_name: mongodb
@@ -104,7 +94,6 @@ services:
         limits:
           cpus: "0.3"
           memory: 512M
-
   client:
     build:
       context: ./client
@@ -117,7 +106,7 @@ services:
     environment:
       - NODE_ENV=production
       - SERVER_API=http://server:8000
-      - NEXT_PUBLIC_API_URL=https://mari0nette.com/api # Updated to domain with HTTPS
+      - NEXT_PUBLIC_API_URL=https://13.229.116.7/api  # Updated to HTTPS
     networks:
       - app-network
     deploy:
@@ -126,12 +115,9 @@ services:
           cpus: "0.3"
           memory: 512M
     command: npm run start
-
 networks:
   app-network:
     driver: bridge
-
 volumes:
   redis-data:
   mongo-data:
-
