@@ -53,11 +53,11 @@ const EditorSection = ({
     handleClearImport();
     localStorage.setItem('saved-problems', JSON.stringify(data));
     handleImport(data);
-    
+
     // Set the imported flag
     setIsImported(true);
     localStorage.setItem('is-imported', 'true');
-    
+
     // If we have a valid current problem, update the title and description
     if (data && Array.isArray(data) && data[currentProblemIndex]) {
       const currentProblem = data[currentProblemIndex];
@@ -77,15 +77,15 @@ const EditorSection = ({
     const savedAnswers = localStorage.getItem('problem-answers');
     const savedCode = localStorage.getItem(`code-${testType}-${currentProblemIndex}`);
     const savedOutputs = localStorage.getItem('problem-outputs');
-    
+
     // Load problem-specific title and description from localStorage
     const savedTitle = localStorage.getItem(`problem-title-${currentProblemIndex}`);
     const savedDescription = localStorage.getItem(`problem-description-${currentProblemIndex}`);
-    
+
     if (savedTitle && setTitle) {
       setTitle(savedTitle);
     }
-    
+
     if (savedDescription && setDescription) {
       setDescription(savedDescription);
     }
@@ -124,7 +124,7 @@ const EditorSection = ({
 
     // Check if problems are imported in the initial useEffect
     const isImportedFlag = localStorage.getItem('is-imported');
-    
+
     if (isImportedFlag === 'true') {
       setIsImported(true);
     }
@@ -140,7 +140,7 @@ const EditorSection = ({
         test_type: testType,
         action_type: 'access'
       };
-      
+
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-code-access`,
         historyData,
@@ -156,7 +156,7 @@ const EditorSection = ({
   useEffect(() => {
     const savedTitle = localStorage.getItem(`problem-title-${currentProblemIndex}`);
     const savedDescription = localStorage.getItem(`problem-description-${currentProblemIndex}`);
-    
+
     // Always try to get title and description from localStorage first
     if (savedTitle && setTitle) {
       console.log(`Loading title for problem ${currentProblemIndex} from localStorage: ${savedTitle}`);
@@ -168,7 +168,7 @@ const EditorSection = ({
       // Save to localStorage for future
       localStorage.setItem(`problem-title-${currentProblemIndex}`, problems[currentProblemIndex].title);
     }
-    
+
     if (savedDescription && setDescription) {
       console.log(`Loading description for problem ${currentProblemIndex} from localStorage: ${savedDescription.substring(0, 30)}...`);
       setDescription(savedDescription);
@@ -267,11 +267,11 @@ const EditorSection = ({
       ...prev,
       [currentProblemIndex]: value
     }));
-    
+
     const currentProblem = problems && problems[currentProblemIndex];
     const currentType = currentProblem ? currentProblem.type || testType : testType;
     localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
-    
+
     if (typeof handleCodeChange === 'function') {
       handleCodeChange(value);
     }
@@ -299,15 +299,15 @@ const EditorSection = ({
 
   const handleResetAll = () => {
     console.log("=== PERFORMING COMPLETE RESET ===");
-    
+
     // Set a reset timestamp to prevent immediate reloading
     localStorage.setItem('editor_reset_timestamp', Date.now().toString());
-    
+
     // Reset UI state first
     setShowEmptyState(true);
     setIsImported(false);
     localStorage.removeItem('is-imported');
-    
+
     // Clear ALL localStorage items related to code
     // This ensures we don't have any lingering items regardless of naming pattern
     const allKeys = [];
@@ -317,7 +317,7 @@ const EditorSection = ({
         allKeys.push(key);
       }
     }
-    
+
     // Define all patterns that could match code storage
     const patternsToRemove = [
       /^code-/,           // code-*
@@ -336,14 +336,14 @@ const EditorSection = ({
       /^is-imported$/,    // is-imported (exact match)
       /^saved-problems$/, // saved-problems (exact match)
     ];
-    
+
     // Filter keys that match any pattern
-    const keysToRemove = allKeys.filter(key => 
+    const keysToRemove = allKeys.filter(key =>
       patternsToRemove.some(pattern => pattern.test(key))
     );
-    
+
     console.log("EditorSection: Clearing ALL localStorage keys:", keysToRemove);
-    
+
     // Remove all matched keys
     keysToRemove.forEach(key => {
       try {
@@ -352,18 +352,18 @@ const EditorSection = ({
         console.error(`Failed to remove key: ${key}`, error);
       }
     });
-    
+
     // Clear editor content using multiple approaches to ensure it works
     if (editorRef.current) {
       try {
         // First try: direct setValue
         editorRef.current.setValue('');
-        
+
         // Second try: with a small delay
         setTimeout(() => {
           if (editorRef.current) {
             editorRef.current.setValue('');
-            
+
             // Some Monaco editor instances may need this
             if (editorRef.current.getModel) {
               const model = editorRef.current.getModel();
@@ -377,7 +377,7 @@ const EditorSection = ({
         console.error("Error clearing editor:", error);
       }
     }
-    
+
     // Reset all state variables
     setEditorCodes({});
     setOutputAnswers({});
@@ -386,55 +386,55 @@ const EditorSection = ({
     setConsoleOutput('');
     setAnswers({});
     setSelectedDescriptionTab('Description');
-    
+
     // Explicitly update the code through the parent handler
     if (typeof handleCodeChange === 'function') {
       handleCodeChange('');
     }
-    
+
     // Do a final verification that problem-code-* entries are gone
     setTimeout(() => {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (
-            key.startsWith('problem-code-') || 
-            key === 'problem-code' ||
-            key.startsWith('code-code-')
+          key.startsWith('problem-code-') ||
+          key === 'problem-code' ||
+          key.startsWith('code-code-')
         )) {
           console.warn(`Key ${key} still exists after cleanup, forcing removal...`);
           localStorage.removeItem(key);
         }
       }
-      
+
       // Dispatch reset events AFTER cleanup is complete
       const resetEvent = new CustomEvent('code-reset', {
-        detail: { 
-          problemIndex: currentProblemIndex, 
+        detail: {
+          problemIndex: currentProblemIndex,
           complete: true,
           priority: true,
-          timestamp: Date.now() 
+          timestamp: Date.now()
         }
       });
       window.dispatchEvent(resetEvent);
-      
+
       const storageResetEvent = new CustomEvent('storage-reset', {
-        detail: { 
-          source: 'reset-button', 
+        detail: {
+          source: 'reset-button',
           complete: true,
           priority: true,
           timestamp: Date.now()
         }
       });
       window.dispatchEvent(storageResetEvent);
-      
+
       // Call parent reset handler if provided
       if (handleReset) {
         handleReset();
       }
-      
+
       console.log("Reset complete for problem", currentProblemIndex);
     }, 20);
-    
+
     // Force final re-render after a delay as a final fallback
     setTimeout(() => {
       if (editorRef.current) {
@@ -461,11 +461,11 @@ const EditorSection = ({
       // Clear all editor codes in state
       setEditorCodes({});
       setOutputAnswers({});
-      
+
       // Ensure editor content is cleared
       if (editorRef.current) {
         editorRef.current.setValue('');
-        
+
         // Force a refresh of the editor content
         setTimeout(() => {
           if (editorRef.current) {
@@ -473,16 +473,16 @@ const EditorSection = ({
           }
         }, 0);
       }
-      
+
       // If we have a complete reset, make sure to update parent state
       if (event.detail?.complete && typeof handleCodeChange === 'function') {
         handleCodeChange('');
       }
     };
-    
+
     window.addEventListener('storage-reset', handleStorageReset);
     window.addEventListener('code-reset', handleStorageReset);
-    
+
     return () => {
       window.removeEventListener('storage-reset', handleStorageReset);
       window.removeEventListener('code-reset', handleStorageReset);
@@ -511,7 +511,7 @@ const EditorSection = ({
     if (setConsoleOutput && isConsoleFolded) {
       setIsConsoleFolded(false);
     }
-    
+
     try {
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, { code }, { withCredentials: true });
       if (response.data.error) {
@@ -523,7 +523,7 @@ const EditorSection = ({
         setError('');
         setConsoleOutput(response.data.output);
       }
-      
+
       // Save code history with problem index
       try {
         const historyData = {
@@ -535,7 +535,7 @@ const EditorSection = ({
           is_submission: false,
           action_type: 'run'
         };
-        
+
         // Explicitly save history with all the data we want to track
         await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/save-code-history`,
@@ -546,7 +546,7 @@ const EditorSection = ({
       } catch (historyError) {
         console.error('Error saving code history:', historyError);
       }
-      
+
     } catch (err) {
       console.log(err);
       setError('Error connecting to the server');
@@ -557,18 +557,18 @@ const EditorSection = ({
 
   const handleSubmitCode = async () => {
     console.log('Submitting code...');
-    
+
     try {
       // We should preserve this code since submission is a special type of history
       // that the backend run-code endpoint doesn't handle automatically
-      
+
       // First run the code to get output
       const runResponse = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, 
-        { code }, 
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`,
+        { code },
         { withCredentials: true }
       );
-      
+
       // Then save the submission history with the special is_submission flag
       const historyData = {
         code: code,
@@ -579,7 +579,7 @@ const EditorSection = ({
         is_submission: true,
         action_type: 'submit'
       };
-      
+
       // This is still needed because the backend run-code endpoint 
       // doesn't mark submissions differently
       await axios.post(
@@ -650,17 +650,17 @@ const EditorSection = ({
       console.log("No problem found at index", currentProblemIndex);
       return <div className="empty-problem">ไม่พบข้อมูลของโจทย์ โปรดตรวจสอบการนำเข้าข้อมูล</div>;
     }
-    
+
     const currentProblem = problems[currentProblemIndex];
     console.log("Current problem:", currentProblem);
     const effectiveTestType = currentProblem.type || testType;
     console.log("Effective test type:", effectiveTestType);
-    
+
     if (effectiveTestType !== testType && setTestType) {
       console.log("Updating test type to", effectiveTestType);
       setTestType(effectiveTestType);
     }
-    
+
     const getSavedCode = () => {
       // Check if we're in a reset state first
       const isResetState = showEmptyState || !localStorage.getItem('saved-problems');
@@ -668,14 +668,14 @@ const EditorSection = ({
         console.log("In reset state, returning empty code");
         return '';
       }
-      
+
       // Check component state first
       const stateCode = editorCodes[currentProblemIndex];
       if (stateCode) {
         console.log("Found code in state");
         return stateCode;
       }
-      
+
       // Try various localStorage keys
       const keysToTry = [
         `code-${effectiveTestType}-${currentProblemIndex}`,
@@ -683,7 +683,7 @@ const EditorSection = ({
         `code-${testType}-${currentProblemIndex}`,
         `starter-code-${currentProblemIndex}`
       ];
-      
+
       for (const key of keysToTry) {
         const savedCode = localStorage.getItem(key);
         if (savedCode) {
@@ -691,18 +691,18 @@ const EditorSection = ({
           return savedCode;
         }
       }
-      
+
       // Fall back to problem definition
       if (currentProblem.starterCode) {
         console.log("Using starter code from problem");
         return currentProblem.starterCode;
       }
-      
+
       if (currentProblem.code) {
         console.log("Using code from problem");
         return currentProblem.code;
       }
-      
+
       console.log("No code found, returning empty string");
       return '';
     };

@@ -1,12 +1,12 @@
 import os
 import json
 import httpx
+import logging
 from urllib.parse import urlencode
+from typing import Optional, Dict, Any
 from fastapi.responses import RedirectResponse
-from dotenv import load_dotenv
-from typing import Optional
 from fastapi import HTTPException, status, Response, Request
-from fastapi.responses import JSONResponse  # FIXED: Missing import
+from fastapi.responses import JSONResponse
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from app.db.session import get_user
@@ -16,6 +16,10 @@ from app.core.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.security import verify_password, get_password_hash, create_access_token
 from bson import ObjectId
 
+# Setup logger
+logger = logging.getLogger(__name__)
+
+# Google OAuth Constants
 GOOGLE_USER_INFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -23,8 +27,18 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = "https://www.mari0nette.com/api/auth/google/callback"
 
+# TU API Constants
+TU_API_ENDPOINT = "https://restapi.tu.ac.th/api/v1/auth/Ad/verify"
+TU_APPLICATION_KEY = os.getenv(
+    "TU_APPLICATION_KEY",
+    "TUb14a6492de394d94dc7004de36a3187848db8f9f56dda5d63f00cc013861cb916ccaffbf48c9d8cb39b23855c15b088f",
+)
+
 
 async def register(user: User):
+    """
+    Register a new user in the database
+    """
     # Check if username already exists
     if get_user(collection, user.username):
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -38,7 +52,6 @@ async def register(user: User):
         "role": user.role or "student",  # Default to student if not specified
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
-
         "_id": ObjectId(),  # Generate MongoDB ID
     }
 
@@ -55,10 +68,8 @@ async def register(user: User):
             "message": "User registered successfully",
             "user": {
                 **user_doc,
-
                 "_id": str(user_doc["_id"]),  # Convert ObjectId to string
             },
-
         }
 
     except Exception as e:
@@ -69,6 +80,9 @@ async def register(user: User):
 
 
 async def login(response: Response, user: User):
+    """
+    Authenticate a user and return a JWT token
+    """
     user_data = get_user(collection, user.username)
     if not user_data or not verify_password(
         user.password, user_data["hashed_password"]
@@ -83,26 +97,129 @@ async def login(response: Response, user: User):
     access_token = create_access_token(
         data={
             "sub": user.username,
-            "role": user_data.get("role", "student")  # Include role in token
+            "role": user_data.get("role", "student"),  # Include role in token
         },
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
 
     response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        samesite="lax"
+        key="access_token", value=access_token, httponly=True, samesite="lax"
     )
 
     return {
         "message": "Login successful",
         "token": access_token,
-        "role": user_data.get("role", "student")
+        "role": user_data.get("role", "student"),
     }
 
 
+async def login_with_tu(response: Response, username: str, password: str):
+    """
+    Authenticate user with Thammasat University API
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            # Call TU API to verify credentials
+            auth_response = await client.post(
+                TU_API_ENDPOINT,
+                json={"UserName": username, "PassWord": password},
+                headers={
+                    "Content-Type": "application/json",
+                    "Application-Key": TU_APPLICATION_KEY,
+                },
+            )
+            # logger.error(
+            #     f"TU API Response: {auth_response.status_code} - {auth_response.text}"
+            # )
+
+            # Check if the response is successful
+            if auth_response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication failed with TU API",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            # Parse the TU API response
+            tu_data = auth_response.json()
+
+            # Check if authentication was successful according to TU API response structure
+            if not tu_data.get("status") or tu_data.get("message") != "Success":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication failed with TU API",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            # Get user data from TU API
+            user_data = tu_data
+            tu_username = user_data.get("username", username)
+            tu_email = user_data.get("email", f"{username}@dome.tu.ac.th")
+            tu_name = user_data.get("displayname_en", "")
+
+            # Check if user exists in our database
+            existing_user = get_user(collection, tu_username)
+
+            # If user doesn't exist, create one
+            if not existing_user:
+                # Generate a random password since we'll be using TU authentication
+                hashed_password = get_password_hash("tu_authenticated_user")
+
+                user_doc = {
+                    "username": tu_username,
+                    "hashed_password": hashed_password,
+                    "email": tu_email,
+                    "name": tu_name,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                    "tu_verified": True,
+                    "_id": ObjectId(),
+                }
+
+                result = collection.insert_one(user_doc)
+
+                if not result.inserted_id:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to create user from TU authentication",
+                    )
+
+            # Create access token
+            access_token_expires = timedelta(minutes=120)  # 2 hours
+            access_token = create_access_token(
+                data={"sub": tu_username}, expires_delta=access_token_expires
+            )
+
+            # Set cookie
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                max_age=7200,  # 2 hours in seconds
+            )
+
+            return {
+                "message": "TU Authentication successful",
+                "token": access_token,
+                "user": {"username": tu_username, "email": tu_email, "name": tu_name},
+            }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"TU Authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"TU Authentication error: {str(e)}",
+        )
+
+
 async def get_google_auth_url():
+    """
+    Generate Google OAuth authorization URL
+    """
     params = {
         "client_id": GOOGLE_CLIENT_ID,
         "response_type": "code",
@@ -116,10 +233,13 @@ async def get_google_auth_url():
 
 
 async def process_google_callback(request: Request, code: Optional[str] = None):
+    """
+    Process the callback from Google OAuth
+    """
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code missing")
 
-    print(f"Processing callback with code: {code[:10]}...")
+    logger.info(f"Processing callback with code: {code[:10]}...")
 
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
@@ -134,6 +254,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
         )
 
     if token_response.status_code != 200:
+        logger.error(f"Token exchange failed: {token_response.text}")
         raise HTTPException(
             status_code=400, detail=f"Token exchange failed: {token_response.text}"
         )
@@ -148,6 +269,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
         )
 
     if user_response.status_code != 200:
+        logger.error(f"Failed to get user info: {user_response.text}")
         raise HTTPException(
             status_code=400, detail=f"Failed to get user info: {user_response.text}"
         )
@@ -159,6 +281,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
 
     existing_user = get_user(collection, email)
     if not existing_user:
+        logger.info(f"Creating new user from Google auth: {email}")
         hashed_password = get_password_hash("defaultpassword")
         collection.insert_one(
             {
@@ -166,6 +289,11 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
                 "hashed_password": hashed_password,
                 "name": name,
                 "picture": picture,
+                "email": email,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "google_verified": True,
+                "_id": ObjectId(),
             }
         )
 
@@ -192,5 +320,8 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
 
 
 async def logout(response: Response):
+    """
+    Log out a user by removing their access token cookie
+    """
     response.delete_cookie(key="access_token")
     return {"message": "Successfully logged out"}

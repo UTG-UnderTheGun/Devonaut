@@ -71,23 +71,23 @@ const Header = () => {
   }, [])
 
   const handleRunCode = async () => {
-      try {
-        const response = await axios.post(`${API_BASE}/code/run-code`, {
-          code,
-        }, { withCredentials: true });
-        if (response.data.error) {
-          setError(response.data.error);
-          setOutput('');
-        } else {
-          setOutput(response.data.output);
-          setError('');
-        }
-      } catch (err) {
-        console.log(err);
-        setError('Error connecting to the server');
+    try {
+      const response = await axios.post(`${API_BASE}/code/run-code`, {
+        code,
+      }, { withCredentials: true });
+      if (response.data.error) {
+        setError(response.data.error);
         setOutput('');
+      } else {
+        setOutput(response.data.output);
+        setError('');
       }
-    };
+    } catch (err) {
+      console.log(err);
+      setError('Error connecting to the server');
+      setOutput('');
+    }
+  };
 
   const handleSignOut = async () => {
     try {
