@@ -40,15 +40,52 @@ export default function Dashboard() {
   useEffect(() => {
     const activeTabElement = tabsRef.current[activeTab];
     if (activeTabElement) {
-      const parentLeft = activeTabElement.parentElement.getBoundingClientRect().left;
+      // Get the container element
+      const container = activeTabElement.parentElement;
+      const containerRect = container.getBoundingClientRect();
+      
+      // Get the active tab element
       const tabRect = activeTabElement.getBoundingClientRect();
       
+      // Calculate the relative position and width as percentages
+      const relativeLeft = tabRect.left - containerRect.left;
+      const relativeWidth = tabRect.width;
+      
+      // Set the indicator style
       setIndicatorStyle({
-        width: tabRect.width,
-        transform: `translateX(${tabRect.left - parentLeft}px)`
+        width: `${relativeWidth}px`,
+        transform: `translateX(${relativeLeft}px)`
       });
     }
-  }, [activeTab, chapters]);
+  }, [activeTab]);
+
+  // Add a new effect to update indicator on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const activeTabElement = tabsRef.current[activeTab];
+      if (activeTabElement) {
+        const container = activeTabElement.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        const tabRect = activeTabElement.getBoundingClientRect();
+        
+        const relativeLeft = tabRect.left - containerRect.left;
+        const relativeWidth = tabRect.width;
+        
+        setIndicatorStyle({
+          width: `${relativeWidth}px`,
+          transform: `translateX(${relativeLeft}px)`
+        });
+      }
+    };
+
+    // Add resize event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [activeTab]);
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
