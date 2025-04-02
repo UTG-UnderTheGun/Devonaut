@@ -1,7 +1,6 @@
 .container {
   min-height: 100vh;
   width: 100%;
-  padding: 20px;
 }
 
 
@@ -9,7 +8,7 @@
 .signin-card {
   max-width: 684px;
   width: 90%;
-  margin: 50px auto;
+  margin: 20px auto;
   background: white;
   border-radius: 40px;
   padding: 40px;
