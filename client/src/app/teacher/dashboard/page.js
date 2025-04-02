@@ -34,6 +34,77 @@ const TeacherDashboard = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isReloading, setIsReloading] = useState(false);
+
+  // Define fetchStudents first, before it's used
+  const fetchStudents = async (setLoadingState = true) => {
+    try {
+      if (setLoadingState) {
+        setLoading(true);
+      }
+      
+      const response = await fetch(`${API_BASE}/api/users/students`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'X-User-Role': localStorage.getItem('userRole') || sessionStorage.getItem('userRole')
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data && data.users) {
+        setStudents(data.users);
+        setError(null);
+      } else {
+        throw new Error('Invalid data format received');
+      }
+    } catch (err) {
+      setError('Failed to load students. Please try again later.');
+      setStudents([]);
+    } finally {
+      if (setLoadingState) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Define handleReloadData next
+  const handleReloadData = async () => {
+    if (isReloading) return;
+    
+    setIsReloading(true);
+    setLoading(true); // Set the main loading state to true to show skeleton
+    
+    try {
+      if (activeView === 'students') {
+        await fetchStudents(false); // Pass false to indicate this is a reload (don't set loading again)
+      } else if (activeView === 'assignments') {
+        // Handle assignment reload
+        console.log('Reloading assignments...');
+        // Simulate loading
+        await new Promise(resolve => setTimeout(resolve, 800));
+      } else if (activeView === 'pending') {
+        // Handle pending reload
+        console.log('Reloading pending assignments...');
+        // Simulate loading
+        await new Promise(resolve => setTimeout(resolve, 800));
+      } else if (activeView === 'sections') {
+        // Handle sections reload
+        console.log('Reloading sections...');
+        // Simulate loading
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+    } catch (error) {
+      setError('Failed to reload data. Please try again.');
+    } finally {
+      setIsReloading(false);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
@@ -52,39 +123,10 @@ const TeacherDashboard = () => {
 
   // Fetch students from the API
   useEffect(() => {
-    const fetchStudents = async () => {
-      if (activeView === 'students') {
-        try {
-          setLoading(true);
-          const response = await fetch(`${API_BASE}/api/users/students`, {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json',
-              'X-User-Role': localStorage.getItem('userRole') || sessionStorage.getItem('userRole')
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Error: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          if (data && data.users) {
-            setStudents(data.users);
-            setError(null);
-          } else {
-            throw new Error('Invalid data format received');
-          }
-        } catch (err) {
-          setError('Failed to load students. Please try again later.');
-          setStudents([]);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchStudents();
+    if (activeView === 'students') {
+      fetchStudents();
+    }
+    // Add other view data fetching here
   }, [activeView]);
 
   if (isLoading) {
@@ -286,6 +328,8 @@ const TeacherDashboard = () => {
             totalItems={getSortedAndFilteredData().length}
             itemsPerPage={ITEMS_PER_PAGE}
             onPageChange={setCurrentPage}
+            onReload={handleReloadData}
+            isReloading={isReloading}
           />
         </div>
       </main>
