@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import './header.css'
 import './user-menu.css'
-import axios from 'axios';  // เพิ่มบรรทัดนี้
+import axios from 'axios';
 import Loading from "@/app/loading";
 
 
@@ -30,6 +30,7 @@ const ChevronDown = () => (
 
 
 const Header = () => {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const pathname = usePathname()
   const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -39,12 +40,17 @@ const Header = () => {
   const [userData, setUserData] = useState({
     username: '',
     fullName: '',
+    firstName: '',
     email: ''
   });
 
   const isHomePage = pathname === '/'
   const isCodingPage = pathname.startsWith('/coding')
-  const shouldShowProfile = !isHomePage && pathname !== '/auth/signin' && pathname !== '/auth/signup'
+  
+  // Hide user profile during signup/onboarding process
+  const isOnboardingPage = pathname.includes('/auth/profile') || pathname.includes('/auth/level')
+  const shouldShowProfile = !isHomePage && !isOnboardingPage && pathname !== '/auth/signin' && pathname !== '/auth/signup'
+  
   const { code, setOutput, setError, setOpenTerm, output, error } = useCodeContext();
 
 
@@ -69,39 +75,40 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleRunCode = async () => {
-      try {
-        const response = await axios.post('http://localhost:8000/code/run-code', {
-          code,
-        }, { withCredentials: true });
-        if (response.data.error) {
-          setError(response.data.error);
-          setOutput('');
-        } else {
-          setOutput(response.data.output);
-          setError('');
-        }
-      } catch (err) {
-        console.log(err);
-        setError('Error connecting to the server');
-        setOutput('');
-      }
-    };
+  // const handleRunCode = async () => {
+  //   try {
+  //     const response = await axios.post(`${API_BASE}/code/run-code`, {
+  //       code,
+  //     }, { withCredentials: true });
+      
+  //     if (response.data.error) {
+  //       setError(response.data.error);
+  //       setOutput('');
+  //     } else {
+  //       setOutput(response.data.output);
+  //       setError('');
+  //     }
+  //   } catch (err) {
+  //     console.log(err);
+  //     setError('Error connecting to the server');
+  //     setOutput('');
+  //   }
+  // };
 
   const handleSignOut = async () => {
     try {
       setIsLoggingOut(true); // Start loading
 
       // Call the logout endpoint
-      await axios.post('http://localhost:8000/users/logout', {}, {
+      await axios.post(`${API_BASE}/users/logout`, {}, {
         withCredentials: true
       });
 
       // Clear ALL stored tokens and user data
-      sessionStorage.clear();  // Clear all session storage
-      localStorage.clear();    // Clear all local storage
+      sessionStorage.clear();
+      localStorage.clear();
 
-      // Clear any cookies (in case they weren't cleared by the server)
+      // Clear any cookies
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
@@ -112,12 +119,12 @@ const Header = () => {
       setIsMenuOpen(false);
 
       // Show loading and redirect after delay
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Single delay for both loading and redirect
-      window.location.href = '/'; // Redirect while loading screen is still showing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      window.location.href = '/';
 
     } catch (err) {
       console.error('Error during logout:', err);
-      setIsLoggingOut(false); // Stop loading on error
+      setIsLoggingOut(false);
     }
   };
 
@@ -131,32 +138,75 @@ const Header = () => {
     }
   }
 
-  // Add this useEffect to fetch user data when component mounts
+  // Fetch user data
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/users/me', {
+        const response = await axios.get(`${API_BASE}/users/me`, {
           withCredentials: true
         });
+        
+        const user = response.data;
+        
+        // Extract email
+        const email = user.email || user.username || '';
+        
+        // Get name ONLY from the name field, don't use email as fallback for fullName
+        const fullName = user.name || '';
+        
+        // For first name, only use if name exists
+        let firstName = '';
+        if (user.name) {
+          // If name exists, get the first part
+          firstName = user.name.split(' ')[0];
+        } else if (email.includes('@')) {
+          // If no name but email available, use part before @
+          firstName = email.split('@')[0];
+        } else {
+          // Fallback to username or email
+          firstName = user.username || email;
+        }
+        
         setUserData({
-          username: response.data.username,
-          // If you want to add full name and email, you'll need to update the backend to include these
-          fullName: response.data.name || response.data.username,
-          email: response.data.email || ''
+          username: user.username || email,
+          email: email,
+          fullName: fullName, // Only use actual name, not email fallback
+          firstName: firstName
         });
       } catch (err) {
         console.error('Error fetching user data:', err);
+        
+        // Even for fallback, don't use email as full name
+        const email = sessionStorage.getItem('email') || localStorage.getItem('email') || '';
+        setUserData({
+          username: email,
+          email: email,
+          fullName: '', // Set to empty if no real name available
+          firstName: email.split('@')[0]
+        });
       }
     };
 
     if (shouldShowProfile) {
       fetchUserData();
     }
-  }, [shouldShowProfile]);
+  }, [shouldShowProfile, API_BASE]);
 
-  // Function to get the first letter of the user's name
-  const getInitial = (name) => {
-    return name ? name.charAt(0).toUpperCase() : '';
+  // Function to get the first letter of the user's name or email
+  const getInitial = (text) => {
+    if (!text) return '';
+    
+    // Try to get first letter of first name
+    const initial = text.charAt(0).toUpperCase();
+    
+    // If it's not a valid letter, try to use the first letter of email
+    if (/[A-Z]/.test(initial)) {
+      return initial;
+    } else if (userData.email) {
+      return userData.email.charAt(0).toUpperCase();
+    }
+    
+    return 'U'; // Ultimate fallback is "U" for User
   };
 
   // Show loading screen when logging out
@@ -212,11 +262,13 @@ const Header = () => {
               >
                 <div className="user-name-container">
                   <ChevronDown />
-                  <span className="user-name">{userData.fullName.split(' ')[0]}</span>
+                  <span className="user-name">
+                    {userData.firstName || userData.email.split('@')[0]}
+                  </span>
                 </div>
                 <div className="user-profile">
                   <div className="user-avatar">
-                    {getInitial(userData.fullName)}
+                    {getInitial(userData.firstName || userData.email)}
                   </div>
                 </div>
               </div>
@@ -226,8 +278,14 @@ const Header = () => {
                 className={`user-menu ${isMenuOpen ? 'active' : ''}`}
               >
                 <div className="menu-header">
-                  <div className="user-full-name">{userData.fullName}</div>
-                  <div className="user-email">{userData.email}</div>
+                  {userData.fullName ? (
+                    <>
+                      <div className="user-full-name">{userData.fullName}</div>
+                      <div className="user-email">{userData.email}</div>
+                    </>
+                  ) : (
+                    <div className="user-email">{userData.email}</div>
+                  )}
                 </div>
 
                 <div className="menu-items">

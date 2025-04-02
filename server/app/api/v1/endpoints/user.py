@@ -5,14 +5,18 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
 from bson import ObjectId
+from app.db.schemas import UserProfile
+from app.services.user_service import update_user_profile
 
 router = APIRouter()
 
 class UserResponse(BaseModel):
     username: str
     user_id: str
-    skill_level: Optional[str] = None
     name: Optional[str] = None
+    student_id: Optional[str] = None
+    section: Optional[str] = None
+    skill_level: Optional[str] = None
     email: Optional[str] = None
 
 class UserList(BaseModel):
@@ -36,8 +40,10 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     return {
         "username": user["username"],
         "user_id": str(user_id),
-        "skill_level": user.get("skill_level", None),
         "name": user.get("name", None),
+        "student_id": user.get("student_id", None),
+        "section": user.get("section", None),
+        "skill_level": user.get("skill_level", None),
         "email": user.get("email", None)
     }
 
@@ -115,6 +121,37 @@ async def get_users_paginated(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch users: {str(e)}"
+        )
+
+@router.post("/profile", 
+    summary="Update user profile information",
+    description="Updates the name, student ID, and section of the authenticated user")
+async def update_profile(
+    profile_data: UserProfile,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        user, user_id = current_user
+        
+        # Update profile using the user service
+        result = await update_user_profile(
+            user_id=user_id,
+            name=profile_data.name,
+            student_id=profile_data.student_id,
+            section=profile_data.section
+        )
+
+        return {
+            "message": "Profile updated successfully",
+            "name": profile_data.name,
+            "student_id": profile_data.student_id,
+            "section": profile_data.section
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update profile: {str(e)}"
         )
 
 @router.post("/skill-level", 

@@ -21,7 +21,8 @@ GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = "http://localhost:8000/auth/google/callback"
+GOOGLE_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI") or "http://localhost:8000/auth/google/callback"
+FRONTEND_URL = os.getenv("FRONTEND_URL") or "http://localhost:3000"
 
 
 async def register(user: User):
@@ -161,24 +162,56 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     name = user_data.get("name")
     picture = user_data.get("picture")
 
+    # Check if user exists and has complete profile
     existing_user = get_user(collection, email)
+    is_new_user = False
+    needs_profile = False
+
     if not existing_user:
+        # First time Google sign-in - create a new user
         hashed_password = get_password_hash("defaultpassword")
-        collection.insert_one(
-            {
-                "username": email,
-                "hashed_password": hashed_password,
-                "name": name,
-                "picture": picture,
-            }
+        collection.insert_one({
+            "username": email,
+            "hashed_password": hashed_password,
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "role": "student"
+        })
+        is_new_user = True
+        needs_profile = True
+    else:
+        # Check if profile is complete
+        needs_profile = not (
+            existing_user.get("student_id") and 
+            existing_user.get("section") and
+            existing_user.get("skill_level")
         )
 
+    # Create JWT token with additional info
     jwt_token = create_access_token(
-        data={"sub": email}, expires_delta=timedelta(hours=2)
+        data={
+            "sub": email,
+            "role": "student",
+            "is_new_user": is_new_user,
+            "needs_profile": needs_profile
+        },
+        expires_delta=timedelta(hours=2)
     )
-    data = {"message": "Login successful", "token": jwt_token}
+    
+    # Determine redirect URL based on profile completeness
+    redirect_url = f"{FRONTEND_URL}/auth/profile" if needs_profile else f"{FRONTEND_URL}/dashboard"
+    
+    data = {
+        "message": "Login successful", 
+        "token": jwt_token,
+        "is_new_user": is_new_user,
+        "needs_profile": needs_profile
+    }
 
-    redirect = RedirectResponse(url="http://localhost:3000/coding")
+    redirect = RedirectResponse(url=redirect_url)
 
     redirect.set_cookie(
         key="access_token",
@@ -189,6 +222,10 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
         max_age=7200,
     )
 
+    # Add the user role to localStorage
+    redirect.headers["X-User-Role"] = "student"
+    redirect.headers["X-Needs-Profile"] = str(needs_profile).lower()
+    
     # Add the data to headers
     redirect.headers["X-Data"] = json.dumps(data)
 

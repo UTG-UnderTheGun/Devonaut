@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import './signin.css';
@@ -18,6 +18,7 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [googleRedirectInfo, setGoogleRedirectInfo] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -27,16 +28,35 @@ export default function Login() {
     }));
   };
 
+  // Add effect to check if redirected from Google OAuth
+  useEffect(() => {
+    // Check for Google auth redirect data in URL hash or query params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('oauth') && urlParams.has('needs_profile')) {
+      const needsProfile = urlParams.get('needs_profile') === 'true';
+      const isNew = urlParams.get('is_new') === 'true';
+      
+      // Store information for later use
+      setGoogleRedirectInfo({ needsProfile, isNew });
+      
+      // Redirect to appropriate page
+      if (needsProfile) {
+        router.push('/auth/profile');
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [router]);
+
   const googleSignin = async (e) => {
     e.preventDefault();
-    console.log("This is google sign in")
+    console.log("Starting Google sign in")
 
     try {
       window.location.href = `${API_BASE}/auth/google`
     } catch (err) {
       console.error('Error during google login request')
     }
-
   }
 
   const handleSubmit = async (e) => {
@@ -126,8 +146,10 @@ export default function Login() {
       <main className="signin-card">
         <div className="progress-steps">
           <div className="step active">1</div>
-          <div className="progress-line"></div>
+          <div className="progress-line active"></div>
           <div className="step inactive">2</div>
+          <div className="progress-line"></div>
+          <div className="step inactive">3</div>
         </div>
 
         <form onSubmit={handleSubmit}>

@@ -8,11 +8,11 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function Register() {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    name: '',
     password: '',
     role: 'student',
     termsAccepted: false
@@ -61,16 +61,15 @@ export default function Register() {
 
     try {
       // Register the user
-      const response = await axios.post('http://localhost:8000/auth/register', {
+      const response = await axios.post(`${API_BASE}/auth/register`, {
         username: formData.email,
         password: formData.password,
         email: formData.email,
-        name: formData.name,
         role: formData.role
       });
 
       // If registration successful, automatically log them in
-      const loginResponse = await axios.post('http://localhost:8000/auth/token', {
+      const loginResponse = await axios.post(`${API_BASE}/auth/token`, {
         username: formData.email,
         password: formData.password,
       }, {
@@ -85,9 +84,9 @@ export default function Register() {
 
       setSuccess('Registration successful! Redirecting...');
 
-      // Redirect to skill level selection page
+      // Redirect to profile page
       setTimeout(() => {
-        router.push('/auth/level');
+        router.push('/auth/profile');
       }, 1500);
 
     } catch (err) {
@@ -106,26 +105,14 @@ export default function Register() {
     <div className="container">
       <main className="signin-card">
         <div className="progress-steps">
-          <div className={`step ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
+          <div className="step active">1</div>
+          <div className="progress-line active"></div>
+          <div className="step inactive">2</div>
           <div className="progress-line"></div>
-          <div className={`step ${currentStep >= 2 ? 'active' : 'inactive'}`}>2</div>
+          <div className="step inactive">3</div>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Name</label>
-            <input
-              type="text"
-              name="name"
-              className="form-input"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              placeholder="Enter your name"
-              disabled={isLoading}
-            />
-          </div>
-
           <div className="form-group">
             <label className="form-label">Email</label>
             <input

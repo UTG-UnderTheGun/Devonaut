@@ -46,11 +46,12 @@
   color: white;
   font-weight: 600;
   font-size: 14px;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
 }
 
 .step.active {
   background: #7C3AED;
+  transform: scale(1.1);
 }
 
 .step.inactive {
@@ -59,10 +60,14 @@
 
 .progress-line {
   height: 4px;
-  width: 186px;
+  width: 100px;
   background: #B3B3B3;
   border-radius: 40px;
   transition: background-color 0.3s;
+}
+
+.progress-line.active {
+  background: #7C3AED;
 }
 
 .form-group {
@@ -198,7 +203,7 @@
   }
 
   .progress-line {
-    width: 100px;
+    width: 80px;
   }
 }
 
@@ -211,7 +216,7 @@
   }
 
   .progress-line {
-    width: 60px;
+    width: 40px;
   }
 
   .form-label {

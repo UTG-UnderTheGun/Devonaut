@@ -31,6 +31,7 @@ import { usePathname } from 'next/navigation';
  * - Uses withCredentials to send cookies with the request
  */
 const useAuth = (allowedRoles = null) => {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +55,7 @@ const useAuth = (allowedRoles = null) => {
           return;
         }
 
-        const response = await axios.get('http://localhost:8000/users/me', {
+        const response = await axios.get(`${API_BASE}/users/me`, {
           withCredentials: true,
           headers: {
             'X-User-Role': storedRole
@@ -69,6 +70,18 @@ const useAuth = (allowedRoles = null) => {
         
         console.log('User data with role:', userWithRole);
         setUser(userWithRole);
+
+        // Check if user needs to complete their profile
+        const needsProfile = !userData.student_id || !userData.section || !userData.skill_level;
+        
+        // Redirect to profile page if user needs to complete profile and not already there
+        if (needsProfile && 
+            !pathname.includes('/auth/profile') && 
+            !pathname.includes('/auth/level')) {
+          console.log('User needs to complete profile, redirecting');
+          router.push('/auth/profile');
+          return;
+        }
 
         if (allowedRoles && !allowedRoles.includes(storedRole)) {
           console.log('Unauthorized role, redirecting to dashboard');
