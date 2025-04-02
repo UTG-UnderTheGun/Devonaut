@@ -4,6 +4,32 @@ import { useState, useEffect } from 'react';
 import "./student-table.css";
 import StudentDetailModal from './student-detail'; // Make sure path is correct
 
+const TableSkeleton = () => {
+  return (
+    <div className="skeleton-table">
+      <div className="skeleton-header">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="skeleton-th">
+            <div className="skeleton-text"></div>
+          </div>
+        ))}
+      </div>
+      <div className="skeleton-body">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="skeleton-row">
+            {[1, 2, 3, 4].map(j => (
+              <div key={j} className="skeleton-td">
+                <div className="skeleton-text"></div>
+                {j === 4 && <div className="skeleton-score-bar"></div>}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const StudentTable = ({ 
   data, 
   sortConfig, 
@@ -12,6 +38,7 @@ const StudentTable = ({
 }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [modalLoading, setModalLoading] = useState(true);
 
   useEffect(() => {
     if (showModal) {
@@ -31,6 +58,7 @@ const StudentTable = ({
 
   const handleRowClick = (student) => {
     setSelectedStudent(student);
+    setModalLoading(true);
     setShowModal(true);
   };
 
@@ -48,6 +76,7 @@ const StudentTable = ({
       {showModal && (
         <StudentDetailModal 
           student={selectedStudent}
+          loading={modalLoading}
           onClose={() => {
             setShowModal(false);
             setSelectedStudent(null);
@@ -56,13 +85,9 @@ const StudentTable = ({
       )}
       
       <div className="table-wrapper">
-        {loading && (
-          <div className="loading-overlay">
-            <div className="loading-spinner" />
-          </div>
-        )}
-        
-        {!loading && (!data || data.length === 0) ? (
+        {loading ? (
+          <TableSkeleton />
+        ) : !data || data.length === 0 ? (
           <EmptyState />
         ) : (
           <table className="student-table">

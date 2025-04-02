@@ -134,5 +134,136 @@
   background-color: #F9FAFB;
 }
 
+/* Add these styles to your existing CSS */
+
+.student-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.student-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.student-info-item label {
+  font-size: 0.875rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.student-info-item span {
+  font-size: 1rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+/* Add overflow handling for long email addresses */
+.student-info-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Skeleton loading styles */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 1rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-heading {
+  height: 1.5rem;
+  width: 50%;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-label {
+  width: 70%;
+  height: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-value {
+  width: 100%;
+  height: 1rem;
+}
+
+.skeleton-card {
+  background-color: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skeleton-stat-value {
+  width: 60%;
+  height: 1.75rem;
+}
+
+.skeleton-stat-label {
+  width: 80%;
+  height: 0.875rem;
+}
+
+.skeleton-close-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.375rem;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-button {
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  flex: 1;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Skeleton title styles */
+.skeleton-title-container {
+  width: 200px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.skeleton-title {
+  width: 180px;
+  height: 1.75rem;
+  margin: 0;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* This ensures the student-modal-title is not visible in the skeleton */
+.student-modal-header h2.skeleton-text {
+  color: transparent;
+  background-clip: text;
+}
+
 
 

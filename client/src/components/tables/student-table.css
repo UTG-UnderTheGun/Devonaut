@@ -480,3 +480,80 @@
   color: #6B7280;
   max-width: 300px;
 }
+
+/* Skeleton loading styles */
+.skeleton-table {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.skeleton-header {
+  display: flex;
+  background-color: #f9f9f9;
+  padding: 1rem 0;
+}
+
+.skeleton-th {
+  flex: 1;
+  padding: 0 1.5rem;
+}
+
+.skeleton-th .skeleton-text {
+  height: 1rem;
+  width: 70%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-body {
+  background-color: white;
+}
+
+.skeleton-row {
+  display: flex;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 1rem 0;
+}
+
+.skeleton-row:nth-child(odd) {
+  background-color: #fcfcfc;
+}
+
+.skeleton-td {
+  flex: 1;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton-td .skeleton-text {
+  height: 1rem;
+  width: 80%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-score-bar {
+  height: 0.5rem;
+  width: 70%;
+  border-radius: 999px;
+  margin-top: 0.25rem;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
