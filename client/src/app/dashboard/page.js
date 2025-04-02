@@ -3,11 +3,14 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import './dashboard.css';
 import useAuth from '@/hook/useAuth';
+import DashboardSkeleton from './skeleton';
 
 export default function Dashboard() {
   useAuth();
   const [activeTab, setActiveTab] = useState('UPCOMING');
-  const [indicatorStyle, setIndicatorStyle] = useState({});
+  const [indicatorStyle, setIndicatorStyle] = useState({
+    backgroundColor: 'var(--primary)' // Set default color right from the start
+  });
   const tabsRef = useRef({});
   const [chapters, setChapters] = useState([]);
   const [performance, setPerformance] = useState({
@@ -15,11 +18,22 @@ export default function Dashboard() {
     totalPossible: 0,
     chapters: []
   });
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Add this state to force a re-render after component mounts
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set isMounted to true after component mounts
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     // Fetch chapters and performance data
     const fetchData = async () => {
       try {
+        setIsLoading(true);
+        
         // Fetch chapters
         const chaptersResponse = await fetch('/api/chapters', { credentials: 'include' });
         const chaptersData = await chaptersResponse.json();
@@ -29,63 +43,71 @@ export default function Dashboard() {
         const performanceResponse = await fetch('/api/performance', { credentials: 'include' });
         const performanceData = await performanceResponse.json();
         setPerformance(performanceData);
+        
+        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
+        setIsLoading(false);
       }
     };
 
     fetchData();
   }, []);
 
-  useEffect(() => {
+  // Update indicator position with a more reliable approach
+  const updateIndicatorPosition = () => {
     const activeTabElement = tabsRef.current[activeTab];
     if (activeTabElement) {
-      // Get the container element
       const container = activeTabElement.parentElement;
       const containerRect = container.getBoundingClientRect();
-      
-      // Get the active tab element
       const tabRect = activeTabElement.getBoundingClientRect();
       
-      // Calculate the relative position and width as percentages
       const relativeLeft = tabRect.left - containerRect.left;
       const relativeWidth = tabRect.width;
       
-      // Set the indicator style
       setIndicatorStyle({
         width: `${relativeWidth}px`,
-        transform: `translateX(${relativeLeft}px)`
+        transform: `translateX(${relativeLeft}px)`,
+        backgroundColor: 'var(--primary)',
+        opacity: 0.95
       });
     }
-  }, [activeTab]);
+  };
+  
+  // Update indicator on tab change
+  useEffect(() => {
+    if (!isLoading) {
+      // First immediate update
+      updateIndicatorPosition();
+      
+      // Then set a delayed update to ensure measurements are accurate
+      const timeout = setTimeout(() => {
+        updateIndicatorPosition();
+      }, 50);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [activeTab, isLoading, isMounted]);
+  
+  // Also update on mount and after loading completes
+  useEffect(() => {
+    if (!isLoading && isMounted) {
+      updateIndicatorPosition();
+    }
+  }, [isLoading, isMounted]);
 
-  // Add a new effect to update indicator on window resize
+  // Update on window resize
   useEffect(() => {
     const handleResize = () => {
-      const activeTabElement = tabsRef.current[activeTab];
-      if (activeTabElement) {
-        const container = activeTabElement.parentElement;
-        const containerRect = container.getBoundingClientRect();
-        const tabRect = activeTabElement.getBoundingClientRect();
-        
-        const relativeLeft = tabRect.left - containerRect.left;
-        const relativeWidth = tabRect.width;
-        
-        setIndicatorStyle({
-          width: `${relativeWidth}px`,
-          transform: `translateX(${relativeLeft}px)`
-        });
-      }
+      updateIndicatorPosition();
     };
 
-    // Add resize event listener
     window.addEventListener('resize', handleResize);
     
-    // Clean up
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [activeTab]);
+  }, [activeTab, isLoading]);
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
@@ -146,11 +168,18 @@ export default function Dashboard() {
 
   const completionPercentage = (performance.totalScore / performance.totalPossible) * 100;
 
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="dashboard">
       <nav className="tabs">
         <div className="tab-container">
-          <div className="tab-indicator" style={indicatorStyle} />
+          <div 
+            className="tab-indicator tab-indicator-active" 
+            style={indicatorStyle} 
+          />
           {['UPCOMING', 'OVERDUE', 'COMPLETED'].map((tab) => (
             <button
               key={tab}

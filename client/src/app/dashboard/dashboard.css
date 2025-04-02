@@ -68,7 +68,7 @@ body {
 .tab-indicator {
     position: absolute;
     height: calc(100% - 8px);
-    background: var(--primary);
+    background-color: var(--primary) !important;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease, width 0.3s ease;
@@ -556,4 +556,9 @@ body {
 .assignments, .performance, .no-assignments {
     width: 100%;
     box-sizing: border-box;
+}
+
+/* Add this new class */
+.tab-indicator-active {
+  background-color: var(--primary) !important;
 }
