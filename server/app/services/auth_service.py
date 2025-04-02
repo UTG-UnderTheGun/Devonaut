@@ -166,6 +166,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     existing_user = get_user(collection, email)
     is_new_user = False
     needs_profile = False
+    role = "student"  # Default role
 
     if not existing_user:
         # First time Google sign-in - create a new user
@@ -178,35 +179,43 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
             "picture": picture,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
-            "role": "student"
+            "role": "student"  # Default new users to student
         })
         is_new_user = True
         needs_profile = True
     else:
-        # Check if profile is complete
-        needs_profile = not (
-            existing_user.get("student_id") and 
-            existing_user.get("section") and
-            existing_user.get("skill_level")
-        )
+        # Get the user's role
+        role = existing_user.get("role", "student")
+        
+        # Only check for profile completeness if role is student
+        if role == "student":
+            needs_profile = not (
+                existing_user.get("student_id") and 
+                existing_user.get("section") and
+                existing_user.get("skill_level")
+            )
 
     # Create JWT token with additional info
     jwt_token = create_access_token(
         data={
             "sub": email,
-            "role": "student",
+            "role": role,
             "is_new_user": is_new_user,
             "needs_profile": needs_profile
         },
         expires_delta=timedelta(hours=2)
     )
     
-    # Determine redirect URL based on profile completeness
-    redirect_url = f"{FRONTEND_URL}/auth/profile" if needs_profile else f"{FRONTEND_URL}/dashboard"
+    # Determine redirect URL based on role and profile completeness
+    if role == "teacher":
+        redirect_url = f"{FRONTEND_URL}/teacher/dashboard"
+    else:
+        redirect_url = f"{FRONTEND_URL}/auth/profile" if needs_profile else f"{FRONTEND_URL}/dashboard"
     
     data = {
         "message": "Login successful", 
         "token": jwt_token,
+        "role": role,
         "is_new_user": is_new_user,
         "needs_profile": needs_profile
     }
@@ -222,8 +231,8 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
         max_age=7200,
     )
 
-    # Add the user role to localStorage
-    redirect.headers["X-User-Role"] = "student"
+    # Add the user role to headers
+    redirect.headers["X-User-Role"] = role
     redirect.headers["X-Needs-Profile"] = str(needs_profile).lower()
     
     # Add the data to headers

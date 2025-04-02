@@ -76,11 +76,11 @@ export default function Login() {
         },
       });
 
-      console.log('Full login response:', response.data); // Debug log
+      console.log('Full login response:', response.data);
 
       // Destructure and verify role
       const { access_token, role } = response.data;
-      console.log('Extracted role:', role); // Debug log
+      console.log('Extracted role:', role);
 
       if (!role) {
         console.error('No role received from server');
@@ -97,8 +97,6 @@ export default function Login() {
         sessionStorage.setItem('token', access_token);
         sessionStorage.setItem('userRole', role);
       }
-
-      console.log('Stored role:', localStorage.getItem('userRole') || sessionStorage.getItem('userRole')); // Verify storage
 
       setSuccess('Login successful! Redirecting...');
 
@@ -117,16 +115,25 @@ export default function Login() {
       }
 
       const userData = await userResponse.json();
-      console.log('User data from /users/me:', userData); // Debug log
+      console.log('User data from /users/me:', userData);
 
       setTimeout(() => {
+        // If teacher, go directly to teacher dashboard
         if (role === 'teacher') {
-          console.log('Redirecting to teacher dashboard...'); // Debug log
+          console.log('Redirecting to teacher dashboard...');
           router.push('/teacher/dashboard');
-        } else if (userData.skill_level) {
+        } 
+        // If student with complete profile, go to dashboard
+        else if (userData.student_id && userData.section && userData.skill_level) {
           router.push('/dashboard');
-        } else {
+        }
+        // If student with partial profile (has student_id and section but no skill_level)
+        else if (userData.student_id && userData.section) {
           router.push('/auth/level');
+        }
+        // If student without profile, go to profile page
+        else {
+          router.push('/auth/profile');
         }
       }, 1500);
 
