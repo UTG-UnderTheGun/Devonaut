@@ -217,3 +217,14 @@
     padding: 0.625rem 1.25rem;
   }
 }
+
+/* Add this to your existing styles */
+.error-message {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem;
+  text-align: center;
+  font-weight: 500;
+}

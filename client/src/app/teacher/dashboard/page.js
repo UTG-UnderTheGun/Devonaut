@@ -10,20 +10,20 @@ import SectionView from '@/components/sections/section.js';
 import StudentAssignment from '@/components/assignment/student-assignment';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { 
-  students, 
   assignments, 
   pendingAssignments, 
   sectionDetails,
   stats, 
   ITEMS_PER_PAGE 
-} from '@/data/mockData.js';
+} from '@/data/mockData.js';  // Removed students from import
 import './dashboard.css';
 import useAuth from '@/hook/useAuth';
 
 const TeacherDashboard = () => {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, error, isLoading } = useAuth(['teacher']);
+  const { user, error: authError, isLoading } = useAuth(['teacher']);
   
   const [activeView, setActiveView] = useState(searchParams.get('view') || 'students');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -31,13 +31,14 @@ const TeacherDashboard = () => {
   const [selectedSection, setSelectedSection] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-    console.log('TeacherDashboard - Stored role:', storedRole);
-
+    
     if (!isLoading && (!storedRole || storedRole !== 'teacher')) {
-      console.log('Unauthorized access attempt - redirecting...');
       router.push('/dashboard');
     }
   }, [isLoading, router]);
@@ -49,20 +50,54 @@ const TeacherDashboard = () => {
     }
   }, [searchParams]);
 
+  // Fetch students from the API
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (activeView === 'students') {
+        try {
+          setLoading(true);
+          const response = await fetch(`${API_BASE}/api/users/students`, {
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+              'X-User-Role': localStorage.getItem('userRole') || sessionStorage.getItem('userRole')
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          if (data && data.users) {
+            setStudents(data.users);
+            setError(null);
+          } else {
+            throw new Error('Invalid data format received');
+          }
+        } catch (err) {
+          setError('Failed to load students. Please try again later.');
+          setStudents([]);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchStudents();
+  }, [activeView]);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
-  if (error) {
-    console.log('TeacherDashboard - Error:', error);
-    return <div>Access denied: {error}</div>;
+  if (authError) {
+    return <div>Access denied: {authError}</div>;
   }
 
   if (!user) {
     return <div>Please log in</div>;
   }
-
-  console.log('TeacherDashboard - User data:', user);
 
   const handleStatClick = (statId) => {
     setActiveView(statId);
@@ -73,17 +108,17 @@ const TeacherDashboard = () => {
   };
 
   const handleSort = (key) => {
-    setIsLoading(true);
+    setLoading(true);
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
-    setTimeout(() => setIsLoading(false), 300);
+    setTimeout(() => setLoading(false), 300);
   };
 
   const handleCreateAssignment = () => {
-    console.log('Create new assignment');
+    // Create new assignment logic
   };
 
   const handleAssignmentSelect = (assignmentId, studentId) => {
@@ -168,7 +203,7 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={isLoading}
+            loading={loading}
           />
         );
       case 'assignments':
@@ -177,7 +212,7 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={isLoading}
+            loading={loading}
           />
         );
       case 'pending':
@@ -186,7 +221,7 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={isLoading}
+            loading={loading}
             onAssignmentSelect={handleAssignmentSelect}
           />
         );
@@ -196,7 +231,7 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={isLoading}
+            loading={loading}
           />
         );
       default:
@@ -243,6 +278,7 @@ const TeacherDashboard = () => {
             onSectionChange={setSelectedSection}
           />
           
+          {error && <div className="error-message">{error}</div>}
           {renderActiveView()}
 
           <Pagination 

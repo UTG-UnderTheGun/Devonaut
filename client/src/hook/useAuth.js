@@ -41,16 +41,11 @@ const useAuth = (allowedRoles = null) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log('Checking auth for path:', pathname);
-
-        // Get stored role
         const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        console.log('Stored role:', storedRole);
 
         // Enforce teacher access restriction for student pages
         if (storedRole === 'teacher' && 
             (pathname.startsWith('/dashboard') || pathname.includes('/auth/level'))) {
-          console.log('Teacher trying to access student area, redirecting to teacher dashboard');
           router.push('/teacher/dashboard');
           setIsLoading(false);
           return;
@@ -58,14 +53,13 @@ const useAuth = (allowedRoles = null) => {
 
         // Enforce student restriction for teacher pages
         if (storedRole !== 'teacher' && pathname.startsWith('/teacher')) {
-          console.log('Unauthorized: Not a teacher, redirecting to dashboard');
           router.push('/dashboard');
           setError('Unauthorized access - Teacher role required');
           setIsLoading(false);
           return;
         }
 
-        const response = await axios.get(`${API_BASE}/users/me`, {
+        const response = await axios.get(`${API_BASE}/api/users/me`, {
           withCredentials: true,
           headers: {
             'X-User-Role': storedRole
@@ -78,14 +72,11 @@ const useAuth = (allowedRoles = null) => {
           role: storedRole
         };
         
-        console.log('User data with role:', userWithRole);
         setUser(userWithRole);
 
-        // Special handling for teachers - skip profile completion checks for teacher role
+        // Special handling for teachers - skip profile completion checks
         if (storedRole === 'teacher') {
-          // If already on level or profile page, redirect to teacher dashboard
           if (pathname.includes('/auth/profile') || pathname.includes('/auth/level')) {
-            console.log('Teacher on onboarding flow, redirecting to teacher dashboard');
             router.push('/teacher/dashboard');
             return;
           }
@@ -93,18 +84,15 @@ const useAuth = (allowedRoles = null) => {
           // For students, check if profile is complete
           const needsProfile = !userData.student_id || !userData.section || !userData.skill_level;
           
-          // Redirect to profile page if user needs to complete profile and not already there
           if (needsProfile && 
               !pathname.includes('/auth/profile') && 
               !pathname.includes('/auth/level')) {
-            console.log('User needs to complete profile, redirecting');
             router.push('/auth/profile');
             return;
           }
         }
 
         if (allowedRoles && !allowedRoles.includes(storedRole)) {
-          console.log('Unauthorized role, redirecting to dashboard');
           if (storedRole === 'teacher') {
             router.push('/teacher/dashboard');
           } else {
@@ -115,11 +103,9 @@ const useAuth = (allowedRoles = null) => {
         }
 
       } catch (err) {
-        console.error('Auth check error:', err);
         setError('Not authenticated');
         
         if (!pathname.includes('/auth/')) {
-          console.log('Not authenticated, redirecting to signin');
           router.push('/auth/signin');
         }
       } finally {

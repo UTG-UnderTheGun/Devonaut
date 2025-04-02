@@ -6,7 +6,7 @@ from fastapi_limiter import FastAPILimiter
 import redis.asyncio as redis
 import logging
 import asyncio
-from app.api.v1.endpoints import auth, user, code, ai, test
+from app.api.v1.endpoints import auth, user, code, ai, test, teacher
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from typing import Optional
 
@@ -147,6 +147,7 @@ app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(code.router, prefix="/code", tags=["api"])
 app.include_router(ai.router, prefix="/ai", tags=["ai"])
 app.include_router(test.router, prefix="/test", tags=["test"])
+app.include_router(teacher.router, prefix="/teacher", tags=["teacher"])
 
 
 if __name__ == "__main__":

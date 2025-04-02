@@ -29,11 +29,19 @@ const StudentTable = ({
     return '';
   };
 
-
   const handleRowClick = (student) => {
     setSelectedStudent(student);
     setShowModal(true);
   };
+
+  // Add an empty state component
+  const EmptyState = () => (
+    <div className="empty-state">
+      <div className="empty-icon">👥</div>
+      <h3>No Students Found</h3>
+      <p>There are no students matching your criteria.</p>
+    </div>
+  );
 
   return (
     <div className="table-container">
@@ -53,41 +61,53 @@ const StudentTable = ({
             <div className="loading-spinner" />
           </div>
         )}
-        <table className="student-table">
-          <thead>
-            <tr>
-              {['id', 'name', 'section', 'score'].map((key) => (
-                <th
-                  key={key}
-                  onClick={() => onSort(key)}
-                  className={sortConfig.key === key ? 'sorted' : ''}
-                >
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                  <span className="sort-indicator">{getSortIcon(key)}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((student, index) => (
-              <tr 
-                key={student.id} 
-                className={`${index % 2 === 1 ? 'alternate' : ''} clickable-row`}
-                onClick={() => handleRowClick(student)}
-              >
-                <td>{student.id}</td>
-                <td>{student.name}</td>
-                <td>{student.section}</td>
-                <td>
-                  <div className="score-cell">
-                    <div className="score-bar" style={{ width: `${student.score * 10}%` }}></div>
-                    <span className="score-value">{student.score}/10</span>
-                  </div>
-                </td>
+        
+        {!loading && (!data || data.length === 0) ? (
+          <EmptyState />
+        ) : (
+          <table className="student-table">
+            <thead>
+              <tr>
+                {['id', 'name', 'section', 'score'].map((key) => (
+                  <th
+                    key={key}
+                    onClick={() => onSort(key)}
+                    className={sortConfig.key === key ? 'sorted' : ''}
+                  >
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                    <span className="sort-indicator">{getSortIcon(key)}</span>
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.map((student, index) => (
+                <tr 
+                  key={`${student.id || 'unknown'}-${index}`}
+                  className={`${index % 2 === 1 ? 'alternate' : ''} clickable-row`}
+                  onClick={() => handleRowClick(student)}
+                >
+                  <td>{student.id || 'N/A'}</td>
+                  <td>{student.name || 'Unknown'}</td>
+                  <td>{student.section || 'Unassigned'}</td>
+                  <td>
+                    <div className="score-cell">
+                      <div 
+                        className="score-bar" 
+                        style={{ 
+                          width: `${typeof student.score === 'number' ? student.score * 10 : 0}%` 
+                        }}
+                      />
+                      <span className="score-value">
+                        {typeof student.score === 'number' ? student.score : 0}/10
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
