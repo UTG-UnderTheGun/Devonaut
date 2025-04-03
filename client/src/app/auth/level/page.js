@@ -17,6 +17,7 @@ export default function SkillLevel() {
     if (!skill) {
       return;
     }
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     setIsLoading(true);
     try {
@@ -34,7 +35,7 @@ export default function SkillLevel() {
         throw new Error('Failed to set skill level');
       }
 
-      router.push('/dashboard');
+      router.push('/coding');
     } catch (error) {
       console.error('Error setting skill level:', error);
     } finally {
@@ -96,8 +97,8 @@ export default function SkillLevel() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="btn btn-primary"
             disabled={!skill || isLoading}
           >

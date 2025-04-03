@@ -125,7 +125,9 @@ if environment == "production":
     if domain:
         allowed_origins.extend([
             f"https://{domain}",
-            f"http://{domain}"
+            f"http://{domain}",
+            f"https://www.{domain}",
+            f"http://www.{domain}",
         ])
 
 app.add_middleware(

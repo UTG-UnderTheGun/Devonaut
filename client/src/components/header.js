@@ -11,6 +11,7 @@ import axios from 'axios';
 import Loading from "@/app/loading";
 
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const ChevronDown = () => (
   <svg
@@ -75,25 +76,24 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // const handleRunCode = async () => {
-  //   try {
-  //     const response = await axios.post(`${API_BASE}/code/run-code`, {
-  //       code,
-  //     }, { withCredentials: true });
-      
-  //     if (response.data.error) {
-  //       setError(response.data.error);
-  //       setOutput('');
-  //     } else {
-  //       setOutput(response.data.output);
-  //       setError('');
-  //     }
-  //   } catch (err) {
-  //     console.log(err);
-  //     setError('Error connecting to the server');
-  //     setOutput('');
-  //   }
-  // };
+  const handleRunCode = async () => {
+    try {
+      const response = await axios.post(`${API_BASE}/code/run-code`, {
+        code,
+      }, { withCredentials: true });
+      if (response.data.error) {
+        setError(response.data.error);
+        setOutput('');
+      } else {
+        setOutput(response.data.output);
+        setError('');
+      }
+    } catch (err) {
+      console.log(err);
+      setError('Error connecting to the server');
+      setOutput('');
+    }
+  };
 
   const handleSignOut = async () => {
     try {

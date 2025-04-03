@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
-
 /**
  * A custom React hook for handling user authentication and role-based access
  * 
@@ -37,7 +36,6 @@ const useAuth = (allowedRoles = null) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -53,6 +51,7 @@ const useAuth = (allowedRoles = null) => {
 
         // Enforce student restriction for teacher pages
         if (storedRole !== 'teacher' && pathname.startsWith('/teacher')) {
+
           router.push('/dashboard');
           setError('Unauthorized access - Teacher role required');
           setIsLoading(false);
@@ -60,6 +59,7 @@ const useAuth = (allowedRoles = null) => {
         }
 
         const response = await axios.get(`${API_BASE}/api/users/me`, {
+
           withCredentials: true,
           headers: {
             'X-User-Role': storedRole
@@ -101,7 +101,6 @@ const useAuth = (allowedRoles = null) => {
           setError('Unauthorized access');
           return;
         }
-
       } catch (err) {
         setError('Not authenticated');
         
@@ -112,11 +111,8 @@ const useAuth = (allowedRoles = null) => {
         setIsLoading(false);
       }
     };
-
     checkAuth();
   }, [router, pathname, allowedRoles]);
-
   return { user, error, isLoading };
 };
-
 export default useAuth;

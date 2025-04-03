@@ -9,6 +9,7 @@ import Image from "next/image";
 
 export default function Register() {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
