@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import './signin.css';
@@ -18,6 +18,7 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [googleRedirectInfo, setGoogleRedirectInfo] = useState(null);
   const [showTULogin, setShowTULogin] = useState(false);
   const [tuFormData, setTuFormData] = useState({
     username: '',
@@ -32,6 +33,29 @@ export default function Login() {
     }));
   };
 
+  // Add effect to check if redirected from Google OAuth
+  useEffect(() => {
+    // Check for Google auth redirect data in URL hash or query params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('oauth') && urlParams.has('needs_profile')) {
+      const needsProfile = urlParams.get('needs_profile') === 'true';
+      const isNew = urlParams.get('is_new') === 'true';
+      
+      // Store information for later use
+      setGoogleRedirectInfo({ needsProfile, isNew });
+      
+      // Redirect to appropriate page
+      if (needsProfile) {
+        router.push('/auth/profile');
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [router]);
+
+  const googleSignin = async (e) => {
+    e.preventDefault();
+    console.log("Starting Google sign in")
   const handleTUChange = (e) => {
     const { name, value } = e.target;
     setTuFormData(prev => ({
@@ -49,6 +73,7 @@ export default function Login() {
     } catch (err) {
       console.error('Error during google login request');
     }
+  }
   };
 
   const tuSignin = async (e) => {
@@ -113,11 +138,11 @@ export default function Login() {
         },
       });
 
-      console.log('Full login response:', response.data); // Debug log
+      console.log('Full login response:', response.data);
 
       // Destructure and verify role
       const { access_token, role } = response.data;
-      console.log('Extracted role:', role); // Debug log
+      console.log('Extracted role:', role);
 
       if (!role) {
         console.error('No role received from server');
@@ -134,8 +159,6 @@ export default function Login() {
         sessionStorage.setItem('token', access_token);
         sessionStorage.setItem('userRole', role);
       }
-
-      console.log('Stored role:', localStorage.getItem('userRole') || sessionStorage.getItem('userRole')); // Verify storage
 
       setSuccess('Login successful! Redirecting...');
 
@@ -154,10 +177,20 @@ export default function Login() {
       }
 
       const userData = await userResponse.json();
-      console.log('User data from /users/me:', userData); // Debug log
+      console.log('User data from /users/me:', userData);
 
       setTimeout(() => {
+        // If teacher, go directly to teacher dashboard
         if (role === 'teacher') {
+          console.log('Redirecting to teacher dashboard...');
+          router.push('/teacher/dashboard');
+        } 
+        // If student with complete profile, go to dashboard
+        else if (userData.student_id && userData.section && userData.skill_level) {
+          router.push('/dashboard');
+        }
+        // If student with partial profile (has student_id and section but no skill_level)
+        else if (userData.student_id && userData.section) {
           console.log('Redirecting to teacher dashboard...'); // Debug log
           // router.push('/teacher/dashboard');
           router.push('/coding');
@@ -166,6 +199,10 @@ export default function Login() {
           router.push('/coding');
         } else {
           router.push('/auth/level');
+        }
+        // If student without profile, go to profile page
+        else {
+          router.push('/auth/profile');
         }
       }, 1500);
 
@@ -190,8 +227,10 @@ export default function Login() {
       <main className="signin-card">
         <div className="progress-steps">
           <div className="step active">1</div>
-          <div className="progress-line"></div>
+          <div className="progress-line active"></div>
           <div className="step inactive">2</div>
+          <div className="progress-line"></div>
+          <div className="step inactive">3</div>
         </div>
 
         {showTULogin ? (

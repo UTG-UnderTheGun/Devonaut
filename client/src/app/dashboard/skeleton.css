@@ -1,0 +1,289 @@
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-tabs,
+.skeleton-section {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, 
+    var(--gray-100) 0%, 
+    var(--gray-200) 50%, 
+    var(--gray-100) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-tab-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  background: var(--gray-100);
+  padding: 0.25rem;
+  border-radius: 8px;
+}
+
+.skeleton-tab {
+  height: 2.2rem;
+  border-radius: 6px;
+  background: var(--gray-200);
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+}
+
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  width: 10rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-subtitle {
+  height: 1rem;
+  width: 8rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.skeleton-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.skeleton-card-info {
+  flex: 1;
+}
+
+.skeleton-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-icon {
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-meta-item {
+  height: 1rem;
+  width: 5rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.skeleton-progress-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-progress-text {
+  height: 1rem;
+  width: 5rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skeleton-points {
+  height: 1.5rem;
+  width: 5rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-score {
+  height: 1rem;
+  width: 6rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-progress-info {
+  width: 6rem;
+}
+
+.skeleton-progress-label {
+  height: 0.75rem;
+  width: 3rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 0.25rem;
+}
+
+.skeleton-progress-title {
+  height: 1rem;
+  width: 5rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-progress-score {
+  height: 1rem;
+  width: 3rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    var(--gray-200) 0%, 
+    var(--gray-300) 50%, 
+    var(--gray-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .skeleton-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .skeleton-progress-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--gray-100);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .skeleton-progress-bar {
+    width: 100%;
+  }
+  
+  .skeleton-progress-score {
+    align-self: flex-end;
+  }
+  
+  .skeleton-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+.skeleton-tab-indicator {
+  position: absolute;
+  height: calc(100% - 8px);
+  background: var(--primary);
+  border-radius: 6px;
+  width: calc(33.33% - 0.5rem);
+  top: 4px;
+  left: 4px;
+  z-index: 1;
+  opacity: 0.95;
+} 
