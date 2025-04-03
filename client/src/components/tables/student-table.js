@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import "./student-table.css";
 import StudentDetailModal from './student-detail'; // Make sure path is correct
 
@@ -39,6 +39,7 @@ const StudentTable = ({
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(true);
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
     if (showModal) {
@@ -56,11 +57,17 @@ const StudentTable = ({
     return '';
   };
 
-  const handleRowClick = (student) => {
+  // Create a memoized handleRowClick function that always sets loading state first
+  const handleRowClick = useCallback((student) => {
+    // Prepare modal state before showing it
     setSelectedStudent(student);
     setModalLoading(true);
-    setShowModal(true);
-  };
+    
+    // Use requestAnimationFrame for smoother modal opening
+    requestAnimationFrame(() => {
+      setShowModal(true);
+    });
+  }, []);
 
   // Add an empty state component
   const EmptyState = () => (
@@ -78,16 +85,21 @@ const StudentTable = ({
           student={selectedStudent}
           loading={modalLoading}
           onClose={() => {
-            setShowModal(false);
+            setShowModal(false); // Immediately hide the modal
             setSelectedStudent(null);
+            setModalLoading(true); // Reset loading state for next time
           }}
         />
       )}
       
       <div className="table-wrapper">
-        {loading ? (
-          <TableSkeleton />
-        ) : !data || data.length === 0 ? (
+        {loading && (
+          <div className="loading-overlay">
+            <div className="loading-spinner" />
+          </div>
+        )}
+        
+        {!loading && (!data || data.length === 0) ? (
           <EmptyState />
         ) : (
           <table className="student-table">

@@ -16,14 +16,16 @@ import {
   stats, 
   ITEMS_PER_PAGE 
 } from '@/data/mockData.js';  // Removed students from import
+import DashboardSkeleton from './dashboard-skeleton';
 import './dashboard.css';
+import './dashboard-skeleton.css';
 import useAuth from '@/hook/useAuth';
 
 const TeacherDashboard = () => {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, error: authError, isLoading } = useAuth(['teacher']);
+  const { user, error: authError, isLoading: authLoading } = useAuth(['teacher']);
   
   const [activeView, setActiveView] = useState(searchParams.get('view') || 'students');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -77,7 +79,7 @@ const TeacherDashboard = () => {
     if (isReloading) return;
     
     setIsReloading(true);
-    setLoading(true); // Set the main loading state to true to show skeleton
+    setLoading(true); // This will show the skeleton if not using isReloading flag
     
     try {
       if (activeView === 'students') {
@@ -109,10 +111,10 @@ const TeacherDashboard = () => {
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
     
-    if (!isLoading && (!storedRole || storedRole !== 'teacher')) {
+    if (!authLoading && (!storedRole || storedRole !== 'teacher')) {
       router.push('/dashboard');
     }
-  }, [isLoading, router]);
+  }, [authLoading, router]);
 
   useEffect(() => {
     const view = searchParams.get('view');
@@ -129,8 +131,9 @@ const TeacherDashboard = () => {
     // Add other view data fetching here
   }, [activeView]);
 
-  if (isLoading) {
-    return <div>Loading...</div>;
+  // If we're loading auth or data, show skeleton
+  if (authLoading || loading && !isReloading) {
+    return <DashboardSkeleton />;
   }
 
   if (authError) {

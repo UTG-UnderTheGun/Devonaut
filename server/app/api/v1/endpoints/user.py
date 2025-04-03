@@ -247,11 +247,12 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
             {"role": "student"},
             {
                 "_id": 1,
-                "username": 1,
+                "username": 1,  # Include username as it might contain email
                 "name": 1,
                 "student_id": 1,
                 "section": 1,
-                "skill_level": 1
+                "skill_level": 1,
+                "email": 1       # Explicitly include email field
             }
         ))
 
@@ -262,7 +263,8 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
                 "id": user.get("student_id", "N/A"),
                 "name": user.get("name", "Unknown"),
                 "section": user.get("section", "Unassigned"),
-                "score": user.get("skill_level", 0)
+                "score": user.get("skill_level", 0),
+                "email": user.get("email", user.get("username", "N/A"))  # Try both email and username
             })
 
         return {

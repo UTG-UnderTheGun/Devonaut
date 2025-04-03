@@ -109,13 +109,34 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Simulate loading for demo - in real app this would be based on actual data loading
+  // Faster initial render
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
+    // Mount immediately
+    setMounted(true);
+    
+    // Use a shorter loading time
+    if (student) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300); // Reduced from 800ms to 300ms
+      return () => clearTimeout(timer);
+    }
+  }, [student]);
+
+  // Add class to body immediately when modal opens for smoother transitions
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => document.body.classList.remove('modal-open');
   }, []);
+
+  // Optimize the handleClose function for faster response
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    // Reduced timeout for faster closing
+    setTimeout(() => {
+      onClose();
+    }, 100); // Reduced from 200ms to 100ms
+  }, [onClose]);
 
   const completionRate = {
     completed: 8,
@@ -129,14 +150,6 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
     { id: 3, title: 'Array Assignment', score: 0, status: 'Pending', submittedDate: null },
     { id: 4, title: 'Function Assignment', score: 7, status: 'Completed', submittedDate: '2024-02-01' }
   ];
-
-  const handleClose = useCallback(() => {
-    setIsClosing(true);
-    setTimeout(() => {
-      document.body.style.overflow = 'unset';
-      onClose();
-    }, 300);
-  }, [onClose]);
 
   const handleAssignmentClick = (assignment) => {
     handleClose();
@@ -161,28 +174,32 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
     };
   }, [handleClose]);
 
-  // Format the student data for display
+  // Fix the studentInfo formatting to properly capture email from different possible sources
   const studentInfo = {
     id: student?.id || 'N/A',
     name: student?.name || 'Unknown',
-    email: student?.email || student?.username || 'N/A', // Try both email and username
+    // Try multiple possible sources for email
+    email: student?.email || student?.username || student?.user_email || 'N/A',
     section: student?.section || 'Unassigned',
     score: student?.score || student?.skill_level || 0,
   };
 
+  // Add debug logging to help identify what data is available
+  console.log('Student data in modal:', student);
+
   return (
     <div 
-      className={`student-modal-overlay ${isClosing ? 'modal-exit' : ''} ${mounted ? 'modal-enter' : ''}`}
+      className={`student-modal-overlay ${isClosing ? 'modal-exit' : ''}`}
       onClick={handleClose}
     >
       <div 
-        className={`student-modal-container ${isClosing ? 'modal-content-exit' : ''} ${mounted ? 'modal-content-enter' : ''}`}
+        className={`student-modal-container ${isClosing ? 'modal-content-exit' : ''}`}
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        {isLoading ? (
+        {(!student || isLoading) ? (
           <DetailSkeleton />
         ) : (
           <>
@@ -198,7 +215,7 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
             </div>
             
             <div className="student-modal-content">
-              <section className={`student-info-section ${mounted ? 'content-enter' : ''}`}>
+              <section className="student-info-section">
                 <h3>Personal Information</h3>
                 <div className="student-info-grid">
                   <InfoItem label="Student ID" value={studentInfo.id} />
@@ -208,7 +225,7 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
                 </div>
               </section>
 
-              <section className={`student-info-section ${mounted ? 'content-enter' : ''}`}>
+              <section className="student-info-section">
                 <h3>Academic Progress</h3>
                 <div className="student-stats-grid">
                   <StatCard 
@@ -226,7 +243,7 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
                 </div>
               </section>
 
-              <section className={`student-info-section ${mounted ? 'content-enter' : ''}`}>
+              <section className="student-info-section">
                 <h3>Assignment History</h3>
                 <div className="student-table-wrapper">
                   <table className="student-history-table">
@@ -266,7 +283,7 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
                 </div>
               </section>
 
-              <div className={`student-modal-actions ${mounted ? 'content-enter' : ''}`}>
+              <div className="student-modal-actions">
                 <button className="student-btn-primary">Edit Profile</button>
                 <button className="student-btn-secondary">Send Message</button>
                 <button className="student-btn-tertiary">Download Report</button>
