@@ -103,46 +103,62 @@ const StatusBadge = memo(({ status }) => {
   );
 });
 
+const getSkillLevelDisplay = (skillLevel) => {
+  if (!skillLevel) return { value: 'Not Set', label: 'Skill Level' };
+  
+  if (typeof skillLevel === 'string') {
+    const formatted = skillLevel.charAt(0).toUpperCase() + skillLevel.slice(1);
+    return { value: formatted, label: 'Skill Level' };
+  }
+  
+  if (typeof skillLevel === 'number') {
+    if (skillLevel <= 3) return { value: 'Beginner', label: 'Skill Level' };
+    if (skillLevel <= 7) return { value: 'Intermediate', label: 'Skill Level' };
+    return { value: 'Advanced', label: 'Skill Level' };
+  }
+  
+  return { value: 'Unknown', label: 'Skill Level' };
+};
+
+const getScoreDisplay = (score) => {
+  if (score === undefined || score === null) return 'Not Available';
+  if (typeof score === 'number') return `${score}/10`;
+  if (typeof score === 'string' && ['beginner', 'intermediate', 'advanced'].includes(score.toLowerCase())) {
+    return score.charAt(0).toUpperCase() + score.slice(1);
+  }
+  return score.toString();
+};
+
 const StudentDetailModal = ({ student, onClose, loading = false }) => {
   const router = useRouter();
   const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Faster initial render
   useEffect(() => {
-    // Mount immediately
     setMounted(true);
     
-    // Use a shorter loading time
     if (student) {
       const timer = setTimeout(() => {
         setIsLoading(false);
-      }, 300); // Reduced from 800ms to 300ms
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [student]);
 
-  // Add class to body immediately when modal opens for smoother transitions
   useEffect(() => {
     document.body.classList.add('modal-open');
     return () => document.body.classList.remove('modal-open');
   }, []);
 
-  // Optimize the handleClose function for faster response
   const handleClose = useCallback(() => {
     setIsClosing(true);
-    // Reduced timeout for faster closing
     setTimeout(() => {
       onClose();
-    }, 100); // Reduced from 200ms to 100ms
+    }, 100);
   }, [onClose]);
 
-  const completionRate = {
-    completed: 8,
-    total: 10,
-    percentage: (8 / 10) * 100
-  };
+  const skillLevel = getSkillLevelDisplay(student?.skill_level || student?.score);
 
   const assignmentHistory = [
     { id: 1, title: 'For Loop Assignment', score: 9, status: 'Completed', submittedDate: '2024-02-04' },
@@ -174,17 +190,14 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
     };
   }, [handleClose]);
 
-  // Fix the studentInfo formatting to properly capture email from different possible sources
   const studentInfo = {
     id: student?.id || 'N/A',
     name: student?.name || 'Unknown',
-    // Try multiple possible sources for email
     email: student?.email || student?.username || student?.user_email || 'N/A',
     section: student?.section || 'Unassigned',
-    score: student?.score || student?.skill_level || 0,
+    score: '0/10',
   };
 
-  // Add debug logging to help identify what data is available
   console.log('Student data in modal:', student);
 
   return (
@@ -229,16 +242,16 @@ const StudentDetailModal = ({ student, onClose, loading = false }) => {
                 <h3>Academic Progress</h3>
                 <div className="student-stats-grid">
                   <StatCard 
-                    value={`${studentInfo.score}/10`}
+                    value="0/10"
                     label="Overall Score"
                   />
                   <StatCard 
-                    value={`${completionRate.completed}/${completionRate.total}`}
-                    label="Assignments Completed"
+                    value={skillLevel.value}
+                    label={skillLevel.label}
                   />
                   <StatCard 
-                    value={`${completionRate.percentage}%`}
-                    label="Completion Rate"
+                    value={`${assignmentHistory.filter(a => a.status === 'Completed').length}/${assignmentHistory.length}`}
+                    label="Assignments Completed"
                   />
                 </div>
               </section>
