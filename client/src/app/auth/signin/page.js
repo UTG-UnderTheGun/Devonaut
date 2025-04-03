@@ -53,9 +53,6 @@ export default function Login() {
     }
   }, [router]);
 
-  const googleSignin = async (e) => {
-    e.preventDefault();
-    console.log("Starting Google sign in")
   const handleTUChange = (e) => {
     const { name, value } = e.target;
     setTuFormData(prev => ({
@@ -66,7 +63,7 @@ export default function Login() {
 
   const googleSignin = async (e) => {
     e.preventDefault();
-    console.log("This is google sign in");
+    console.log("Starting Google sign in")
 
     try {
       window.location.href = `${API_BASE}/auth/google`;
@@ -74,7 +71,6 @@ export default function Login() {
       console.error('Error during google login request');
     }
   }
-  };
 
   const tuSignin = async (e) => {
     e.preventDefault();
@@ -83,7 +79,7 @@ export default function Login() {
     setSuccess('');
 
     try {
-      const response = await axios.post(`${API_BASE}/auth/tu/login`, {
+      const response = await axios.post(`${API_BASE}/auth/tu`, {
         username: tuFormData.username,
         password: tuFormData.password,
       }, {
@@ -93,24 +89,63 @@ export default function Login() {
         },
       });
 
-      const { token } = response.data;
+      console.log('TU login response:', response.data);
 
-      // Store token in sessionStorage
-      sessionStorage.setItem('token', token);
+      // Destructure and verify role
+      const { access_token, role } = response.data;
+      
+      if (!role) {
+        console.error('No role received from server');
+        setError('Authentication error: No role assigned');
+        setIsLoading(false);
+        return;
+      }
 
-      setSuccess('TU Authentication successful! Redirecting...');
+      // Store role in localStorage/sessionStorage
+      if (formData.rememberMe) {
+        localStorage.setItem('token', access_token);
+        localStorage.setItem('userRole', role);
+      } else {
+        sessionStorage.setItem('token', access_token);
+        sessionStorage.setItem('userRole', role);
+      }
+
+      setSuccess('Login successful! Redirecting...');
+
+      // Add role to headers for subsequent requests
+      axios.defaults.headers.common['X-User-Role'] = role;
 
       const userResponse = await fetch(`${API_BASE}/users/me`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'X-User-Role': role
+        }
       });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
       const userData = await userResponse.json();
+      console.log('User data from /users/me:', userData);
 
       setTimeout(() => {
-        if (userData.skill_level) {
-          // router.push('/dashboard');
-          router.push('/coding');
-        } else {
+        // If teacher, go directly to teacher dashboard
+        if (role === 'teacher') {
+          console.log('Redirecting to teacher dashboard...');
+          router.push('/teacher/dashboard');
+        } 
+        // If student with complete profile, go to dashboard
+        else if (userData.student_id && userData.section && userData.skill_level) {
+          router.push('/dashboard');
+        }
+        // If student with partial profile (has student_id and section but no skill_level)
+        else if (userData.student_id && userData.section) {
           router.push('/auth/level');
+        }
+        // If student without profile, go to profile page
+        else {
+          router.push('/auth/profile');
         }
       }, 1500);
 
@@ -191,17 +226,11 @@ export default function Login() {
         }
         // If student with partial profile (has student_id and section but no skill_level)
         else if (userData.student_id && userData.section) {
-          console.log('Redirecting to teacher dashboard...'); // Debug log
-          // router.push('/teacher/dashboard');
-          router.push('/coding');
-        } else if (userData.skill_level) {
-          // router.push('/dashboard');
-          router.push('/coding');
-        } else {
           router.push('/auth/level');
         }
         // If student without profile, go to profile page
         else {
+          // If student without profile, go to profile page
           router.push('/auth/profile');
         }
       }, 1500);
