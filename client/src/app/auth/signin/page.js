@@ -53,9 +53,6 @@ export default function Login() {
     }
   }, [router]);
 
-  const googleSignin = async (e) => {
-    e.preventDefault();
-    console.log("Starting Google sign in")
   const handleTUChange = (e) => {
     const { name, value } = e.target;
     setTuFormData(prev => ({
@@ -73,7 +70,6 @@ export default function Login() {
     } catch (err) {
       console.error('Error during google login request');
     }
-  }
   };
 
   const tuSignin = async (e) => {
@@ -194,14 +190,13 @@ export default function Login() {
           console.log('Redirecting to teacher dashboard...'); // Debug log
           // router.push('/teacher/dashboard');
           router.push('/coding');
-        } else if (userData.skill_level) {
+        } 
+        else if (userData.skill_level) {
           // router.push('/dashboard');
           router.push('/coding');
-        } else {
-          router.push('/auth/level');
-        }
-        // If student without profile, go to profile page
+        } 
         else {
+          // If student without profile, go to profile page
           router.push('/auth/profile');
         }
       }, 1500);
