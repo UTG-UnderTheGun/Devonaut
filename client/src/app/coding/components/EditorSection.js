@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Editor from '@/components/editor';
 import StorageManager from '@/components/StorageManager';
+import QuestionManager from '@/app/coding/components/QuestionManager'; // Import the new component
 import Header from '@/components/header';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
@@ -35,6 +36,7 @@ const EditorSection = ({
   description,
   setDescription,
   setSelectedDescriptionTab,
+  user_id,
   handleClearImport,
   isConsoleFolded,
   setIsConsoleFolded
@@ -48,11 +50,49 @@ const EditorSection = ({
   const [lastKeystrokeTime, setLastKeystrokeTime] = useState(null);
   const KEYSTROKE_DEBOUNCE_TIME = 1000; // 1 second
 
-  // This wrapper is used when StorageManager calls onImport.
-  const handleImportWrapper = async (data) => {
-    handleClearImport();
+  // IMPORTANT: Move the debounced function to component level using useMemo
+  const debouncedSaveKeystrokes = useMemo(() =>
+    _.debounce(async (code, cursorPosition, problemIndex, type) => {
+      try {
+        const keystrokeData = {
+          code: code,
+          problem_index: problemIndex,
+          test_type: type,
+          cursor_position: cursorPosition,
+          timestamp: new Date().toISOString()
+        };
+
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,
+          keystrokeData,
+          { withCredentials: true }
+        );
+        console.log('Keystrokes tracked successfully');
+      } catch (err) {
+        console.error('Error tracking keystrokes:', err);
+      }
+    }, KEYSTROKE_DEBOUNCE_TIME),
+    [] // Empty dependency array ensures it's created once
+  );
+
+  // Handle import from QuestionManager
+  const handleQuestionImport = (questionsData) => {
+    // Make sure we have valid data
+    if (Array.isArray(questionsData) && questionsData.length > 0) {
+      // Call the existing import handler with the force reset parameter
+      handleImportWrapper(questionsData, true);
+    }
+  };
+
+  // This wrapper is used when StorageManager or QuestionManager calls onImport
+  const handleImportWrapper = async (data, forceReset = false) => {
+    // If forceReset is true, we want to clear chat history
+    if (forceReset) {
+      await handleClearImport();
+    }
+
     localStorage.setItem('saved-problems', JSON.stringify(data));
-    handleImport(data);
+    handleImport(data, forceReset);
 
     // Set the imported flag
     setIsImported(true);
@@ -70,8 +110,7 @@ const EditorSection = ({
     }
   };
 
-  // Load saved problems and other data from localStorage on mount.
-  // IMPORTANT: We removed the call to handleImport here to avoid double importing.
+  // Load saved problems and other data from localStorage on mount
   useEffect(() => {
     const savedProblems = localStorage.getItem('saved-problems');
     const savedAnswers = localStorage.getItem('problem-answers');
@@ -132,6 +171,7 @@ const EditorSection = ({
     // We intentionally use an empty dependency array so this runs only once.
   }, []);
 
+  // Track problem access
   const trackProblemAccess = async () => {
     try {
       const historyData = {
@@ -186,326 +226,6 @@ const EditorSection = ({
     }
   }, [currentProblemIndex, problems]);
 
-  useEffect(() => {
-    const loadProblemData = () => {
-      if (!problems || !problems[currentProblemIndex]) return;
-
-      const currentProblem = problems[currentProblemIndex];
-      const currentType = currentProblem.type || testType;
-
-      if (setTestType && currentType !== testType) {
-        setTestType(currentType);
-      }
-
-      const keysToTry = [
-        `code-${currentType}-${currentProblemIndex}`,
-        `editor-code-${currentType}-${currentProblemIndex}`,
-        `code-${testType}-${currentProblemIndex}`,
-        `starter-code-${currentProblemIndex}`
-      ];
-
-      let foundCode = null;
-      for (const key of keysToTry) {
-        const savedCode = localStorage.getItem(key);
-        if (savedCode) {
-          foundCode = savedCode;
-          console.log(`Found code for problem ${currentProblemIndex + 1} with key: ${key}`);
-          break;
-        }
-      }
-
-      if (!foundCode && currentProblem.starterCode) {
-        foundCode = currentProblem.starterCode;
-        console.log(`Using starter code for problem ${currentProblemIndex + 1}`);
-      }
-
-      if (foundCode) {
-        setEditorCodes(prev => ({
-          ...prev,
-          [currentProblemIndex]: foundCode
-        }));
-        if (editorRef.current) {
-          editorRef.current.setValue(foundCode);
-        }
-        if (handleCodeChange) {
-          handleCodeChange(foundCode);
-        }
-      }
-    };
-
-    loadProblemData();
-  }, [currentProblemIndex, problems, testType]);
-
-  // Create a debounced function to save keystrokes
-  const debouncedSaveKeystrokes = useCallback(
-    _.debounce(async (code, cursorPosition) => {
-      try {
-        const keystrokeData = {
-          code: code,
-          problem_index: currentProblemIndex,
-          test_type: testType,
-          cursor_position: cursorPosition,
-          timestamp: new Date().toISOString()
-        };
-
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,
-          keystrokeData,
-          { withCredentials: true }
-        );
-        console.log('Keystrokes tracked successfully');
-      } catch (err) {
-        console.error('Error tracking keystrokes:', err);
-      }
-    }, KEYSTROKE_DEBOUNCE_TIME),
-    [currentProblemIndex, testType]
-  );
-
-  // Update the handleEditorChange function
-  const handleEditorChange = (value) => {
-    setEditorCodes(prev => ({
-      ...prev,
-      [currentProblemIndex]: value
-    }));
-
-    const currentProblem = problems && problems[currentProblemIndex];
-    const currentType = currentProblem ? currentProblem.type || testType : testType;
-    localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
-
-    if (typeof handleCodeChange === 'function') {
-      handleCodeChange(value);
-    }
-
-    // Get cursor position if editor reference is available
-    let cursorPosition = null;
-    if (editorRef.current) {
-      const model = editorRef.current.getModel();
-      const selection = editorRef.current.getSelection();
-      if (model && selection) {
-        cursorPosition = {
-          lineNumber: selection.positionLineNumber,
-          column: selection.positionColumn
-        };
-      }
-    }
-
-    // Track keystrokes with debouncing
-    const now = Date.now();
-    if (!lastKeystrokeTime || now - lastKeystrokeTime >= KEYSTROKE_DEBOUNCE_TIME) {
-      debouncedSaveKeystrokes(value, cursorPosition);
-      setLastKeystrokeTime(now);
-    }
-  };
-
-  const handleResetAll = () => {
-    console.log("=== PERFORMING COMPLETE RESET ===");
-
-    // Set a reset timestamp to prevent immediate reloading
-    localStorage.setItem('editor_reset_timestamp', Date.now().toString());
-
-    // Reset UI state first
-    setShowEmptyState(true);
-    setIsImported(false);
-    localStorage.removeItem('is-imported');
-
-    // Clear ALL localStorage items related to code
-    // This ensures we don't have any lingering items regardless of naming pattern
-    const allKeys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key) {
-        allKeys.push(key);
-      }
-    }
-
-    // Define all patterns that could match code storage
-    const patternsToRemove = [
-      /^code-/,           // code-*
-      /^editor-code-/,    // editor-code-*
-      /^problem-code-/,   // problem-code-*
-      /^starter-code-/,   // starter-code-*
-      /^problem-title-/,  // problem-title-*
-      /^problem-description-/, // problem-description-*
-      /^output-/,         // output-*
-      /^editorCode$/,     // editorCode (exact match)
-      /^problem-code$/,   // problem-code (exact match)
-      /^problem-outputs$/,// problem-outputs (exact match)
-      /^problem-answers$/,// problem-answers (exact match)
-      /^problem-title$/,  // problem-title (exact match)
-      /^problem-description$/,// problem-description (exact match)
-      /^is-imported$/,    // is-imported (exact match)
-      /^saved-problems$/, // saved-problems (exact match)
-    ];
-
-    // Filter keys that match any pattern
-    const keysToRemove = allKeys.filter(key =>
-      patternsToRemove.some(pattern => pattern.test(key))
-    );
-
-    console.log("EditorSection: Clearing ALL localStorage keys:", keysToRemove);
-
-    // Remove all matched keys
-    keysToRemove.forEach(key => {
-      try {
-        localStorage.removeItem(key);
-      } catch (error) {
-        console.error(`Failed to remove key: ${key}`, error);
-      }
-    });
-
-    // Clear editor content using multiple approaches to ensure it works
-    if (editorRef.current) {
-      try {
-        // First try: direct setValue
-        editorRef.current.setValue('');
-
-        // Second try: with a small delay
-        setTimeout(() => {
-          if (editorRef.current) {
-            editorRef.current.setValue('');
-
-            // Some Monaco editor instances may need this
-            if (editorRef.current.getModel) {
-              const model = editorRef.current.getModel();
-              if (model) {
-                model.setValue('');
-              }
-            }
-          }
-        }, 10);
-      } catch (error) {
-        console.error("Error clearing editor:", error);
-      }
-    }
-
-    // Reset all state variables
-    setEditorCodes({});
-    setOutputAnswers({});
-    setTitle('');
-    setDescription('');
-    setConsoleOutput('');
-    setAnswers({});
-    setSelectedDescriptionTab('Description');
-
-    // Explicitly update the code through the parent handler
-    if (typeof handleCodeChange === 'function') {
-      handleCodeChange('');
-    }
-
-    // Do a final verification that problem-code-* entries are gone
-    setTimeout(() => {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (
-          key.startsWith('problem-code-') ||
-          key === 'problem-code' ||
-          key.startsWith('code-code-')
-        )) {
-          console.warn(`Key ${key} still exists after cleanup, forcing removal...`);
-          localStorage.removeItem(key);
-        }
-      }
-
-      // Dispatch reset events AFTER cleanup is complete
-      const resetEvent = new CustomEvent('code-reset', {
-        detail: {
-          problemIndex: currentProblemIndex,
-          complete: true,
-          priority: true,
-          timestamp: Date.now()
-        }
-      });
-      window.dispatchEvent(resetEvent);
-
-      const storageResetEvent = new CustomEvent('storage-reset', {
-        detail: {
-          source: 'reset-button',
-          complete: true,
-          priority: true,
-          timestamp: Date.now()
-        }
-      });
-      window.dispatchEvent(storageResetEvent);
-
-      // Call parent reset handler if provided
-      if (handleReset) {
-        handleReset();
-      }
-
-      console.log("Reset complete for problem", currentProblemIndex);
-    }, 20);
-
-    // Force final re-render after a delay as a final fallback
-    setTimeout(() => {
-      if (editorRef.current) {
-        editorRef.current.setValue('');
-      }
-    }, 100);
-  };
-
-  useEffect(() => {
-    console.log("Problems:", problems);
-    console.log("Current problem:", problems[currentProblemIndex]);
-    console.log("Test type:", testType);
-    if (problems && problems.length > 0 && problems[currentProblemIndex] &&
-      (problems[currentProblemIndex].title || problems[currentProblemIndex].description)) {
-      setShowEmptyState(false);
-    } else {
-      setShowEmptyState(true);
-    }
-  }, [problems, currentProblemIndex, testType]);
-
-  useEffect(() => {
-    const handleStorageReset = (event) => {
-      console.log("Storage reset detected:", event.detail);
-      // Clear all editor codes in state
-      setEditorCodes({});
-      setOutputAnswers({});
-
-      // Ensure editor content is cleared
-      if (editorRef.current) {
-        editorRef.current.setValue('');
-
-        // Force a refresh of the editor content
-        setTimeout(() => {
-          if (editorRef.current) {
-            editorRef.current.setValue('');
-          }
-        }, 0);
-      }
-
-      // If we have a complete reset, make sure to update parent state
-      if (event.detail?.complete && typeof handleCodeChange === 'function') {
-        handleCodeChange('');
-      }
-    };
-
-    window.addEventListener('storage-reset', handleStorageReset);
-    window.addEventListener('code-reset', handleStorageReset);
-
-    return () => {
-      window.removeEventListener('storage-reset', handleStorageReset);
-      window.removeEventListener('code-reset', handleStorageReset);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (problems && problems.length > 0 && problems[currentProblemIndex] && testType === 'output') {
-      const currentProblem = problems[currentProblemIndex];
-      if (currentProblem.expectedOutput && currentProblem.expectedOutput.trim() !== '') {
-        setOutputAnswers(prev => {
-          const newOutputAnswers = { ...prev };
-          if (!newOutputAnswers[currentProblemIndex]) {
-            newOutputAnswers[currentProblemIndex] = currentProblem.expectedOutput;
-            localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
-            console.log(`Set output answer for problem ${currentProblemIndex} to: ${currentProblem.expectedOutput}`);
-          }
-          return newOutputAnswers;
-        });
-      }
-    }
-  }, [problems, currentProblemIndex, testType]);
-
   const handleRunCode = async () => {
     // If console is folded, unfold it before running code
     if (setConsoleOutput && isConsoleFolded) {
@@ -555,41 +275,43 @@ const EditorSection = ({
     }
   };
 
-  const handleSubmitCode = async () => {
-    console.log('Submitting code...');
+  // Handle editor change
+  const handleEditorChange = (value) => {
+    setEditorCodes(prev => ({
+      ...prev,
+      [currentProblemIndex]: value
+    }));
 
-    try {
-      // We should preserve this code since submission is a special type of history
-      // that the backend run-code endpoint doesn't handle automatically
+    // Save to localStorage
+    if (problems && problems[currentProblemIndex]) {
+      const currentType = problems[currentProblemIndex].type || testType;
+      localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
+    }
 
-      // First run the code to get output
-      const runResponse = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`,
-        { code },
-        { withCredentials: true }
-      );
+    // Call parent handler if provided
+    if (typeof handleCodeChange === 'function') {
+      handleCodeChange(value);
+    }
 
-      // Then save the submission history with the special is_submission flag
-      const historyData = {
-        code: code,
-        problem_index: currentProblemIndex,
-        test_type: testType,
-        output: runResponse.data.output || '',
-        error: runResponse.data.error || '',
-        is_submission: true,
-        action_type: 'submit'
-      };
+    // Track keystrokes with debouncing
+    const now = Date.now();
+    if (!lastKeystrokeTime || now - lastKeystrokeTime >= KEYSTROKE_DEBOUNCE_TIME) {
+      // Get cursor position if editor reference is available
+      let cursorPosition = null;
+      if (editorRef.current) {
+        const model = editorRef.current.getModel();
+        const selection = editorRef.current.getSelection();
+        if (model && selection) {
+          cursorPosition = {
+            lineNumber: selection.positionLineNumber,
+            column: selection.positionColumn
+          };
+        }
+      }
 
-      // This is still needed because the backend run-code endpoint 
-      // doesn't mark submissions differently
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/save-code-history`,
-        historyData,
-        { withCredentials: true }
-      );
-      console.log('Code submission history saved successfully');
-    } catch (err) {
-      console.error('Error saving code submission history:', err);
+      // Call debounced keystroke tracking
+      debouncedSaveKeystrokes(value, cursorPosition, currentProblemIndex, testType);
+      setLastKeystrokeTime(now);
     }
   };
 
@@ -604,10 +326,14 @@ const EditorSection = ({
               <span className="action-icon">▶</span>
               Run
             </button>
+
+            {/* Add Question Manager component here */}
+            <QuestionManager onImport={handleQuestionImport} />
+
           </div>
           <div className="import-section">
             <StorageManager onImport={handleImportWrapper} currentProblemIndex={currentProblemIndex} testType={testType} />
-            <button onClick={handleResetAll} className="icon-button" title="Reset">Reset</button>
+            <button onClick={handleReset} className="icon-button" title="Reset">Reset</button>
           </div>
           {!showEmptyState && problems && problems.length > 0 && problems[0].title && (
             <div className="navigation-section">
@@ -644,6 +370,7 @@ const EditorSection = ({
     </div>
   );
 
+  // renderEditorContent function to display the appropriate editor based on question type
   function renderEditorContent() {
     console.log("Rendering with type:", testType);
     if (!problems || !problems[currentProblemIndex]) {
@@ -661,6 +388,7 @@ const EditorSection = ({
       setTestType(effectiveTestType);
     }
 
+    // Get saved code for the current problem
     const getSavedCode = () => {
       // Check if we're in a reset state first
       const isResetState = showEmptyState || !localStorage.getItem('saved-problems');
@@ -707,6 +435,7 @@ const EditorSection = ({
       return '';
     };
 
+    // Get the current code
     let currentCode = '';
     try {
       currentCode = getSavedCode() || '';
@@ -716,6 +445,7 @@ const EditorSection = ({
       return <div className="error">เกิดข้อผิดพลาดในการโหลดโค้ด: {error.message}</div>;
     }
 
+    // Render appropriate editor based on test type
     switch (effectiveTestType) {
       case 'code':
         console.log("Rendering code type");

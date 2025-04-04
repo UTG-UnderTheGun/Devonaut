@@ -38,10 +38,12 @@ export default function CodingPage() {
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const [testType, setTestType] = useState('code');
   const [answers, setAnswers] = useState({});
+  const [outputAnswers, setOutputAnswers] = useState({});
   const [problemCodes, setProblemCodes] = useState({});
   const editorRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [aiChatKey, setAiChatKey] = useState(Date.now()); // Used to force re-render of AIChatInterface
+  const [importTimestamp, setImportTimestamp] = useState(Date.now()); // Added to force re-renders on import
   const [problems, setProblems] = useState([
     {
       id: 1,
@@ -51,6 +53,46 @@ export default function CodingPage() {
       starterCode: ''
     }
   ]);
+
+  // Debug helper function to analyze user answers
+  const debugUserAnswers = (data) => {
+    console.group('Debug User Answers');
+    
+    if (Array.isArray(data)) {
+      console.log('Input is an array with', data.length, 'problems');
+      
+      data.forEach((problem, index) => {
+        console.group(`Problem ${index + 1} (ID: ${problem.id})`);
+        console.log('Type:', problem.type);
+        console.log('Title:', problem.title);
+        
+        if (problem.userAnswers) {
+          console.log('Has userAnswers:', problem.userAnswers);
+          
+          if (problem.type === 'fill' && problem.userAnswers.fillAnswers) {
+            console.log('Fill Answers:', problem.userAnswers.fillAnswers);
+            
+            // Extract structure of fill answers
+            Object.entries(problem.userAnswers.fillAnswers).forEach(([key, value]) => {
+              const [_, problemId, blankIndex] = key.split('-');
+              console.log(`  Key format: problem ID=${problemId}, blank index=${blankIndex}, value=${value}`);
+            });
+          } else if (problem.type === 'output') {
+            console.log('Output Answer:', problem.userAnswers.answer || 'Not set');
+          }
+        } else {
+          console.log('No userAnswers data');
+        }
+        console.groupEnd();
+      });
+    } else {
+      console.log('Input is a single problem object');
+      console.log('Type:', data.type);
+      console.log('Has userAnswers:', !!data.userAnswers);
+    }
+    
+    console.groupEnd();
+  };
 
   // Complete clearing of conversation history and interface state
   const handleClearImport = async () => {
@@ -85,7 +127,6 @@ export default function CodingPage() {
     }
   };
 
-  // Handle file imports, with option to force reset chat
   const handleImport = async (data, forceReset = false) => {
     console.log("Importing data:", data);
     if (!data) {
@@ -93,75 +134,197 @@ export default function CodingPage() {
       return;
     }
 
+    // Debug user answers in the imported data
+    debugUserAnswers(data);
+
+    // Clear existing data before import
+    // Reset relevant states to ensure clean start
+    setCode("");
+    setConsoleOutput("");
+
     // Clear chat history if this is a new file import
     if (user_id && forceReset) {
       await handleClearImport();
     }
 
     // Process problems data and update state/localStorage
+    let validData = [];
+    let extractedAnswers = {};
+    let extractedOutputAnswers = {};
+
     if (Array.isArray(data)) {
       if (data.length === 0) {
         console.error("Empty problem array");
         return;
       }
-      const validData = data.map((problem, index) => ({
-        ...problem,
-        id: problem.id || index + 1,
-        type: problem.type || 'code',
-        title: problem.title || `Problem ${index + 1}`,
-        description: problem.description || '',
-        starterCode: problem.starterCode || problem.code || ''
-      }));
-      setProblems(validData);
-      setCurrentProblemIndex(0);
 
-      // Upload exercises data for quota tracking if user_id is available.
-      if (user_id) {
-        try {
-          const exercisesData = JSON.stringify(validData);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/upload-exercises`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id, exercises_data: exercisesData }),
-          });
-          if (!response.ok) throw new Error('Failed to upload exercises data');
-          const result = await response.json();
-          console.log('Exercises upload result:', result);
-        } catch (error) {
-          console.error('Error uploading exercises data:', error);
+      validData = data.map((problem, index) => {
+        // Extract user answers if they exist
+        if (problem.userAnswers) {
+          // For 'fill' type questions, get the fillAnswers
+          if (problem.type === 'fill' && problem.userAnswers.fillAnswers) {
+            Object.entries(problem.userAnswers.fillAnswers).forEach(([key, value]) => {
+              extractedAnswers[key] = value;
+            });
+          }
+          // For 'output' type questions, store the answer
+          else if (problem.type === 'output') {
+            if (problem.userAnswers.answer) {
+              extractedOutputAnswers[index] = problem.userAnswers.answer;
+            }
+          }
         }
-      }
+
+        return {
+          ...problem,
+          id: problem.id || index + 1,
+          type: problem.type || 'code',
+          title: problem.title || `Problem ${index + 1}`,
+          description: problem.description || '',
+          starterCode: problem.starterCode || problem.code || ''
+        };
+      });
     } else {
       // Process a single problem object
       const validProblem = {
         ...data,
-        id: data.id || 1,
+        id: data.id || 1, 
         type: data.type || 'code',
         title: data.title || 'Problem',
         description: data.description || '',
         starterCode: data.starterCode || data.code || ''
       };
-      setProblems([validProblem]);
-      setCurrentProblemIndex(0);
-      if (user_id) {
-        try {
-          const exercisesData = JSON.stringify([validProblem]);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/upload-exercises`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id, exercises_data: exercisesData }),
+      
+      // Extract user answers from the single problem
+      if (data.userAnswers) {
+        if (data.type === 'fill' && data.userAnswers.fillAnswers) {
+          Object.entries(data.userAnswers.fillAnswers).forEach(([key, value]) => {
+            extractedAnswers[key] = value;
           });
-          if (!response.ok) throw new Error('Failed to upload exercise data');
-          const result = await response.json();
-          console.log('Exercise upload result:', result);
-        } catch (error) {
-          console.error('Error uploading exercise data:', error);
         }
+        else if (data.type === 'output' && data.userAnswers.answer) {
+          extractedOutputAnswers[0] = data.userAnswers.answer;
+        }
+      }
+      
+      validData = [validProblem];
+    }
+
+    // Update problems state
+    setProblems(validData);
+    setCurrentProblemIndex(0);
+    
+    // Update answers with the extracted data
+    if (Object.keys(extractedAnswers).length > 0) {
+      console.log('Setting fill answers:', extractedAnswers);
+      setAnswers(extractedAnswers);
+      localStorage.setItem('problem-answers', JSON.stringify(extractedAnswers));
+    }
+
+    // Update output answers if any were found
+    if (Object.keys(extractedOutputAnswers).length > 0) {
+      console.log('Setting output answers:', extractedOutputAnswers);
+      setOutputAnswers(extractedOutputAnswers);
+      localStorage.setItem('problem-outputs', JSON.stringify(extractedOutputAnswers));
+    }
+
+    // Set type based on the first problem
+    if (validData[0] && validData[0].type) {
+      setTestType(validData[0].type);
+    }
+
+    // Set initial code from starterCode if available
+    if (validData[0] && validData[0].starterCode) {
+      setCode(validData[0].starterCode);
+
+      // If editor reference exists, update it directly as well
+      if (editorRef.current) {
+        editorRef.current.setValue(validData[0].starterCode);
+      }
+
+      // Save to localStorage for the specific problem
+      const codeKey = `code-${validData[0].type || 'code'}-0`;
+      localStorage.setItem(codeKey, validData[0].starterCode);
+
+      // Update problemCodes state
+      setProblemCodes(prev => ({
+        ...prev,
+        [codeKey]: validData[0].starterCode
+      }));
+    }
+
+    // Set initial title and description
+    if (validData[0]) {
+      setTitle(validData[0].title || '');
+      setDescription(validData[0].description || '');
+
+      // Update localStorage
+      localStorage.setItem('problem-title', validData[0].title || '');
+      localStorage.setItem('problem-description', validData[0].description || '');
+    }
+
+    // Upload exercises data for quota tracking if user_id is available
+    if (user_id) {
+      try {
+        const exercisesData = JSON.stringify(validData);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/upload-exercises`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id, exercises_data: exercisesData }),
+        });
+
+        if (!response.ok) throw new Error('Failed to upload exercises data');
+        const result = await response.json();
+        console.log('Exercises upload result:', result);
+      } catch (error) {
+        console.error('Error uploading exercises data:', error);
       }
     }
 
     // Save problems data to localStorage
-    localStorage.setItem('saved-problems', JSON.stringify(Array.isArray(data) ? data : [data]));
+    localStorage.setItem('saved-problems', JSON.stringify(validData));
+    localStorage.setItem('problemsImported', 'true');
+
+    // Force re-render of AI chat interface
+    setAiChatKey(Date.now());
+    
+    // Force re-render of the entire component tree by updating importTimestamp
+    setImportTimestamp(Date.now());
+
+    // Set appropriate tabs based on the problem type
+    if (validData[0] && validData[0].type !== 'code') {
+      setIsConsoleFolded(true);
+      setSelectedDescriptionTab('ASK AI');
+    } else {
+      setIsConsoleFolded(false);
+      setSelectedDescriptionTab('Description');
+    }
+
+    // Dispatch event for any components that need to update
+    window.dispatchEvent(new CustomEvent('problems-imported', {
+      detail: {
+        timestamp: Date.now(),
+        problemCount: validData.length
+      }
+    }));
+    
+    // Add a new event: import-complete to signal final completion
+    window.dispatchEvent(new CustomEvent('import-complete', {
+      detail: {
+        timestamp: Date.now(),
+        problemCount: validData.length
+      }
+    }));
+
+    // Provide user feedback
+    setConsoleOutput("Problems imported successfully.");
+
+    // Optionally show toast notification
+    if (window.showToast) {
+      window.showToast(`Successfully imported ${validData.length} problem(s)`);
+    }
+
+    console.log(`Import complete. Loaded ${validData.length} problem(s).`);
   };
 
   // Listen for "file-import" events
@@ -178,6 +341,9 @@ export default function CodingPage() {
 
       // Force re-render the AIChatInterface by updating its key
       setAiChatKey(Date.now());
+      
+      // Update the import timestamp to force re-render throughout the app
+      setImportTimestamp(Date.now());
     };
 
     window.addEventListener('file-import', onFileImportEvent);
@@ -194,12 +360,30 @@ export default function CodingPage() {
       const storedConsoleFolded = localStorage.getItem('isConsoleFolded');
       const storedDescriptionFolded = localStorage.getItem('isDescriptionFolded');
       const storedProblems = localStorage.getItem('saved-problems');
+      const storedAnswers = localStorage.getItem('problem-answers');
+      const storedOutputs = localStorage.getItem('problem-outputs');
 
       if (storedTitle) setTitle(storedTitle);
       if (storedDescription) setDescription(storedDescription);
       if (storedCode) setCode(storedCode);
       if (storedConsoleFolded) setIsConsoleFolded(storedConsoleFolded === 'true');
       if (storedDescriptionFolded) setIsDescriptionFolded(storedDescriptionFolded === 'true');
+      
+      if (storedAnswers) {
+        try {
+          setAnswers(JSON.parse(storedAnswers));
+        } catch (error) {
+          console.error('Error parsing stored answers:', error);
+        }
+      }
+      
+      if (storedOutputs) {
+        try {
+          setOutputAnswers(JSON.parse(storedOutputs));
+        } catch (error) {
+          console.error('Error parsing stored outputs:', error);
+        }
+      }
 
       if (storedProblems) {
         try {
@@ -304,23 +488,6 @@ export default function CodingPage() {
     }
   }, [testType]);
 
-  // Load answers from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedAnswers = localStorage.getItem('problem-answers');
-      if (savedAnswers) {
-        setAnswers(JSON.parse(savedAnswers));
-      }
-    }
-  }, []);
-
-  // Save answers to localStorage when they change
-  useEffect(() => {
-    if (answers && Object.keys(answers).length > 0) {
-      localStorage.setItem('problem-answers', JSON.stringify(answers));
-    }
-  }, [answers]);
-
   // Set test type based on the current problem
   useEffect(() => {
     if (problems && problems[currentProblemIndex] && problems[currentProblemIndex].type) {
@@ -415,35 +582,96 @@ export default function CodingPage() {
   };
 
   const handleReset = () => {
+    // Reset editor content if reference exists
     if (editorRef.current) {
       editorRef.current.setValue('');
     }
+
+    // Reset state values
     setTitle('');
     setDescription('');
     setConsoleOutput('');
     setCode('');
-    setProblemCodes(prev => {
-      const newCodes = { ...prev };
-      Object.keys(newCodes).forEach(key => {
-        if (key.includes(`-${currentProblemIndex}`)) {
-          delete newCodes[key];
-        }
-      });
-      return newCodes;
-    });
-    const newOutputAnswers = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
-    if (newOutputAnswers[currentProblemIndex]) {
-      delete newOutputAnswers[currentProblemIndex];
-      localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+
+    // Clear all problem codes for all indices
+    setProblemCodes({});
+
+    // Reset answers state
+    setAnswers({});
+    setOutputAnswers({});
+
+    // Clear problem outputs
+    localStorage.setItem('problem-outputs', JSON.stringify({}));
+    localStorage.setItem('problem-answers', JSON.stringify({}));
+
+    // Clear all localStorage items related to problems
+    const keysToRemove = [];
+
+    // Scan localStorage for all keys to remove
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+
+      // Check for various problem-related prefixes
+      if (key && (
+        key.startsWith('problem-title-') ||
+        key.startsWith('problem-description-') ||
+        key.startsWith('problem-code-') ||
+        key.startsWith('code-code-') ||
+        key.startsWith('code-output-') ||
+        key.startsWith('code-fill-') ||
+        key === 'problem-title' ||
+        key === 'problem-description' ||
+        key === 'problem-answers' ||
+        key === 'problem-outputs' ||
+        key === 'editorCode'
+      )) {
+        keysToRemove.push(key);
+      }
     }
-    localStorage.removeItem('problem-title');
-    localStorage.removeItem('problem-description');
-    const typesToClear = ['code', 'output', 'fill'];
-    typesToClear.forEach(type => {
-      localStorage.removeItem(`code-${type}-${currentProblemIndex}`);
-      localStorage.removeItem(`editor-code-${type}-${currentProblemIndex}`);
+
+    // Remove all identified keys
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
     });
-    console.log("Reset handler executed for problem", currentProblemIndex);
+
+    // Reset problems array with a default empty problem
+    const defaultProblems = [{
+      id: 1,
+      type: 'code',
+      title: '',
+      description: '',
+      starterCode: ''
+    }];
+
+    setProblems(defaultProblems);
+    setCurrentProblemIndex(0);
+
+    // Clear saved problems and reset import flag
+    localStorage.removeItem('saved-problems');
+    localStorage.removeItem('problemsImported');
+
+    // Set reset timestamp
+    const resetTimestamp = Date.now().toString();
+    localStorage.setItem('reset_timestamp', resetTimestamp);
+
+    // Force re-render of AI chat interface
+    setAiChatKey(resetTimestamp);
+    
+    // Force re-render of the entire component tree
+    setImportTimestamp(resetTimestamp);
+
+    // Trigger a UI refresh event for components that need to re-render
+    window.dispatchEvent(new CustomEvent('app-reset', { detail: { timestamp: resetTimestamp } }));
+
+    // Display feedback to the user
+    setConsoleOutput("All problems have been reset successfully.");
+
+    console.log(`Reset complete. Cleared ${keysToRemove.length} localStorage items.`);
+
+    // Optionally notify the user with a toast message
+    if (window.showToast) {
+      window.showToast("All problems have been reset successfully");
+    }
   };
 
   const getCurrentProblemId = () => {
@@ -502,6 +730,8 @@ export default function CodingPage() {
     handleNextProblem,
     answers,
     setAnswers,
+    outputAnswers,
+    setOutputAnswers, // Make sure this is included
     consoleOutput,
     setConsoleOutput,
     handleReset,
@@ -532,7 +762,10 @@ export default function CodingPage() {
           key={`desc-panel-${getCurrentProblemId() || 'global'}-${aiChatKey}`}
         />
         <div className="editor-container">
-          <EditorSection {...editorProps} />
+          <EditorSection 
+            {...editorProps} 
+            key={`editor-section-${currentProblemIndex}-${importTimestamp}`} // Key forces re-render on problem change or import
+          />
           <ConsoleSection {...consoleProps} />
         </div>
       </div>

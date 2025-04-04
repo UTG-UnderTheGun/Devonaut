@@ -45,7 +45,7 @@ async def register(user: User):
     """
     # Check if username already exists
     if get_user(collection, user.username):
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     # Create user document
     user_doc = {
