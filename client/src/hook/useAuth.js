@@ -58,7 +58,7 @@ const useAuth = (allowedRoles = null) => {
           return;
         }
 
-        const response = await axios.get(`${API_BASE}/api/users/me`, {
+        const response = await axios.get(`${API_BASE}/users/me`, {
 
           withCredentials: true,
           headers: {
