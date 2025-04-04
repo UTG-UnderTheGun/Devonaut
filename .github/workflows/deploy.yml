@@ -8,8 +8,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
@@ -19,6 +17,4 @@ jobs:
       
       - name: Deploy to EC2
         run: |
-          scp -r docker-compose.prod.yml ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/Devonaut
-          scp -r .env ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/app/ || echo "No .env file"
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "cd ~/Devonaut && sudo docker-compose -f docker-compose.prod.yml up -d --build"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "cd ~/Devonaut && git pull origin feature/create-questions && sudo docker-compose -f docker-compose.prod.yml down && sudo docker-compose -f docker-compose.prod.yml up -d --build"
