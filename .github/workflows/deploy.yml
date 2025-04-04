@@ -8,24 +8,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Debug SSH connection
-        env:
-          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          HOSTNAME: ${{ secrets.SSH_HOST }}
-          USER_NAME: ${{ secrets.USER_NAME }}
+      
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add host to known_hosts
         run: |
-          echo "$PRIVATE_KEY" > private_key
-          chmod 600 private_key
-          echo "Attempting to connect to ${USER_NAME}@${HOSTNAME}..."
-          ssh -i private_key ${USER_NAME}@${HOSTNAME} 'echo "Connection successful"'
-          
+          mkdir -p ~/.ssh
+          ssh-keyscan ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      
       - name: Deploy with Docker Compose
-        if: success()
-        env:
-          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          HOSTNAME: ${{ secrets.SSH_HOST }}
-          USER_NAME: ${{ secrets.USER_NAME }}
         run: |
-          ssh -v -i private_key ${USER_NAME}@${HOSTNAME} '
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.SSH_HOST }} '
             sudo docker-compose -f docker-compose.prod.yml up -d --build
           '
