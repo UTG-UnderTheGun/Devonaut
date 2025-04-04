@@ -22,7 +22,7 @@ services:
         limits:
           cpus: "0.2"
           memory: 128M
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
   certbot:
     image: certbot/certbot
     container_name: devonaut-certbot
@@ -53,7 +53,7 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - API_BASE=https://13.229.116.7/api  # Updated to HTTPS
+      - API_BASE=https://13.229.116.7/api # Updated to HTTPS
     deploy:
       resources:
         limits:
@@ -106,7 +106,7 @@ services:
     environment:
       - NODE_ENV=production
       - SERVER_API=http://server:8000
-      - NEXT_PUBLIC_API_URL=https://13.229.116.7/api  # Updated to HTTPS
+      - NEXT_PUBLIC_API_URL=https://13.229.116.7/api # Updated to HTTPS
     networks:
       - app-network
     deploy:
