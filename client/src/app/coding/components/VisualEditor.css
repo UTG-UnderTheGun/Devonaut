@@ -1,0 +1,82 @@
+/* VisualEditor.css */
+.visual-editor {
+  width: 100%;
+  height: 100px; /* Fixed height so that Monaco can scroll its content */
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden; /* Monaco’s internal scrollbar will be used */
+}
+
+.code-editor-container,
+.fill-editor-container,
+.output-editor-container {
+  flex: 1; /* Allow these containers to fill the parent's height */
+  position: relative;
+}
+
+.visual-editor .monaco-editor {
+  height: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding-top: 8px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+}
+
+.blank-info,
+.output-info {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background-color: #ebf4ff;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #4a6cf7;
+  border-left: 3px solid #4a6cf7;
+}
+
+.output-info {
+  background-color: #f0fff4;
+  color: #38a169;
+  border-left: 3px solid #38a169;
+}
+
+.blank-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #fff8dc;
+  color: #806600;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 500;
+}
+
+/* Styling for fill blanks */
+.code-blank-inline {
+  display: inline-block;
+  background-color: #ebf4ff;
+  border: 1px dashed #4a6cf7;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin: 0 2px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  min-width: 80px;
+  height: 1.6em;
+  vertical-align: middle;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .visual-editor .monaco-editor {
+    min-height: 200px;
+  }
+  
+  .blank-info,
+  .output-info {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}
