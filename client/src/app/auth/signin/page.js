@@ -79,7 +79,7 @@ export default function Login() {
     setSuccess('');
 
     try {
-      const response = await axios.post(`${API_BASE}/api/auth/tu/login`, {
+      const response = await axios.post(`${API_BASE}/auth/tu/login`, {
         username: tuFormData.username,
         password: tuFormData.password,
       }, {
