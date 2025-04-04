@@ -25,7 +25,9 @@ GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI") or "http://localhost:8000/auth/google/callback"
+GOOGLE_REDIRECT_URI = (
+    os.getenv("OAUTH_REDIRECT_URI") or "http://localhost:8000/auth/google/callback"
+)
 FRONTEND_URL = os.getenv("FRONTEND_URL") or "http://localhost:3000"
 GOOGLE_REDIRECT_URI = "https://www.mari0nette.com/api/auth/google/callback"
 
@@ -117,7 +119,7 @@ async def login(response: Response, user: User):
 
 async def login_with_tu(response: Response, username: str, password: str):
     """
-    Authenticate user with Thammasat University API
+    Authenticate user with Thammasat University API and store comprehensive user data
     """
     try:
         async with httpx.AsyncClient() as client:
@@ -130,9 +132,6 @@ async def login_with_tu(response: Response, username: str, password: str):
                     "Application-Key": TU_APPLICATION_KEY,
                 },
             )
-            # logger.error(
-            #     f"TU API Response: {auth_response.status_code} - {auth_response.text}"
-            # )
 
             # Check if the response is successful
             if auth_response.status_code != 200:
@@ -153,43 +152,61 @@ async def login_with_tu(response: Response, username: str, password: str):
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            # Get user data from TU API
-            user_data = tu_data
-            tu_username = user_data.get("username", username)
-            tu_email = user_data.get("email", f"{username}@dome.tu.ac.th")
-            tu_name = user_data.get("displayname_en", "")
+            # Extract all available user data from TU API
+            user_type = tu_data.get("type", "student").lower()
+            tu_username = tu_data.get("username", username)
+            tu_email = tu_data.get("email", f"{username}@dome.tu.ac.th")
+            tu_name_en = tu_data.get("displayname_en", "")
+            tu_name_th = tu_data.get("displayname_th", "")
+            tu_status = tu_data.get("tu_status", "")
+            tu_status_id = tu_data.get("statusid", "")
+            tu_department = tu_data.get("department", "")
+            tu_faculty = tu_data.get("faculty", "")
 
             # Check if user exists in our database
             existing_user = get_user(collection, tu_username)
 
-            # If user doesn't exist, create one
+            # Prepare user document with all available TU data
+            user_doc = {
+                "username": tu_username,
+                "email": tu_email,
+                "name": tu_name_en,
+                "name_th": tu_name_th,
+                "tu_status": tu_status,
+                "status_id": tu_status_id,
+                "department": tu_department,
+                "faculty": tu_faculty,
+                "role": user_type,  # Set role based on TU API response
+                "updated_at": datetime.utcnow(),
+                "tu_verified": True,
+            }
+
             if not existing_user:
-                # Generate a random password since we'll be using TU authentication
-                hashed_password = get_password_hash("tu_authenticated_user")
+                # For new users, add creation-specific fields
+                user_doc.update(
+                    {
+                        "hashed_password": get_password_hash("tu_authenticated_user"),
+                        "created_at": datetime.utcnow(),
+                        "_id": ObjectId(),
+                    }
+                )
 
-                user_doc = {
-                    "username": tu_username,
-                    "hashed_password": hashed_password,
-                    "email": tu_email,
-                    "name": tu_name,
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow(),
-                    "tu_verified": True,
-                    "_id": ObjectId(),
-                }
-
+                # Insert new user
                 result = collection.insert_one(user_doc)
-
                 if not result.inserted_id:
                     raise HTTPException(
                         status_code=500,
                         detail="Failed to create user from TU authentication",
                     )
+            else:
+                # Update existing user with latest TU information
+                collection.update_one({"username": tu_username}, {"$set": user_doc})
 
-            # Create access token
+            # Create access token with role information
             access_token_expires = timedelta(minutes=120)  # 2 hours
             access_token = create_access_token(
-                data={"sub": tu_username}, expires_delta=access_token_expires
+                data={"sub": tu_username, "role": user_type},
+                expires_delta=access_token_expires,
             )
 
             # Set cookie
@@ -202,10 +219,20 @@ async def login_with_tu(response: Response, username: str, password: str):
                 max_age=7200,  # 2 hours in seconds
             )
 
+            # Return comprehensive user info
             return {
-                "message": "TU Authentication successful",
+                "status": tu_data.get("status", True),
+                "message": tu_data.get("message", "Success"),
+                "type": user_type,
                 "token": access_token,
-                "user": {"username": tu_username, "email": tu_email, "name": tu_name},
+                "user": {
+                    "username": tu_username,
+                    "email": tu_email,
+                    "name": tu_name_en,
+                    "name_th": tu_name_th,
+                    "department": tu_department,
+                    "faculty": tu_faculty,
+                },
             }
 
     except HTTPException as he:
@@ -290,28 +317,30 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     if not existing_user:
         # First time Google sign-in - create a new user
         hashed_password = get_password_hash("defaultpassword")
-        collection.insert_one({
-            "username": email,
-            "hashed_password": hashed_password,
-            "email": email,
-            "name": name,
-            "picture": picture,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "role": "student"  # Default new users to student
-        })
+        collection.insert_one(
+            {
+                "username": email,
+                "hashed_password": hashed_password,
+                "email": email,
+                "name": name,
+                "picture": picture,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "role": "student",  # Default new users to student
+            }
+        )
         is_new_user = True
         needs_profile = True
     else:
         # Get the user's role
         role = existing_user.get("role", "student")
-        
+
         # Only check for profile completeness if role is student
         if role == "student":
             needs_profile = not (
-                existing_user.get("student_id") and 
-                existing_user.get("section") and
-                existing_user.get("skill_level")
+                existing_user.get("student_id")
+                and existing_user.get("section")
+                and existing_user.get("skill_level")
             )
         logger.info(f"Creating new user from Google auth: {email}")
         hashed_password = get_password_hash("defaultpassword")
@@ -335,25 +364,28 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
             "sub": email,
             "role": role,
             "is_new_user": is_new_user,
-            "needs_profile": needs_profile
+            "needs_profile": needs_profile,
         },
-        expires_delta=timedelta(hours=2)
+        expires_delta=timedelta(hours=2),
     )
-    
+
     # Determine redirect URL based on role and profile completeness
     if role == "teacher":
         redirect_url = f"{FRONTEND_URL}/teacher/dashboard"
     else:
-        redirect_url = f"{FRONTEND_URL}/auth/profile" if needs_profile else f"{FRONTEND_URL}/dashboard"
-    
+        redirect_url = (
+            f"{FRONTEND_URL}/auth/profile"
+            if needs_profile
+            else f"{FRONTEND_URL}/dashboard"
+        )
+
     data = {
-        "message": "Login successful", 
+        "message": "Login successful",
         "token": jwt_token,
         "role": role,
         "is_new_user": is_new_user,
-        "needs_profile": needs_profile
+        "needs_profile": needs_profile,
     }
-
 
     redirect = RedirectResponse(url="https://www.mari0nette.com/coding")
 
@@ -369,7 +401,7 @@ async def process_google_callback(request: Request, code: Optional[str] = None):
     # Add the user role to headers
     redirect.headers["X-User-Role"] = role
     redirect.headers["X-Needs-Profile"] = str(needs_profile).lower()
-    
+
     # Add the data to headers
     redirect.headers["X-Data"] = json.dumps(data)
 
