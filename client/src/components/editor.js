@@ -159,21 +159,31 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
         localStorage.removeItem(`problem-code-${problemIndex}`);
         localStorage.removeItem(`code-code-${problemIndex}`);
         localStorage.removeItem(`code-${problemIndex}`);
+        localStorage.removeItem(`code-${testType}-${problemIndex}`);
       }
       
-      // Clear all problem-code-* items for complete reset
-      for (let i = localStorage.length - 1; i >= 0; i--) {
+      // Create a full list of localStorage keys to ensure we don't miss any during iteration
+      const allKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
+        if (key) {
+          allKeys.push(key);
+        }
+      }
+      
+      // Now iterate through our safe copy to remove keys
+      allKeys.forEach(key => {
         if (key && (
             key.startsWith('problem-code-') || 
             key.startsWith('code-code-') ||
+            key.startsWith('code-') ||
             key === 'problem-code' ||
             key === 'editorCode'
         )) {
           console.log("Editor.js removing key:", key);
           localStorage.removeItem(key);
         }
-      }
+      });
 
       // Force another editor refresh after a small delay
       setTimeout(() => {
@@ -182,17 +192,51 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
         }
       }, 50);
     };
+    
+    // Handle final reset verification
+    const handleFinalReset = () => {
+      // Perform a final verification that editor is actually empty
+      console.log("Final reset verification in editor.js");
+      
+      // Empty the editor again to be sure
+      const emptyCode = '';
+      if (editorInstance) {
+        editorInstance.setValue(emptyCode);
+        
+        // Also ensure our state is correct
+        setLocalCode(emptyCode);
+        setCode(emptyCode, problemIndex, testType);
+      }
+      
+      // Verify no code-related localStorage items remain
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith('code-') || 
+          key.startsWith('problem-code-') ||
+          key === 'problem-code' ||
+          key === 'editorCode'
+        )) {
+          console.warn(`Key ${key} found during final verification, removing it...`);
+          localStorage.removeItem(key);
+        }
+      }
+    };
 
     window.addEventListener('ide-data-import', handleImport);
     window.addEventListener('storage-reset', handleStorageReset);
     window.addEventListener('code-reset', handleStorageReset);
+    window.addEventListener('final-reset', handleFinalReset);
+    window.addEventListener('app-reset', handleStorageReset);
     
     return () => {
       window.removeEventListener('ide-data-import', handleImport);
       window.removeEventListener('storage-reset', handleStorageReset);
       window.removeEventListener('code-reset', handleStorageReset);
+      window.removeEventListener('final-reset', handleFinalReset);
+      window.removeEventListener('app-reset', handleStorageReset);
     };
-  }, [editorInstance, problemIndex]);
+  }, [editorInstance, problemIndex, testType, setCode]);
 
   const handleEditorDidMount = (editor, monaco) => {
     setEditorInstance(editor);

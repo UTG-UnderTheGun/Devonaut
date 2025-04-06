@@ -25,7 +25,12 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   }, []);
 
   const clearLocalStorage = () => {
-    // New approach: first collect ALL keys, then filter what to remove
+    // First save the timestamp to ensure all components recognize this as a recent reset
+    const resetTimestamp = Date.now();
+    localStorage.setItem('reset_timestamp', resetTimestamp.toString());
+    localStorage.setItem('editor_reset_timestamp', resetTimestamp.toString());
+    
+    // Create a full snapshot of ALL keys to avoid issues with keys changing during iteration
     const allKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -34,15 +39,15 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       }
     }
     
-    // Define patterns to match for removal
+    // Define comprehensive patterns to match for removal
     const patternsToRemove = [
-      /^code-/,           // code-*
-      /^editor-code-/,    // editor-code-*
-      /^problem-code-/,   // problem-code-*
-      /^starter-code-/,   // starter-code-*
-      /^problem-title-/,  // problem-title-*
-      /^problem-description-/, // problem-description-*
-      /^output-/,         // output-*
+      /^code-/,           // All code-* keys (code-code-0, code-fill-0, etc.)
+      /^editor-code-/,    // All editor-code-* keys
+      /^problem-code-/,   // All problem-code-* keys
+      /^starter-code-/,   // All starter-code-* keys
+      /^problem-title-/,  // All problem-title-* keys
+      /^problem-description-/, // All problem-description-* keys
+      /^output-/,         // All output-* keys
       /^editorCode$/,     // editorCode (exact match)
       /^problem-code$/,   // problem-code (exact match)
       /^problem-outputs$/,// problem-outputs (exact match)
@@ -51,6 +56,7 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       /^problem-description$/,// problem-description (exact match)
       /^is-imported$/,    // is-imported (exact match)
       /^saved-problems$/, // saved-problems (exact match)
+      /^problemsImported$/, // problemsImported (exact match)
     ];
     
     // Filter keys that match any pattern
@@ -69,10 +75,29 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       }
     });
     
-    // Do a final verification to make sure ALL problem-code-* entries are definitely gone
+    // Do a final verification to make sure critical entries are definitely gone
+    const criticalKeys = [
+      'problem-code', 'editorCode', 'saved-problems', 
+      'problem-answers', 'problem-outputs', 'is-imported',
+      'problemsImported'
+    ];
+    
+    criticalKeys.forEach(key => {
+      if (localStorage.getItem(key)) {
+        console.warn(`Critical key ${key} still exists after cleanup, forcing removal...`);
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Also check for any remaining pattern-based keys that should be gone
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('problem-code-') || key === 'problem-code')) {
+      if (key && (
+        key.startsWith('problem-code-') || 
+        key.startsWith('code-') || 
+        key.startsWith('problem-title-') || 
+        key.startsWith('problem-description-')
+      )) {
         console.warn(`Key ${key} still exists after cleanup, forcing removal...`);
         localStorage.removeItem(key);
       }
@@ -80,9 +105,21 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
     
     // Dispatch a custom event to notify components about the reset
     const resetEvent = new CustomEvent('storage-reset', {
-      detail: { source: 'import', complete: true, timestamp: Date.now() }
+      detail: { 
+        source: 'import', 
+        complete: true, 
+        timestamp: resetTimestamp 
+      }
     });
     window.dispatchEvent(resetEvent);
+    
+    // Also dispatch app-reset and code-reset events to ensure all components update
+    window.dispatchEvent(new CustomEvent('app-reset', { 
+      detail: { timestamp: resetTimestamp } 
+    }));
+    window.dispatchEvent(new CustomEvent('code-reset', { 
+      detail: { timestamp: resetTimestamp, problemIndex: 0 } 
+    }));
   };
 
   // Add a specific function to clear problem code
