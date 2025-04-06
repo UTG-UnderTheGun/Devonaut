@@ -59,15 +59,17 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       const storageKey = getStorageKey();
       console.log(`Loading code from storage key: ${storageKey}`);
       
-      // First try problem-specific code with unique key
-      const savedCode = localStorage.getItem(storageKey);
-      
-      // For imported files, check if we need to use the student's code
+      // Check if we're in an imported state
       const isImported = localStorage.getItem('is-imported') === 'true';
+      const importComplete = localStorage.getItem('import-complete') === 'true';
       
-      // Check for user answer in coding questions (for imported assignments)
+      // For imported assignments, prioritize retrieving user answers
       if (isImported && testType === 'code') {
-        // Look for student answer using the correct storage key pattern
+        let foundStudentCode = false;
+        
+        // Try multiple sources for the student code in order of preference
+        
+        // 1. First try problem-specific code with type-specific storage key
         const studentCodeKey = `problem-code-${testType}-${problemIndex}`;
         const studentCode = localStorage.getItem(studentCodeKey);
         
@@ -75,11 +77,56 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
           console.log(`Found imported student code for ${studentCodeKey}`);
           setLocalCode(studentCode);
           setCode(studentCode, problemIndex, testType);
-          return; // Skip the rest of the loading since we found the student code
+          foundStudentCode = true;
+        }
+        
+        // 2. If not found, try to get from the codeAnswers structure in problem-answers
+        if (!foundStudentCode) {
+          try {
+            const allAnswers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
+            
+            // Check if we have a specific answer for this problem index
+            if (allAnswers.codeAnswers && allAnswers.codeAnswers[problemIndex]) {
+              console.log(`Found imported student code from problem-answers.codeAnswers[${problemIndex}]`);
+              const code = allAnswers.codeAnswers[problemIndex];
+              setLocalCode(code);
+              setCode(code, problemIndex, testType);
+              foundStudentCode = true;
+            }
+            // Check if there's a generic codeAnswer (older format)
+            else if (allAnswers.codeAnswer && typeof allAnswers.codeAnswer === 'string') {
+              console.log(`Found imported student code from problem-answers.codeAnswer`);
+              setLocalCode(allAnswers.codeAnswer);
+              setCode(allAnswers.codeAnswer, problemIndex, testType);
+              foundStudentCode = true;
+            }
+          } catch (e) {
+            console.error('Error parsing problem-answers:', e);
+          }
+        }
+        
+        // 3. Try the alternative storage format
+        if (!foundStudentCode) {
+          const altKey = `code-${testType}-${problemIndex}`;
+          const altCode = localStorage.getItem(altKey);
+          
+          if (altCode) {
+            console.log(`Found imported student code with alternative key ${altKey}`);
+            setLocalCode(altCode);
+            setCode(altCode, problemIndex, testType);
+            foundStudentCode = true;
+          }
+        }
+        
+        // If we found student code, we're done
+        if (foundStudentCode) {
+          return;
         }
       }
       
-      // If we didn't find imported student code, proceed with normal loading
+      // If not imported or couldn't find specific student code, proceed with normal loading
+      const savedCode = localStorage.getItem(storageKey);
+      
       if (savedCode) {
         console.log(`Found saved code for ${storageKey}`);
         setLocalCode(savedCode);
@@ -88,8 +135,10 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
         console.log(`Using initial value for ${storageKey}`);
         setLocalCode(initialValue);
         setCode(initialValue, problemIndex, testType);
-        // Only store initial value if we're not in a reset state
-        if (isImported) {
+        
+        // Only store initial value if we're not during import processing
+        if (!localStorage.getItem('import-timestamp') || 
+            Date.now() - parseInt(localStorage.getItem('import-timestamp')) > 5000) {
           localStorage.setItem(storageKey, initialValue);
         }
       }

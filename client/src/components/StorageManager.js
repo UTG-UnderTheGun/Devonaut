@@ -302,95 +302,94 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         }
       }
 
-      // Clear localStorage before importing new problems
-      clearLocalStorage();
+      // Prepare all import data in memory before touching localStorage
+      const importData = {
+        problems: Array.isArray(data) ? [...data] : [data],
+        storageItems: new Map(), // Store all items to be saved to localStorage
+        allAnswers: {},
+        allOutputs: {}
+      };
       
-      // Set the imported flag
-      localStorage.setItem('is-imported', 'true');
-
-      // Prepare to collect all answers and outputs
-      const allAnswers = {};
-      const allOutputs = {};
-      
-      // Process the imported data to extract answers and outputs
-      if (Array.isArray(data)) {
-        // Save individual problem titles and descriptions
-        data.forEach((item, index) => {
-          // Store title and description in localStorage for each problem
-          if (item.title) {
-            localStorage.setItem(`problem-title-${index}`, item.title);
-          }
-          if (item.description) {
-            localStorage.setItem(`problem-description-${index}`, item.description);
-          }
-
-          // Save user answers if they exist
-          if (item.userAnswers) {
-            // Process each type of answer
-            Object.keys(item.userAnswers).forEach(key => {
-              allAnswers[key] = item.userAnswers[key];
-            });
-            
-            // For coding questions, store the student's code answer directly
-            if (item.type === 'code' && item.userAnswers.codeAnswer) {
-              const storageKey = `problem-code-${item.type}-${index}`;
-              localStorage.setItem(storageKey, item.userAnswers.codeAnswer);
-              console.log(`Storing imported student code answer to ${storageKey}:`, item.userAnswers.codeAnswer);
-            }
-          }
-          
-          // Save output answers if they exist
-          if (item.outputAnswer) {
-            allOutputs[index] = item.outputAnswer;
-          }
-          
-          // For backward compatibility
-          if (!item.answers) {
-            item.answers = {};
-          }
-        });
-      } else {
-        // Single problem case
-        if (data.title) {
-          localStorage.setItem('problem-title-0', data.title);
+      // Process the imported data to extract all information first
+      importData.problems.forEach((item, index) => {
+        // Prepare title and description
+        if (item.title) {
+          importData.storageItems.set(`problem-title-${index}`, item.title);
         }
-        if (data.description) {
-          localStorage.setItem('problem-description-0', data.description);
+        if (item.description) {
+          importData.storageItems.set(`problem-description-${index}`, item.description);
         }
 
-        if (data.userAnswers) {
-          Object.keys(data.userAnswers).forEach(key => {
-            allAnswers[key] = data.userAnswers[key];
+        // Process user answers
+        if (item.userAnswers) {
+          // Store type-specific answers
+          Object.keys(item.userAnswers).forEach(key => {
+            importData.allAnswers[key] = item.userAnswers[key];
           });
           
-          // For coding questions, store the student's code answer directly
-          if (data.type === 'code' && data.userAnswers.codeAnswer) {
-            const storageKey = `problem-code-${data.type}-0`;
-            localStorage.setItem(storageKey, data.userAnswers.codeAnswer);
-            console.log(`Storing imported student code answer to ${storageKey}:`, data.userAnswers.codeAnswer);
+          // Handle code-type questions specifically
+          if (item.type === 'code' && item.userAnswers.codeAnswer) {
+            // Store student code with the correct key format
+            const codeKey = `problem-code-${item.type}-${index}`;
+            importData.storageItems.set(codeKey, item.userAnswers.codeAnswer);
+            
+            // Save in both common formats to ensure retrieval
+            importData.storageItems.set(`code-${item.type}-${index}`, item.userAnswers.codeAnswer);
+            
+            // Track this in our answers object
+            if (!importData.allAnswers.codeAnswers) {
+              importData.allAnswers.codeAnswers = {};
+            }
+            importData.allAnswers.codeAnswers[index] = item.userAnswers.codeAnswer;
+            
+            // Also set individual codeAnswer for compatibility
+            importData.allAnswers.codeAnswer = item.userAnswers.codeAnswer;
           }
         }
         
-        if (data.outputAnswer) {
-          allOutputs[0] = data.outputAnswer;
+        // Handle output answers
+        if (item.outputAnswer || (item.userAnswers && item.userAnswers.outputAnswer)) {
+          const output = item.outputAnswer || item.userAnswers.outputAnswer;
+          importData.allOutputs[index] = output;
         }
-        
-        if (!data.answers) {
-          data.answers = {};
-        }
+      });
+      
+      // We have all data collected now, safe to clear localStorage
+      clearLocalStorage();
+      
+      // Mark this as an imported session
+      localStorage.setItem('is-imported', 'true');
+      localStorage.setItem('import-timestamp', Date.now().toString());
+      
+      // Store everything from our prepared data
+      importData.storageItems.forEach((value, key) => {
+        localStorage.setItem(key, value);
+      });
+      
+      // Save problem answers and outputs
+      if (Object.keys(importData.allAnswers).length > 0) {
+        localStorage.setItem('problem-answers', JSON.stringify(importData.allAnswers));
       }
       
-      // Save all collected answers and outputs to localStorage
-      if (Object.keys(allAnswers).length > 0) {
-        localStorage.setItem('problem-answers', JSON.stringify(allAnswers));
+      if (Object.keys(importData.allOutputs).length > 0) {
+        localStorage.setItem('problem-outputs', JSON.stringify(importData.allOutputs));
       }
       
-      if (Object.keys(allOutputs).length > 0) {
-        localStorage.setItem('problem-outputs', JSON.stringify(allOutputs));
-      }
-
+      // Save problems into localStorage for tracking
+      localStorage.setItem('saved-problems', JSON.stringify(importData.problems));
+      localStorage.setItem('problemsImported', true);
+      
+      // Set a flag that indicates import is complete to prevent race conditions
+      localStorage.setItem('import-complete', 'true');
+      
+      // Dispatch import completion event with minimal resets
+      const importCompleteEvent = new CustomEvent('import-complete', {
+        detail: { data: importData.problems }
+      });
+      window.dispatchEvent(importCompleteEvent);
+      
       if (typeof onImport === 'function') {
-        onImport(data);
+        onImport(Array.isArray(data) ? data : [data]);
       } else {
         throw new Error('Import handler not provided');
       }
