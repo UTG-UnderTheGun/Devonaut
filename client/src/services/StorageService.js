@@ -25,6 +25,9 @@ const STORAGE_CONFIG = {
     IMPORT_FLAG: 'is-imported',
     CONSOLE_FOLDED: 'isConsoleFolded',
     DESCRIPTION_FOLDED: 'isDescriptionFolded',
+    // New keys for sub-questions
+    SUB_QUESTION_CODE_PREFIX: 'subq-code-',
+    SUB_QUESTION_ANSWER_PREFIX: 'subq-answer-',
   },
 
   // Version configuration for backward compatibility
@@ -674,8 +677,18 @@ export const StorageService = {
       // Setup appropriate userAnswers based on type
       if (standardized.type === 'code' && !('codeAnswer' in standardized.userAnswers)) {
         standardized.userAnswers.codeAnswer = '';
-      } else if (standardized.type === 'output' && !('outputAnswer' in standardized.userAnswers)) {
-        standardized.userAnswers.outputAnswer = '';
+      } else if (standardized.type === 'output') {
+        // Use both property names for maximum compatibility
+        if (!('outputAnswer' in standardized.userAnswers)) {
+          standardized.userAnswers.outputAnswer = '';
+        }
+        if (!('answer' in standardized.userAnswers)) {
+          // If answer exists but outputAnswer doesn't, use that value
+          standardized.userAnswers.answer = standardized.userAnswers.outputAnswer || '';
+        } else if ('answer' in standardized.userAnswers && !('outputAnswer' in standardized.userAnswers)) {
+          // If outputAnswer exists but answer doesn't, use that value
+          standardized.userAnswers.outputAnswer = standardized.userAnswers.answer;
+        }
       } else if (standardized.type === 'fill') {
         if (!('fillAnswers' in standardized.userAnswers) || typeof standardized.userAnswers.fillAnswers !== 'object') {
           standardized.userAnswers.fillAnswers = {};
@@ -694,6 +707,95 @@ export const StorageService = {
       if (!standardized.answers || typeof standardized.answers !== 'object') {
         standardized.answers = {};
       }
+      
+      // Process sub-questions if they exist
+      if (standardized.subQuestions && Array.isArray(standardized.subQuestions)) {
+        // Standardize each sub-question
+        standardized.subQuestions = standardized.subQuestions.map((subQuestion, subIndex) => {
+          const standardizedSub = { ...subQuestion };
+          
+          // Ensure sub-question ID
+          if (!standardizedSub.id) {
+            standardizedSub.id = subIndex + 1;
+          }
+          
+          // Ensure title
+          if (!standardizedSub.title) {
+            standardizedSub.title = `Sub-Question ${subIndex + 1}`;
+          }
+          
+          // Ensure description
+          if (!standardizedSub.description) {
+            standardizedSub.description = 'No description provided for sub-question.';
+          }
+          
+          // Ensure type
+          if (!standardizedSub.type || !STORAGE_CONFIG.SCHEMAS.PROBLEM.types.includes(standardizedSub.type)) {
+            standardizedSub.type = standardized.type || 'code'; // Default to parent type or code
+          }
+          
+          // Handle code/starterCode compatibility for sub-question
+          if (!standardizedSub.code && standardizedSub.starterCode) {
+            standardizedSub.code = standardizedSub.starterCode;
+          } else if (!standardizedSub.starterCode && standardizedSub.code) {
+            standardizedSub.starterCode = standardizedSub.code;
+          } else if (!standardizedSub.code && !standardizedSub.starterCode) {
+            // Create default code based on type
+            const defaultSubCode = standardizedSub.type === 'code'
+              ? '# เขียนโค้ดของคุณที่นี่\n\n\n\n'
+              : standardizedSub.type === 'fill'
+                ? '# เติมคำตอบในช่องว่าง\nx = ____\n'
+                : '# แสดงผลลัพธ์\nprint("Hello World")';
+
+            standardizedSub.code = defaultSubCode;
+            standardizedSub.starterCode = defaultSubCode;
+          }
+          
+          // Ensure userAnswers exists for sub-question
+          if (!standardizedSub.userAnswers || typeof standardizedSub.userAnswers !== 'object') {
+            standardizedSub.userAnswers = {};
+          }
+          
+          // Setup appropriate userAnswers based on sub-question type
+          if (standardizedSub.type === 'code' && !('codeAnswer' in standardizedSub.userAnswers)) {
+            standardizedSub.userAnswers.codeAnswer = '';
+          } else if (standardizedSub.type === 'output') {
+            // Use both property names for maximum compatibility
+            if (!('outputAnswer' in standardizedSub.userAnswers)) {
+              standardizedSub.userAnswers.outputAnswer = '';
+            }
+            if (!('answer' in standardizedSub.userAnswers)) {
+              // If answer exists but outputAnswer doesn't, use that value
+              standardizedSub.userAnswers.answer = standardizedSub.userAnswers.outputAnswer || '';
+            } else if ('answer' in standardizedSub.userAnswers && !('outputAnswer' in standardizedSub.userAnswers)) {
+              // If outputAnswer exists but answer doesn't, use that value
+              standardizedSub.userAnswers.outputAnswer = standardizedSub.userAnswers.answer;
+            }
+          } else if (standardizedSub.type === 'fill') {
+            if (!('fillAnswers' in standardizedSub.userAnswers) || typeof standardizedSub.userAnswers.fillAnswers !== 'object') {
+              standardizedSub.userAnswers.fillAnswers = {};
+            }
+
+            // Count blanks and create empty answers for them
+            const blanks = (standardizedSub.code.match(/____/g) || []).length;
+            for (let i = 0; i < blanks; i++) {
+              if (!(`blank-${i}` in standardizedSub.userAnswers.fillAnswers)) {
+                standardizedSub.userAnswers.fillAnswers[`blank-${i}`] = '';
+              }
+            }
+          }
+          
+          // Ensure answers object exists for sub-question
+          if (!standardizedSub.answers || typeof standardizedSub.answers !== 'object') {
+            standardizedSub.answers = {};
+          }
+          
+          return standardizedSub;
+        });
+      } else {
+        // Initialize empty sub-questions array if none exists
+        standardized.subQuestions = [];
+      }
 
       return standardized;
     });
@@ -701,7 +803,7 @@ export const StorageService = {
     return {
       success: true,
       questions: standardizedQuestions,
-      message: `Standardized ${standardizedQuestions.length} questions`
+      message: `Standardized ${standardizedQuestions.length} questions with total ${standardizedQuestions.reduce((sum, q) => sum + (q.subQuestions ? q.subQuestions.length : 0), 0)} sub-questions`
     };
   },
 
@@ -877,6 +979,200 @@ export const StorageService = {
   },
 
   /**
+   * Save sub-question code to localStorage
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @param {number} subQuestionIndex - The index of the sub-question
+   * @param {string} type - Question type (code, output, fill)
+   * @param {string} code - The code to save
+   * @returns {boolean} Success state
+   */
+  saveSubQuestionCode(problemIndex, subQuestionIndex, type, code) {
+    try {
+      const key = `${STORAGE_CONFIG.KEYS.SUB_QUESTION_CODE_PREFIX}${type}-${problemIndex}-${subQuestionIndex}`;
+      localStorage.setItem(key, code);
+      return true;
+    } catch (error) {
+      console.error(`Error saving sub-question code for problem ${problemIndex}, sub-question ${subQuestionIndex}:`, error);
+      return false;
+    }
+  },
+
+  /**
+   * Load sub-question code from localStorage
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @param {number} subQuestionIndex - The index of the sub-question
+   * @param {string} type - Question type (code, output, fill)
+   * @param {string} defaultValue - Default value if no code is found
+   * @returns {string} The loaded code or default value
+   */
+  loadSubQuestionCode(problemIndex, subQuestionIndex, type, defaultValue = '') {
+    try {
+      const key = `${STORAGE_CONFIG.KEYS.SUB_QUESTION_CODE_PREFIX}${type}-${problemIndex}-${subQuestionIndex}`;
+      const savedCode = localStorage.getItem(key);
+      return savedCode || defaultValue;
+    } catch (error) {
+      console.error(`Error loading sub-question code for problem ${problemIndex}, sub-question ${subQuestionIndex}:`, error);
+      return defaultValue;
+    }
+  },
+
+  /**
+   * Save sub-question answer to localStorage
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @param {number} subQuestionIndex - The index of the sub-question
+   * @param {string} type - Question type (code, output, fill)
+   * @param {any} answer - The answer to save
+   * @returns {boolean} Success state
+   */
+  saveSubQuestionAnswer(problemIndex, subQuestionIndex, type, answer) {
+    try {
+      const key = `${STORAGE_CONFIG.KEYS.SUB_QUESTION_ANSWER_PREFIX}${type}-${problemIndex}-${subQuestionIndex}`;
+      localStorage.setItem(key, JSON.stringify(answer));
+      return true;
+    } catch (error) {
+      console.error(`Error saving sub-question answer for problem ${problemIndex}, sub-question ${subQuestionIndex}:`, error);
+      return false;
+    }
+  },
+
+  /**
+   * Load sub-question answer from localStorage
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @param {number} subQuestionIndex - The index of the sub-question
+   * @param {string} type - Question type (code, output, fill) 
+   * @param {any} defaultValue - Default value if no answer is found
+   * @returns {any} The loaded answer or default value
+   */
+  loadSubQuestionAnswer(problemIndex, subQuestionIndex, type, defaultValue = null) {
+    try {
+      const key = `${STORAGE_CONFIG.KEYS.SUB_QUESTION_ANSWER_PREFIX}${type}-${problemIndex}-${subQuestionIndex}`;
+      const savedAnswer = localStorage.getItem(key);
+      return savedAnswer ? JSON.parse(savedAnswer) : defaultValue;
+    } catch (error) {
+      console.error(`Error loading sub-question answer for problem ${problemIndex}, sub-question ${subQuestionIndex}:`, error);
+      return defaultValue;
+    }
+  },
+
+  /**
+   * Get all sub-question codes for a problem
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @returns {Object} Object mapping subQuestionIndex to code
+   */
+  getAllSubQuestionCodes(problemIndex) {
+    try {
+      const result = {};
+      const prefix = `${STORAGE_CONFIG.KEYS.SUB_QUESTION_CODE_PREFIX}`;
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          // Extract indices from key format: subq-code-type-problemIndex-subQuestionIndex
+          const parts = key.substring(prefix.length).split('-');
+          const keyProblemIndex = parseInt(parts[1], 10);
+          
+          if (keyProblemIndex === problemIndex) {
+            const subQuestionIndex = parseInt(parts[2], 10);
+            const type = parts[0];
+            result[subQuestionIndex] = {
+              code: localStorage.getItem(key),
+              type
+            };
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error loading all sub-question codes for problem ${problemIndex}:`, error);
+      return {};
+    }
+  },
+
+  /**
+   * Get all sub-question answers for a problem
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @returns {Object} Object mapping subQuestionIndex to answer
+   */
+  getAllSubQuestionAnswers(problemIndex) {
+    try {
+      const result = {};
+      const prefix = `${STORAGE_CONFIG.KEYS.SUB_QUESTION_ANSWER_PREFIX}`;
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          // Extract indices from key format: subq-answer-type-problemIndex-subQuestionIndex
+          const parts = key.substring(prefix.length).split('-');
+          const keyProblemIndex = parseInt(parts[1], 10);
+          
+          if (keyProblemIndex === problemIndex) {
+            const subQuestionIndex = parseInt(parts[2], 10);
+            const type = parts[0];
+            try {
+              result[subQuestionIndex] = {
+                answer: JSON.parse(localStorage.getItem(key)),
+                type
+              };
+            } catch (parseError) {
+              console.error(`Error parsing sub-question answer for problem ${problemIndex}, sub-question ${subQuestionIndex}:`, parseError);
+            }
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error loading all sub-question answers for problem ${problemIndex}:`, error);
+      return {};
+    }
+  },
+
+  /**
+   * Clear all sub-question data for a problem
+   * 
+   * @param {number} problemIndex - The index of the main problem
+   * @returns {number} Number of items removed
+   */
+  clearSubQuestionData(problemIndex) {
+    try {
+      const keysToRemove = [];
+      
+      // Find all keys for the given problem index
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.includes(`${STORAGE_CONFIG.KEYS.SUB_QUESTION_CODE_PREFIX}`) || 
+          key.includes(`${STORAGE_CONFIG.KEYS.SUB_QUESTION_ANSWER_PREFIX}`)
+        )) {
+          // Check if the key contains the problem index
+          const parts = key.split('-');
+          if (parts.length >= 4) {
+            const keyProblemIndex = parseInt(parts[parts.length - 2], 10);
+            if (keyProblemIndex === problemIndex) {
+              keysToRemove.push(key);
+            }
+          }
+        }
+      }
+      
+      // Remove all found keys
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      return keysToRemove.length;
+    } catch (error) {
+      console.error(`Error clearing sub-question data for problem ${problemIndex}:`, error);
+      return 0;
+    }
+  },
+
+  /**
    * Validate data against a schema (placeholder)
    * 
    * @private
@@ -897,3 +1193,19 @@ export const exportData = (options) => StorageService.export(options);
 export const importData = (file) => StorageService.import(file);
 export const exportQuestions = (questions, options) => StorageService.exportProblems(questions, options);
 export const importQuestions = (file, onSuccess, onError) => StorageService.importProblems(file, onSuccess, onError);
+
+// Export sub-question functions
+export const saveSubQuestionCode = (problemIndex, subQuestionIndex, type, code) => 
+  StorageService.saveSubQuestionCode(problemIndex, subQuestionIndex, type, code);
+export const loadSubQuestionCode = (problemIndex, subQuestionIndex, type, defaultValue) => 
+  StorageService.loadSubQuestionCode(problemIndex, subQuestionIndex, type, defaultValue);
+export const saveSubQuestionAnswer = (problemIndex, subQuestionIndex, type, answer) => 
+  StorageService.saveSubQuestionAnswer(problemIndex, subQuestionIndex, type, answer);
+export const loadSubQuestionAnswer = (problemIndex, subQuestionIndex, type, defaultValue) => 
+  StorageService.loadSubQuestionAnswer(problemIndex, subQuestionIndex, type, defaultValue);
+export const getAllSubQuestionCodes = (problemIndex) => 
+  StorageService.getAllSubQuestionCodes(problemIndex);
+export const getAllSubQuestionAnswers = (problemIndex) => 
+  StorageService.getAllSubQuestionAnswers(problemIndex);
+export const clearSubQuestionData = (problemIndex) => 
+  StorageService.clearSubQuestionData(problemIndex);

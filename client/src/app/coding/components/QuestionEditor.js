@@ -63,7 +63,11 @@ const QuestionEditor = ({ onSave, onCancel, editingQuestion = null }) => {
     // Prepare userAnswers based on question type.
     let userAnswers = {};
     if (question.type === 'output') {
-      userAnswers = { outputAnswer: '' };
+      // Use both answer and outputAnswer keys for maximum compatibility
+      userAnswers = { 
+        answer: '',  // Primary key used in some components
+        outputAnswer: '' // Used in other components
+      };
     } else if (question.type === 'fill') {
       const blankCount = (question.code.match(/____/g) || []).length;
       const fillAnswers = {};

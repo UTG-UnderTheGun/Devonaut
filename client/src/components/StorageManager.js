@@ -25,7 +25,12 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   }, []);
 
   const clearLocalStorage = () => {
-    // New approach: first collect ALL keys, then filter what to remove
+    // First save the timestamp to ensure all components recognize this as a recent reset
+    const resetTimestamp = Date.now();
+    localStorage.setItem('reset_timestamp', resetTimestamp.toString());
+    localStorage.setItem('editor_reset_timestamp', resetTimestamp.toString());
+    
+    // Create a full snapshot of ALL keys to avoid issues with keys changing during iteration
     const allKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -34,15 +39,15 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       }
     }
     
-    // Define patterns to match for removal
+    // Define comprehensive patterns to match for removal
     const patternsToRemove = [
-      /^code-/,           // code-*
-      /^editor-code-/,    // editor-code-*
-      /^problem-code-/,   // problem-code-*
-      /^starter-code-/,   // starter-code-*
-      /^problem-title-/,  // problem-title-*
-      /^problem-description-/, // problem-description-*
-      /^output-/,         // output-*
+      /^code-/,           // All code-* keys (code-code-0, code-fill-0, etc.)
+      /^editor-code-/,    // All editor-code-* keys
+      /^problem-code-/,   // All problem-code-* keys
+      /^starter-code-/,   // All starter-code-* keys
+      /^problem-title-/,  // All problem-title-* keys
+      /^problem-description-/, // All problem-description-* keys
+      /^output-/,         // All output-* keys
       /^editorCode$/,     // editorCode (exact match)
       /^problem-code$/,   // problem-code (exact match)
       /^problem-outputs$/,// problem-outputs (exact match)
@@ -51,6 +56,7 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       /^problem-description$/,// problem-description (exact match)
       /^is-imported$/,    // is-imported (exact match)
       /^saved-problems$/, // saved-problems (exact match)
+      /^problemsImported$/, // problemsImported (exact match)
     ];
     
     // Filter keys that match any pattern
@@ -69,10 +75,29 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       }
     });
     
-    // Do a final verification to make sure ALL problem-code-* entries are definitely gone
+    // Do a final verification to make sure critical entries are definitely gone
+    const criticalKeys = [
+      'problem-code', 'editorCode', 'saved-problems', 
+      'problem-answers', 'problem-outputs', 'is-imported',
+      'problemsImported'
+    ];
+    
+    criticalKeys.forEach(key => {
+      if (localStorage.getItem(key)) {
+        console.warn(`Critical key ${key} still exists after cleanup, forcing removal...`);
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Also check for any remaining pattern-based keys that should be gone
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('problem-code-') || key === 'problem-code')) {
+      if (key && (
+        key.startsWith('problem-code-') || 
+        key.startsWith('code-') || 
+        key.startsWith('problem-title-') || 
+        key.startsWith('problem-description-')
+      )) {
         console.warn(`Key ${key} still exists after cleanup, forcing removal...`);
         localStorage.removeItem(key);
       }
@@ -80,9 +105,21 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
     
     // Dispatch a custom event to notify components about the reset
     const resetEvent = new CustomEvent('storage-reset', {
-      detail: { source: 'import', complete: true, timestamp: Date.now() }
+      detail: { 
+        source: 'import', 
+        complete: true, 
+        timestamp: resetTimestamp 
+      }
     });
     window.dispatchEvent(resetEvent);
+    
+    // Also dispatch app-reset and code-reset events to ensure all components update
+    window.dispatchEvent(new CustomEvent('app-reset', { 
+      detail: { timestamp: resetTimestamp } 
+    }));
+    window.dispatchEvent(new CustomEvent('code-reset', { 
+      detail: { timestamp: resetTimestamp, problemIndex: 0 } 
+    }));
   };
 
   // Add a specific function to clear problem code
@@ -152,7 +189,35 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       const exportProblems = savedProblems.map((problem, index) => {
         // Get problem-specific code and data for each problem
         const problemType = problem.type || 'code';
-        const currentCode = localStorage.getItem(`code-${problemType}-${index}`) || problem.code || problem.starterCode || '';
+        
+        // Try to get the user's code from storage using all possible storage keys
+        let currentCode;
+        
+        // For code-type questions, check multiple storage patterns to ensure we get student's answer
+        if (problemType === 'code') {
+          // Check all possible storage patterns for code answers
+          const storageKeys = [
+            `problem-code-${problemType}-${index}`,  // New format with problem type
+            `code-${problemType}-${index}`,          // Old format with problem type
+            `problem-code-${index}`,                 // Old format without problem type
+            `editor-code-${index}`                   // Very old format
+          ];
+          
+          // Try each storage key until we find a value
+          for (const key of storageKeys) {
+            const storedCode = localStorage.getItem(key);
+            if (storedCode) {
+              console.log(`Found code for ${key}:`, storedCode);
+              currentCode = storedCode;
+              break;
+            }
+          }
+        }
+        
+        // If we didn't find code in any of the specific storage locations, fall back to the default
+        if (!currentCode) {
+          currentCode = localStorage.getItem(`code-${problemType}-${index}`) || problem.code || problem.starterCode || '';
+        }
         
         // Filter answers for this specific problem
         const problemAnswers = {};
@@ -162,17 +227,17 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
           }
         });
 
-        // สร้าง export object ตามประเภทของโจทย์
+        // Create export object based on problem type
         const baseExport = {
           id: index + 1,
           title: problem.title || '',
           description: problem.description || '',
-          code: currentCode,
+          code: problem.code || problem.starterCode || '', // Original starter code
           type: problemType,
-          userAnswers: {} // เริ่มต้นด้วย empty object
+          userAnswers: {} // Start with empty object
         };
 
-        // เพิ่มข้อมูลเฉพาะตามประเภทของโจทย์
+        // Add specific data for each problem type
         switch (problemType) {
           case 'fill':
             if (Object.keys(problemAnswers).length > 0) {
@@ -185,8 +250,10 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             }
             break;
           case 'code':
-            if (currentCode && currentCode !== problem.code) {
+            // Always include the user's current code answer if it differs from starter code
+            if (currentCode && currentCode !== problem.code && currentCode !== problem.starterCode) {
               baseExport.userAnswers.codeAnswer = currentCode;
+              console.log(`Exporting user code answer for problem ${index}:`, currentCode);
             }
             if (allOutputs[index]) {
               baseExport.userAnswers.outputAnswer = allOutputs[index];
@@ -235,80 +302,94 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         }
       }
 
-      // Clear localStorage before importing new problems
+      // Prepare all import data in memory before touching localStorage
+      const importData = {
+        problems: Array.isArray(data) ? [...data] : [data],
+        storageItems: new Map(), // Store all items to be saved to localStorage
+        allAnswers: {},
+        allOutputs: {}
+      };
+      
+      // Process the imported data to extract all information first
+      importData.problems.forEach((item, index) => {
+        // Prepare title and description
+        if (item.title) {
+          importData.storageItems.set(`problem-title-${index}`, item.title);
+        }
+        if (item.description) {
+          importData.storageItems.set(`problem-description-${index}`, item.description);
+        }
+
+        // Process user answers
+        if (item.userAnswers) {
+          // Store type-specific answers
+          Object.keys(item.userAnswers).forEach(key => {
+            importData.allAnswers[key] = item.userAnswers[key];
+          });
+          
+          // Handle code-type questions specifically
+          if (item.type === 'code' && item.userAnswers.codeAnswer) {
+            // Store student code with the correct key format
+            const codeKey = `problem-code-${item.type}-${index}`;
+            importData.storageItems.set(codeKey, item.userAnswers.codeAnswer);
+            
+            // Save in both common formats to ensure retrieval
+            importData.storageItems.set(`code-${item.type}-${index}`, item.userAnswers.codeAnswer);
+            
+            // Track this in our answers object
+            if (!importData.allAnswers.codeAnswers) {
+              importData.allAnswers.codeAnswers = {};
+            }
+            importData.allAnswers.codeAnswers[index] = item.userAnswers.codeAnswer;
+            
+            // Also set individual codeAnswer for compatibility
+            importData.allAnswers.codeAnswer = item.userAnswers.codeAnswer;
+          }
+        }
+        
+        // Handle output answers
+        if (item.outputAnswer || (item.userAnswers && item.userAnswers.outputAnswer)) {
+          const output = item.outputAnswer || item.userAnswers.outputAnswer;
+          importData.allOutputs[index] = output;
+        }
+      });
+      
+      // We have all data collected now, safe to clear localStorage
       clearLocalStorage();
       
-      // Set the imported flag
+      // Mark this as an imported session
       localStorage.setItem('is-imported', 'true');
-
-      // Prepare to collect all answers and outputs
-      const allAnswers = {};
-      const allOutputs = {};
+      localStorage.setItem('import-timestamp', Date.now().toString());
       
-      // Process the imported data to extract answers and outputs
-      if (Array.isArray(data)) {
-        // Save individual problem titles and descriptions
-        data.forEach((item, index) => {
-          // Store title and description in localStorage for each problem
-          if (item.title) {
-            localStorage.setItem(`problem-title-${index}`, item.title);
-          }
-          if (item.description) {
-            localStorage.setItem(`problem-description-${index}`, item.description);
-          }
-
-          // Save user answers if they exist
-          if (item.userAnswers) {
-            Object.keys(item.userAnswers).forEach(key => {
-              allAnswers[key] = item.userAnswers[key];
-            });
-          }
-          
-          // Save output answers if they exist
-          if (item.outputAnswer) {
-            allOutputs[index] = item.outputAnswer;
-          }
-          
-          // For backward compatibility
-          if (!item.answers) {
-            item.answers = {};
-          }
-        });
-      } else {
-        // Single problem case
-        if (data.title) {
-          localStorage.setItem('problem-title-0', data.title);
-        }
-        if (data.description) {
-          localStorage.setItem('problem-description-0', data.description);
-        }
-
-        if (data.userAnswers) {
-          Object.keys(data.userAnswers).forEach(key => {
-            allAnswers[key] = data.userAnswers[key];
-          });
-        }
-        
-        if (data.outputAnswer) {
-          allOutputs[0] = data.outputAnswer;
-        }
-        
-        if (!data.answers) {
-          data.answers = {};
-        }
+      // Store everything from our prepared data
+      importData.storageItems.forEach((value, key) => {
+        localStorage.setItem(key, value);
+      });
+      
+      // Save problem answers and outputs
+      if (Object.keys(importData.allAnswers).length > 0) {
+        localStorage.setItem('problem-answers', JSON.stringify(importData.allAnswers));
       }
       
-      // Save all collected answers and outputs to localStorage
-      if (Object.keys(allAnswers).length > 0) {
-        localStorage.setItem('problem-answers', JSON.stringify(allAnswers));
+      if (Object.keys(importData.allOutputs).length > 0) {
+        localStorage.setItem('problem-outputs', JSON.stringify(importData.allOutputs));
       }
       
-      if (Object.keys(allOutputs).length > 0) {
-        localStorage.setItem('problem-outputs', JSON.stringify(allOutputs));
-      }
-
+      // Save problems into localStorage for tracking
+      localStorage.setItem('saved-problems', JSON.stringify(importData.problems));
+      localStorage.setItem('problemsImported', true);
+      
+      // Set a flag that indicates import is complete to prevent race conditions
+      localStorage.setItem('import-complete', 'true');
+      
+      // Dispatch import completion event with minimal resets
+      const importCompleteEvent = new CustomEvent('import-complete', {
+        detail: { data: importData.problems }
+      });
+      window.dispatchEvent(importCompleteEvent);
+      
       if (typeof onImport === 'function') {
-        onImport(data);
+        onImport(Array.isArray(data) ? data : [data]);
       } else {
         throw new Error('Import handler not provided');
       }

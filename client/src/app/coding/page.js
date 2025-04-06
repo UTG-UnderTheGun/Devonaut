@@ -169,8 +169,11 @@ export default function CodingPage() {
           }
           // For 'output' type questions, store the answer
           else if (problem.type === 'output') {
+            // Handle both possible property names: answer and outputAnswer
             if (problem.userAnswers.answer) {
               extractedOutputAnswers[index] = problem.userAnswers.answer;
+            } else if (problem.userAnswers.outputAnswer) {
+              extractedOutputAnswers[index] = problem.userAnswers.outputAnswer;
             }
           }
         }
@@ -202,8 +205,12 @@ export default function CodingPage() {
             extractedAnswers[key] = value;
           });
         }
-        else if (data.type === 'output' && data.userAnswers.answer) {
-          extractedOutputAnswers[0] = data.userAnswers.answer;
+        else if (data.type === 'output') {
+          if (data.userAnswers.answer) {
+            extractedOutputAnswers[0] = data.userAnswers.answer;
+          } else if (data.userAnswers.outputAnswer) {
+            extractedOutputAnswers[0] = data.userAnswers.outputAnswer;
+          }
         }
       }
       
@@ -581,60 +588,25 @@ export default function CodingPage() {
     localStorage.setItem('problem-description', newDescription);
   };
 
-  const handleReset = () => {
-    // Reset editor content if reference exists
-    if (editorRef.current) {
-      editorRef.current.setValue('');
-    }
-
-    // Reset state values
+  const handleReset = async () => {
+    console.log("Starting complete reset of the application state");
+    
+    // Create a reset timestamp that we'll use throughout the reset process
+    const resetTimestamp = Date.now();
+    localStorage.setItem('reset_timestamp', resetTimestamp.toString());
+    localStorage.setItem('editor_reset_timestamp', resetTimestamp.toString());
+    
+    // Reset in-memory state first (important to prevent references to old state)
     setTitle('');
     setDescription('');
     setConsoleOutput('');
     setCode('');
-
-    // Clear all problem codes for all indices
     setProblemCodes({});
-
-    // Reset answers state
     setAnswers({});
     setOutputAnswers({});
-
-    // Clear problem outputs
-    localStorage.setItem('problem-outputs', JSON.stringify({}));
-    localStorage.setItem('problem-answers', JSON.stringify({}));
-
-    // Clear all localStorage items related to problems
-    const keysToRemove = [];
-
-    // Scan localStorage for all keys to remove
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-
-      // Check for various problem-related prefixes
-      if (key && (
-        key.startsWith('problem-title-') ||
-        key.startsWith('problem-description-') ||
-        key.startsWith('problem-code-') ||
-        key.startsWith('code-code-') ||
-        key.startsWith('code-output-') ||
-        key.startsWith('code-fill-') ||
-        key === 'problem-title' ||
-        key === 'problem-description' ||
-        key === 'problem-answers' ||
-        key === 'problem-outputs' ||
-        key === 'editorCode'
-      )) {
-        keysToRemove.push(key);
-      }
-    }
-
-    // Remove all identified keys
-    keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-    });
-
-    // Reset problems array with a default empty problem
+    
+    // Reset problems array with a default empty problem before clearing localStorage
+    // This ensures we have a clean state to start with
     const defaultProblems = [{
       id: 1,
       type: 'code',
@@ -642,36 +614,170 @@ export default function CodingPage() {
       description: '',
       starterCode: ''
     }];
-
+    
     setProblems(defaultProblems);
     setCurrentProblemIndex(0);
-
-    // Clear saved problems and reset import flag
+    
+    // Take a full snapshot of localStorage keys first to avoid iteration issues
+    const allKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        allKeys.push(key);
+      }
+    }
+    
+    // Define all patterns to be cleared
+    const patternsToRemove = [
+      /^problem-title-/,
+      /^problem-description-/,
+      /^problem-code-/,
+      /^code-code-/,
+      /^code-output-/,
+      /^code-fill-/,
+      /^code-/,
+      /^starter-code-/,
+      /^editor-code-/,
+      /^problem-title$/,
+      /^problem-description$/,
+      /^problem-answers$/,
+      /^problem-outputs$/,
+      /^problem-code$/,
+      /^editorCode$/,
+      /^saved-problems$/,
+      /^is-imported$/,
+      /^problemsImported$/,
+      /^chat_/ // Add pattern to clear chat history in localStorage
+    ];
+    
+    // Filter keys that match our patterns
+    const keysToRemove = allKeys.filter(key => 
+      patternsToRemove.some(pattern => pattern.test(key))
+    );
+    
+    console.log(`Removing ${keysToRemove.length} localStorage items:`, keysToRemove);
+    
+    // Remove all identified keys
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error(`Failed to remove key: ${key}`, error);
+      }
+    });
+    
+    // Explicitly reset critical localStorage items to empty values or remove them
     localStorage.removeItem('saved-problems');
     localStorage.removeItem('problemsImported');
-
-    // Set reset timestamp
-    const resetTimestamp = Date.now().toString();
-    localStorage.setItem('reset_timestamp', resetTimestamp);
-
-    // Force re-render of AI chat interface
-    setAiChatKey(resetTimestamp);
+    localStorage.removeItem('problem-code');
+    localStorage.removeItem('editorCode');
+    localStorage.setItem('problem-outputs', JSON.stringify({}));
+    localStorage.setItem('problem-answers', JSON.stringify({}));
+    
+    // Second verification pass to ensure all critical keys are removed
+    const criticalKeys = [
+      'saved-problems', 'problemsImported', 'is-imported',
+      'problem-code', 'editorCode'
+    ];
+    
+    criticalKeys.forEach(key => {
+      if (localStorage.getItem(key)) {
+        console.warn(`Critical key ${key} still exists after cleanup, forcing removal...`);
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Reset the editor instance if it exists
+    if (editorRef.current) {
+      try {
+        editorRef.current.setValue('');
+        console.log("Editor content reset successfully");
+      } catch (error) {
+        console.error("Error resetting editor content:", error);
+      }
+    }
+    
+    // Clear AI chat history on the server if user_id is available
+    if (user_id) {
+      try {
+        console.log("Clearing AI chat history from server");
+        
+        // Clear the backend conversation history
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/conversations/${user_id}`, {
+          method: 'DELETE',
+        });
+        console.log(`Cleared conversation history for user ${user_id}`);
+        
+        // Dispatch reset event for AI chat listeners
+        window.dispatchEvent(new CustomEvent('reset-chat-history'));
+        console.log("Dispatched reset-chat-history event");
+      } catch (error) {
+        console.error('Error clearing AI conversation history:', error);
+      }
+    }
+    
+    // Force re-render of AI chat interface with new key
+    setAiChatKey(resetTimestamp.toString());
     
     // Force re-render of the entire component tree
-    setImportTimestamp(resetTimestamp);
-
-    // Trigger a UI refresh event for components that need to re-render
-    window.dispatchEvent(new CustomEvent('app-reset', { detail: { timestamp: resetTimestamp } }));
-
-    // Display feedback to the user
-    setConsoleOutput("All problems have been reset successfully.");
-
-    console.log(`Reset complete. Cleared ${keysToRemove.length} localStorage items.`);
-
-    // Optionally notify the user with a toast message
-    if (window.showToast) {
-      window.showToast("All problems have been reset successfully");
+    setImportTimestamp(resetTimestamp.toString());
+    
+    // Broadcast events to all components that need to respond to the reset
+    // First fire storage-reset which is captured by StorageManager and Editor
+    window.dispatchEvent(new CustomEvent('storage-reset', { 
+      detail: { 
+        source: 'reset-button', 
+        complete: true, 
+        timestamp: resetTimestamp 
+      } 
+    }));
+    
+    // Then code-reset for any code-specific handlers
+    window.dispatchEvent(new CustomEvent('code-reset', { 
+      detail: { 
+        problemIndex: 0, 
+        timestamp: resetTimestamp 
+      } 
+    }));
+    
+    // Finally app-reset for any remaining components
+    window.dispatchEvent(new CustomEvent('app-reset', { 
+      detail: { 
+        timestamp: resetTimestamp 
+      } 
+    }));
+    
+    // Reset CodeContext state through the resetState method
+    try {
+      const { resetState } = useCodeContext();
+      if (typeof resetState === 'function') {
+        resetState();
+        console.log("CodeContext state reset successfully");
+      }
+    } catch (error) {
+      console.error("Error resetting CodeContext state:", error);
     }
+    
+    // Display feedback to the user
+    setConsoleOutput("All problems and chat history have been reset successfully.");
+    
+    console.log(`Reset complete. Cleared ${keysToRemove.length} localStorage items.`);
+    
+    // Show a toast notification if available
+    if (window.showToast) {
+      window.showToast("All problems and chat history have been reset successfully");
+    }
+    
+    // After a small delay, force a final update to ensure editor is really empty
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.setValue('');
+      }
+      // Trigger a final reset event to catch any components that may not have updated
+      window.dispatchEvent(new CustomEvent('final-reset', { 
+        detail: { timestamp: resetTimestamp } 
+      }));
+    }, 100);
   };
 
   const getCurrentProblemId = () => {
