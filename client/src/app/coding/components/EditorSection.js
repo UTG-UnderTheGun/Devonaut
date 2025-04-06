@@ -404,11 +404,16 @@ const EditorSection = ({
         return stateCode;
       }
 
-      // Try various localStorage keys
+      // Try various localStorage keys - prioritize the new format
       const keysToTry = [
+        // New key format (most specific first)
+        `problem-code-${effectiveTestType}-${currentProblemIndex}`,
+        
+        // Legacy key formats for backward compatibility
         `code-${effectiveTestType}-${currentProblemIndex}`,
         `editor-code-${effectiveTestType}-${currentProblemIndex}`,
         `code-${testType}-${currentProblemIndex}`,
+        `problem-code-${currentProblemIndex}`,
         `starter-code-${currentProblemIndex}`
       ];
 
@@ -416,6 +421,11 @@ const EditorSection = ({
         const savedCode = localStorage.getItem(key);
         if (savedCode) {
           console.log(`Found code with key: ${key}`);
+          // If we found code with an old key format, migrate it to the new format
+          if (key !== `problem-code-${effectiveTestType}-${currentProblemIndex}`) {
+            console.log(`Migrating code from ${key} to problem-code-${effectiveTestType}-${currentProblemIndex}`);
+            localStorage.setItem(`problem-code-${effectiveTestType}-${currentProblemIndex}`, savedCode);
+          }
           return savedCode;
         }
       }
@@ -423,11 +433,15 @@ const EditorSection = ({
       // Fall back to problem definition
       if (currentProblem.starterCode) {
         console.log("Using starter code from problem");
+        // Store this as the initial code for this problem and type
+        localStorage.setItem(`problem-code-${effectiveTestType}-${currentProblemIndex}`, currentProblem.starterCode);
         return currentProblem.starterCode;
       }
 
       if (currentProblem.code) {
         console.log("Using code from problem");
+        // Store this as the initial code for this problem and type
+        localStorage.setItem(`problem-code-${effectiveTestType}-${currentProblemIndex}`, currentProblem.code);
         return currentProblem.code;
       }
 

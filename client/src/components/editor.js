@@ -9,9 +9,37 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false 
 
 export default function Editor({ isCodeQuestion, initialValue, onChange, problemIndex, testType }) {
   const router = useRouter();
-  const { code, setCode, setOutput, setError } = useCodeContext();
+  const { setCode, setOutput, setError, setActiveProblem, codes } = useCodeContext();
   const [selectedText, setSelectedText] = useState('');
   const [editorInstance, setEditorInstance] = useState(null);
+  const [localCode, setLocalCode] = useState(initialValue || '# write code here');
+
+  // Get a unique storage key for this problem
+  const getStorageKey = () => {
+    if (problemIndex === undefined) {
+      return 'editorCode';
+    }
+    
+    // Include both problem index and type in the key to ensure uniqueness
+    // This ensures questions with the same index but different types don't share code
+    return `problem-code-${testType}-${problemIndex}`;
+  };
+
+  // Get code specific to this editor instance
+  const getEditorCode = () => {
+    if (problemIndex !== undefined && testType) {
+      const key = `${testType}-${problemIndex}`;
+      return codes[key] || localCode;
+    }
+    return localCode;
+  };
+
+  // Set the active problem when this editor mounts or changes problem
+  useEffect(() => {
+    if (problemIndex !== undefined && testType) {
+      setActiveProblem(problemIndex, testType);
+    }
+  }, [problemIndex, testType, setActiveProblem]);
 
   // Load initial code for the specific problem
   useEffect(() => {
@@ -27,33 +55,44 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
     }
 
     if (problemIndex !== undefined) {
-      // First try problem-specific code
-      const savedCode = localStorage.getItem(`problem-code-${problemIndex}`);
+      // Create a unique key for each problem by combining type and index
+      const storageKey = getStorageKey();
+      console.log(`Loading code from storage key: ${storageKey}`);
+      
+      // First try problem-specific code with unique key
+      const savedCode = localStorage.getItem(storageKey);
       if (savedCode) {
-        setCode(savedCode);
+        console.log(`Found saved code for ${storageKey}`);
+        setLocalCode(savedCode);
+        setCode(savedCode, problemIndex, testType);
       } else if (initialValue) {
-        setCode(initialValue);
+        console.log(`Using initial value for ${storageKey}`);
+        setLocalCode(initialValue);
+        setCode(initialValue, problemIndex, testType);
         // Only store initial value if we're not in a reset state
         const isImported = localStorage.getItem('is-imported') === 'true';
         if (isImported) {
-          localStorage.setItem(`problem-code-${problemIndex}`, initialValue);
+          localStorage.setItem(storageKey, initialValue);
         }
       }
     } else {
       // Fallback for non-problem-specific code
       const savedCode = localStorage.getItem('editorCode');
       if (savedCode) {
+        setLocalCode(savedCode);
         setCode(savedCode);
       } else if (initialValue) {
+        setLocalCode(initialValue);
         setCode(initialValue);
       }
     }
-  }, [initialValue, problemIndex]);
+  }, [initialValue, problemIndex, testType, setCode]);
 
   // Save code changes to localStorage - only store in ONE location to prevent duplicates
   useEffect(() => {
-    if (code === undefined || code === null) return;
-    if (code === '# write code here') return;
+    const currentCode = getEditorCode();
+    if (currentCode === undefined || currentCode === null) return;
+    if (currentCode === '# write code here') return;
     
     // Check if we're in a reset state
     const wasReset = localStorage.getItem('editor_reset_timestamp');
@@ -65,23 +104,32 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       }
     }
 
-    // Only store in problem-code-* format, not in both places
+    // Only store with unique key that includes both problem index and type
     if (problemIndex !== undefined) {
-      localStorage.setItem(`problem-code-${problemIndex}`, code);
-      // Remove the old key format if it exists
+      const storageKey = getStorageKey();
+      console.log(`Saving code to storage key: ${storageKey}`);
+      localStorage.setItem(storageKey, currentCode);
+      
+      // Remove old keys to prevent duplication and confusion
+      localStorage.removeItem(`problem-code-${problemIndex}`);
       localStorage.removeItem(`code-code-${problemIndex}`);
       localStorage.removeItem(`code-${problemIndex}`);
     } else {
-      localStorage.setItem('editorCode', code);
+      localStorage.setItem('editorCode', currentCode);
     }
-  }, [code, problemIndex]);
+  }, [codes, problemIndex, testType]);
 
   useEffect(() => {
     const handleImport = (event) => {
       if (event.detail && event.detail.code) {
-        setCode(event.detail.code);
+        const importedCode = event.detail.code;
+        setLocalCode(importedCode);
+        setCode(importedCode, problemIndex, testType);
+        
         if (problemIndex !== undefined) {
-          localStorage.setItem(`problem-code-${problemIndex}`, event.detail.code);
+          const storageKey = getStorageKey();
+          console.log(`Importing code to storage key: ${storageKey}`);
+          localStorage.setItem(storageKey, importedCode);
         }
       }
     };
@@ -93,13 +141,21 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       localStorage.setItem('editor_reset_timestamp', Date.now().toString());
       
       // Reset the editor content immediately
-      setCode('');
+      const emptyCode = '';
+      setLocalCode(emptyCode);
+      setCode(emptyCode, problemIndex, testType);
+      
       if (editorInstance) {
-        editorInstance.setValue('');
+        editorInstance.setValue(emptyCode);
       }
       
       // Clear problem-specific code if applicable
       if (problemIndex !== undefined) {
+        const storageKey = getStorageKey();
+        console.log(`Clearing storage key: ${storageKey}`);
+        localStorage.removeItem(storageKey);
+        
+        // Also clear old format keys
         localStorage.removeItem(`problem-code-${problemIndex}`);
         localStorage.removeItem(`code-code-${problemIndex}`);
         localStorage.removeItem(`code-${problemIndex}`);
@@ -122,7 +178,7 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       // Force another editor refresh after a small delay
       setTimeout(() => {
         if (editorInstance) {
-          editorInstance.setValue('');
+          editorInstance.setValue(emptyCode);
         }
       }, 50);
     };
@@ -226,11 +282,18 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
   };
 
   const handleChange = (newValue) => {
-    setCode(newValue);
-    // Save to problem-specific key
+    // Update both local state and context state
+    setLocalCode(newValue);
+    setCode(newValue, problemIndex, testType);
+    
+    // Save to problem-specific key with type-specific storage
     if (problemIndex !== undefined) {
-      localStorage.setItem(`problem-code-${problemIndex}`, newValue);
+      const storageKey = getStorageKey();
+      console.log(`Saving code change to storage key: ${storageKey}`);
+      localStorage.setItem(storageKey, newValue);
     }
+    
+    // Call parent onChange
     onChange(newValue);
   };
 
@@ -242,7 +305,7 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
           width="100%"
           language="python"
           theme="transparentTheme"
-          value={code}
+          value={getEditorCode()} // Use our local getter to get code specific to this editor
           onChange={handleChange}
           options={{
             scrollBeyondLastLine: false,

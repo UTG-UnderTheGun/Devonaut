@@ -3,14 +3,16 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 
 const CodeContext = createContext();
 
-// เพิ่ม code ใน initialState
+// Default initial state
 const initialState = {
-  code: '# write code here', // เพิ่มบรรทัดนี้
+  codes: {}, // Store codes for each question separately by problemIndex and type
   output: '',
   error: null,
   openTerm: false,
   openChat: false,
   openCreate: false,
+  currentProblemIndex: 0,
+  currentType: 'code',
 };
 
 export const CodeProvider = ({ children, initialOutput = '' }) => {
@@ -19,9 +21,48 @@ export const CodeProvider = ({ children, initialOutput = '' }) => {
     output: initialOutput,
   });
 
-  // เพิ่ม setCode function
-  const setCode = useCallback((code) => {
-    setState(prev => ({ ...prev, code }));
+  // Get the active code for the current problem
+  const getActiveCode = useCallback(() => {
+    const { codes, currentProblemIndex, currentType } = state;
+    const key = `${currentType}-${currentProblemIndex}`;
+    return codes[key] || '# write code here';
+  }, [state]);
+
+  // Set code for a specific problem
+  const setCode = useCallback((code, problemIndex, type) => {
+    setState(prev => {
+      // If problemIndex and type are provided, use them to create a specific key
+      if (problemIndex !== undefined && type) {
+        const key = `${type}-${problemIndex}`;
+        return { 
+          ...prev, 
+          codes: { 
+            ...prev.codes, 
+            [key]: code 
+          } 
+        };
+      } 
+      // Otherwise, use the current problem index and type from state
+      else {
+        const key = `${prev.currentType}-${prev.currentProblemIndex}`;
+        return { 
+          ...prev, 
+          codes: { 
+            ...prev.codes, 
+            [key]: code 
+          } 
+        };
+      }
+    });
+  }, []);
+
+  // Set the current active problem index and type
+  const setActiveProblem = useCallback((problemIndex, type) => {
+    setState(prev => ({
+      ...prev,
+      currentProblemIndex: problemIndex !== undefined ? problemIndex : prev.currentProblemIndex,
+      currentType: type || prev.currentType
+    }));
   }, []);
 
   const setOutput = useCallback((output) => {
@@ -52,6 +93,34 @@ export const CodeProvider = ({ children, initialOutput = '' }) => {
     setState(initialState);
   }, []);
 
+  // Load codes from localStorage on initial mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const savedCodes = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('problem-code-')) {
+        // Extract the type and index from key format: problem-code-type-index
+        const parts = key.replace('problem-code-', '').split('-');
+        if (parts.length >= 2) {
+          const type = parts[0];
+          const index = parseInt(parts[1], 10);
+          if (!isNaN(index)) {
+            const stateKey = `${type}-${index}`;
+            savedCodes[stateKey] = localStorage.getItem(key);
+          }
+        }
+      }
+    }
+    
+    setState(prev => ({
+      ...prev,
+      codes: savedCodes
+    }));
+  }, []);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       resetState();
@@ -60,7 +129,10 @@ export const CodeProvider = ({ children, initialOutput = '' }) => {
 
   const contextValue = {
     ...state,
-    setCode,      // เพิ่มบรรทัดนี้
+    code: getActiveCode(), // Return current active code
+    setCode,
+    setActiveProblem,
+    getActiveCode,
     setOutput,
     setError,
     clearError,
