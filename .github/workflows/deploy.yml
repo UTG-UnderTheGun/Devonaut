@@ -1,10 +1,8 @@
 name: Deploy to EC2
-
 on:
   pull_request:
     types: [closed]
     branches: [production]
-
 jobs:
   deploy:
     # Only run when the PR is merged (not when it's just closed without merging)
@@ -17,6 +15,10 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Check disk space and clean up
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "df -h && sudo docker system prune -af --volumes && cd ~/Devonaut && git gc --prune=now && sudo find /var/log -type f -name '*.log' -exec truncate -s 0 {} \;"
       
       - name: Deploy to EC2
         run: |
