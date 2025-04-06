@@ -22,4 +22,10 @@ jobs:
       
       - name: Deploy to EC2
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "cd ~/Devonaut && git fetch origin production && git reset --hard origin/production && sudo docker-compose -f docker-compose.prod.yml down && sudo docker-compose -f docker-compose.prod.yml up -d --build"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "cd ~/Devonaut && \
+          git fetch origin production && \
+          git reset --hard origin/production && \
+          sudo docker-compose -f docker-compose.prod.yml down && \
+          sudo docker system prune -f && \
+          sudo rm -rf /var/lib/docker/overlay2/* && \
+          sudo docker-compose -f docker-compose.prod.yml up -d --build"
