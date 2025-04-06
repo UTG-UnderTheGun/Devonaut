@@ -61,6 +61,25 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       
       // First try problem-specific code with unique key
       const savedCode = localStorage.getItem(storageKey);
+      
+      // For imported files, check if we need to use the student's code
+      const isImported = localStorage.getItem('is-imported') === 'true';
+      
+      // Check for user answer in coding questions (for imported assignments)
+      if (isImported && testType === 'code') {
+        // Look for student answer using the correct storage key pattern
+        const studentCodeKey = `problem-code-${testType}-${problemIndex}`;
+        const studentCode = localStorage.getItem(studentCodeKey);
+        
+        if (studentCode) {
+          console.log(`Found imported student code for ${studentCodeKey}`);
+          setLocalCode(studentCode);
+          setCode(studentCode, problemIndex, testType);
+          return; // Skip the rest of the loading since we found the student code
+        }
+      }
+      
+      // If we didn't find imported student code, proceed with normal loading
       if (savedCode) {
         console.log(`Found saved code for ${storageKey}`);
         setLocalCode(savedCode);
@@ -70,7 +89,6 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
         setLocalCode(initialValue);
         setCode(initialValue, problemIndex, testType);
         // Only store initial value if we're not in a reset state
-        const isImported = localStorage.getItem('is-imported') === 'true';
         if (isImported) {
           localStorage.setItem(storageKey, initialValue);
         }

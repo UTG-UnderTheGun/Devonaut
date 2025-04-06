@@ -189,7 +189,35 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       const exportProblems = savedProblems.map((problem, index) => {
         // Get problem-specific code and data for each problem
         const problemType = problem.type || 'code';
-        const currentCode = localStorage.getItem(`code-${problemType}-${index}`) || problem.code || problem.starterCode || '';
+        
+        // Try to get the user's code from storage using all possible storage keys
+        let currentCode;
+        
+        // For code-type questions, check multiple storage patterns to ensure we get student's answer
+        if (problemType === 'code') {
+          // Check all possible storage patterns for code answers
+          const storageKeys = [
+            `problem-code-${problemType}-${index}`,  // New format with problem type
+            `code-${problemType}-${index}`,          // Old format with problem type
+            `problem-code-${index}`,                 // Old format without problem type
+            `editor-code-${index}`                   // Very old format
+          ];
+          
+          // Try each storage key until we find a value
+          for (const key of storageKeys) {
+            const storedCode = localStorage.getItem(key);
+            if (storedCode) {
+              console.log(`Found code for ${key}:`, storedCode);
+              currentCode = storedCode;
+              break;
+            }
+          }
+        }
+        
+        // If we didn't find code in any of the specific storage locations, fall back to the default
+        if (!currentCode) {
+          currentCode = localStorage.getItem(`code-${problemType}-${index}`) || problem.code || problem.starterCode || '';
+        }
         
         // Filter answers for this specific problem
         const problemAnswers = {};
@@ -199,17 +227,17 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
           }
         });
 
-        // สร้าง export object ตามประเภทของโจทย์
+        // Create export object based on problem type
         const baseExport = {
           id: index + 1,
           title: problem.title || '',
           description: problem.description || '',
-          code: currentCode,
+          code: problem.code || problem.starterCode || '', // Original starter code
           type: problemType,
-          userAnswers: {} // เริ่มต้นด้วย empty object
+          userAnswers: {} // Start with empty object
         };
 
-        // เพิ่มข้อมูลเฉพาะตามประเภทของโจทย์
+        // Add specific data for each problem type
         switch (problemType) {
           case 'fill':
             if (Object.keys(problemAnswers).length > 0) {
@@ -222,8 +250,10 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             }
             break;
           case 'code':
-            if (currentCode && currentCode !== problem.code) {
+            // Always include the user's current code answer if it differs from starter code
+            if (currentCode && currentCode !== problem.code && currentCode !== problem.starterCode) {
               baseExport.userAnswers.codeAnswer = currentCode;
+              console.log(`Exporting user code answer for problem ${index}:`, currentCode);
             }
             if (allOutputs[index]) {
               baseExport.userAnswers.outputAnswer = allOutputs[index];
@@ -296,9 +326,17 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
 
           // Save user answers if they exist
           if (item.userAnswers) {
+            // Process each type of answer
             Object.keys(item.userAnswers).forEach(key => {
               allAnswers[key] = item.userAnswers[key];
             });
+            
+            // For coding questions, store the student's code answer directly
+            if (item.type === 'code' && item.userAnswers.codeAnswer) {
+              const storageKey = `problem-code-${item.type}-${index}`;
+              localStorage.setItem(storageKey, item.userAnswers.codeAnswer);
+              console.log(`Storing imported student code answer to ${storageKey}:`, item.userAnswers.codeAnswer);
+            }
           }
           
           // Save output answers if they exist
@@ -324,6 +362,13 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
           Object.keys(data.userAnswers).forEach(key => {
             allAnswers[key] = data.userAnswers[key];
           });
+          
+          // For coding questions, store the student's code answer directly
+          if (data.type === 'code' && data.userAnswers.codeAnswer) {
+            const storageKey = `problem-code-${data.type}-0`;
+            localStorage.setItem(storageKey, data.userAnswers.codeAnswer);
+            console.log(`Storing imported student code answer to ${storageKey}:`, data.userAnswers.codeAnswer);
+          }
         }
         
         if (data.outputAnswer) {
