@@ -3,9 +3,6 @@
 .dashboard-container {
   width: 100%;
   min-height: 100vh;
-  background: radial-gradient(92.73% 100% at 50% 0%, #000 40.5%, #7C3AED 63.5%, #9A69EF 78.5%, #D7C7F3 100%);
-  padding: 2rem 0;
-  margin-top: 30px;
 }
 
 .dashboard-header {
@@ -29,7 +26,7 @@
 /* Main content area */
 .main-content {
   max-width: 1150px;
-  margin: 0 auto;
+  margin: 20px auto;
   padding: 0 1.5rem;
 }
 
@@ -219,4 +216,15 @@
     font-size: 0.8125rem;
     padding: 0.625rem 1.25rem;
   }
+}
+
+/* Add this to your existing styles */
+.error-message {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem;
+  text-align: center;
+  font-weight: 500;
 }

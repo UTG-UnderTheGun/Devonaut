@@ -15,3 +15,8 @@ fastapi-limiter
 redis
 aioredis
 motor
+pytest
+httpx
+pytest-asyncio
+asynctest
+mongomock

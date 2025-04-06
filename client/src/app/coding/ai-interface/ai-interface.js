@@ -114,10 +114,30 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
   useEffect(() => {
     const handleResetChat = () => {
       console.log('Resetting AIChatInterface chat history');
-      setChat([]);
+      
+      // Create a reset notification message
+      const resetMessage = {
+        id: Date.now(),
+        text: "Chat history has been reset. All previous conversations have been cleared.",
+        isUser: false,
+        timestamp: new Date(),
+        isSystemMessage: true
+      };
+      
+      // Reset chat state to just the welcome message and reset notification
+      setChat([resetMessage]);
+      
       // Clear local storage for this specific exercise if available
       const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
       localStorage.removeItem(chatKey);
+      
+      // Save the reset notification message to localStorage
+      localStorage.setItem(chatKey, JSON.stringify([resetMessage]));
+      
+      // Also fetch updated questions remaining quota
+      if (user_id) {
+        fetchQuestionsRemaining();
+      }
     };
 
     window.addEventListener('reset-chat-history', handleResetChat);
@@ -411,6 +431,18 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       return (
         <div className="message-content user">
           <div className="message-text">{message.text}</div>
+          <div className="message-time">{formatTime(message.timestamp)}</div>
+        </div>
+      );
+    }
+
+    // Check if this is a system message (like reset notification)
+    if (message.isSystemMessage) {
+      return (
+        <div className="message-content system">
+          <div className="message-text system-notification">
+            <i>{message.text}</i>
+          </div>
           <div className="message-time">{formatTime(message.timestamp)}</div>
         </div>
       );

@@ -58,7 +58,8 @@
     margin-left: auto;
   }
   
-  .message-wrapper.ai {
+  .message-wrapper.ai,
+  .message-wrapper.system {
     margin-right: auto;
   }
   
@@ -78,6 +79,22 @@
     color: white;
     border-bottom-right-radius: 4px;
     margin-left: auto;
+  }
+  
+  /* System message styling */
+  .message-content.system {
+    background-color: rgba(255, 249, 219, 0.5);
+    border-left: 3px solid #ffd54f;
+    color: #555555;
+    width: 95%;
+    margin: 5px auto;
+  }
+  
+  .message-text.system-notification {
+    font-size: 0.85rem;
+    font-style: italic;
+    text-align: center;
+    color: #666;
   }
   
   .ai-message-container {

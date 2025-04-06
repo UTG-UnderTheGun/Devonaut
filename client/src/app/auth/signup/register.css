@@ -1,12 +1,6 @@
 .container {
   min-height: 100vh;
   width: 100%;
-  background: radial-gradient(92.73% 100% at 50% 0%, #000 40.5%, #7C3AED 63.5%, #9A69EF 78.5%, #D7C7F3 100%);
-  padding: 20px;
-}
-
-.header {
-  padding: 20px;
 }
 
 .logo {
@@ -30,7 +24,7 @@
 .signin-card {
   max-width: 684px;
   width: 90%;
-  margin: 50px auto;
+  margin: 20px auto;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 40px;
   padding: 40px;
@@ -70,10 +64,14 @@
 
 .progress-line {
   height: 4px;
-  width: 186px;
+  width: 100px;
   background: #B3B3B3;
   border-radius: 40px;
   transition: background-color 0.3s;
+}
+
+.progress-line.active {
+  background: #7C3AED;
 }
 
 .form-group {
@@ -217,7 +215,7 @@
   }
 
   .progress-line {
-    width: 100px;
+    width: 80px;
   }
 }
 
@@ -230,7 +228,7 @@
   }
 
   .progress-line {
-    width: 60px;
+    width: 40px;
   }
 
   .form-label {

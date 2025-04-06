@@ -1,10 +1,15 @@
 .loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: var(--background-gradient);
+    background: radial-gradient(92.73% 100% at 50% 0%, #000 40.5%, #7C3AED 63.5%, #9A69EF 78.5%, #D7C7F3 100%);
+    z-index: 9999;
+    overflow: hidden;
   }
   
   .loading-content {

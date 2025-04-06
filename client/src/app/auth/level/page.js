@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import './level.css';
 import Loading from "@/app/loading";
 
 export default function SkillLevel() {
-	  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const router = useRouter();
   const [skill, setSkill] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +17,7 @@ export default function SkillLevel() {
     if (!skill) {
       return;
     }
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     setIsLoading(true);
     try {
@@ -34,7 +35,7 @@ export default function SkillLevel() {
         throw new Error('Failed to set skill level');
       }
 
-      router.push('/dashboard');
+      router.push('/coding');
     } catch (error) {
       console.error('Error setting skill level:', error);
     } finally {
@@ -50,14 +51,16 @@ export default function SkillLevel() {
     <div className="container">
       <main className="skill-card">
         <div className="progress-steps">
-          <div className="step">1</div>
-          <div className="progress-line"></div>
-          <div className="step">2</div>
+          <div className="step active">1</div>
+          <div className="progress-line active"></div>
+          <div className="step active">2</div>
+          <div className="progress-line active"></div>
+          <div className="step active">3</div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">เลือกระดับความรู้ Python ของคุณ</label>
+            <label className="form-label">Select your Python skill level</label>
             <div className="select-wrapper">
               <select
                 value={skill}
@@ -94,8 +97,8 @@ export default function SkillLevel() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="btn btn-primary"
             disabled={!skill || isLoading}
           >

@@ -22,7 +22,17 @@ services:
         limits:
           cpus: "0.2"
           memory: 128M
-
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
+  certbot:
+    image: certbot/certbot
+    container_name: devonaut-certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    depends_on:
+      - nginx
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    command: certonly --webroot -w /var/www/certbot --force-renewal --email tanakrit.mae@dome.tu.ac.th -d 13.229.116.7 --agree-tos
   server:
     build:
       context: ./server
@@ -30,7 +40,6 @@ services:
     container_name: devonaut-server
     env_file:
       - ./server/.env
-    # Remove public port mapping - only expose to internal network
     expose:
       - "8000"
     volumes:
@@ -44,6 +53,7 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - API_BASE=https://13.229.116.7/api # Updated to HTTPS
     deploy:
       resources:
         limits:
@@ -51,12 +61,10 @@ services:
           memory: 512M
     networks:
       - app-network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Consider removing --reload in production
-
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
   redis:
     image: redis:alpine
     container_name: devonaut-redis
-    # Remove public port mapping - only expose to internal network
     expose:
       - "6379"
     volumes:
@@ -69,14 +77,12 @@ services:
           cpus: "0.2"
           memory: 256M
     command: redis-server --appendonly yes
-
   mongo:
     image: mongo:latest
     container_name: mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
-    # Remove public port mapping - only expose to internal network
     expose:
       - "27017"
     volumes:
@@ -88,30 +94,30 @@ services:
         limits:
           cpus: "0.3"
           memory: 512M
-
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
     container_name: devonaut-client
-    # Remove public port mapping - only expose to internal network
     expose:
       - "3000"
     depends_on:
       - server
     environment:
-      - NODE_ENV=production # Changed to production for deployment
-      - SERVER_API=http://server:8000 # This only affects build-time API calls
-      - NEXT_PUBLIC_API_URL=http://54.169.175.114/api # For client-side requests, they'll go through Nginx
-      - API_BASE=http://54.169.175.114/api
+      - NODE_ENV=production
+      - SERVER_API=http://server:8000
+      - NEXT_PUBLIC_API_URL=https://13.229.116.7/api # Updated to HTTPS
     networks:
       - app-network
-    command: npm run start # Changed from dev to start for production
-
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 512M
+    command: npm run start
 networks:
   app-network:
     driver: bridge
-
 volumes:
   redis-data:
   mongo-data:

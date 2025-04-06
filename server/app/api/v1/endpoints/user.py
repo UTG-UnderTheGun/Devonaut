@@ -5,13 +5,19 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
 from bson import ObjectId
+from app.db.schemas import UserProfile
+from app.services.user_service import update_user_profile
 
 router = APIRouter()
 
 class UserResponse(BaseModel):
     username: str
     user_id: str
+    name: Optional[str] = None
+    student_id: Optional[str] = None
+    section: Optional[str] = None
     skill_level: Optional[str] = None
+    email: Optional[str] = None
 
 class UserList(BaseModel):
     total_users: int
@@ -34,7 +40,11 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     return {
         "username": user["username"],
         "user_id": str(user_id),
-        "skill_level": user.get("skill_level", None)  # Return None if not set
+        "name": user.get("name", None),
+        "student_id": user.get("student_id", None),
+        "section": user.get("section", None),
+        "skill_level": user.get("skill_level", None),
+        "email": user.get("email", None)
     }
 
 @router.get("/all", response_model=UserList,
@@ -113,6 +123,37 @@ async def get_users_paginated(
             detail=f"Failed to fetch users: {str(e)}"
         )
 
+@router.post("/profile", 
+    summary="Update user profile information",
+    description="Updates the name, student ID, and section of the authenticated user")
+async def update_profile(
+    profile_data: UserProfile,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        user, user_id = current_user
+        
+        # Update profile using the user service
+        result = await update_user_profile(
+            user_id=user_id,
+            name=profile_data.name,
+            student_id=profile_data.student_id,
+            section=profile_data.section
+        )
+
+        return {
+            "message": "Profile updated successfully",
+            "name": profile_data.name,
+            "student_id": profile_data.student_id,
+            "section": profile_data.section
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update profile: {str(e)}"
+        )
+
 @router.post("/skill-level", 
     summary="Update user's skill level",
     description="Updates the skill level of the authenticated user")
@@ -185,4 +226,54 @@ async def logout(response: Response):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to logout: {str(e)}"
+        )
+
+@router.get("/students", response_model=UserList,
+    summary="Get all students",
+    description="Returns a list of all students for teacher dashboard")
+async def get_all_students(current_user: dict = Depends(get_current_user)):
+    try:
+        user, user_id = current_user
+        
+        # Verify the user is a teacher
+        if user.get("role") != "teacher":
+            raise HTTPException(
+                status_code=403,
+                detail="Only teachers can access this endpoint"
+            )
+
+        # Get all users with role "student"
+        users = list(collection.find(
+            {"role": "student"},
+            {
+                "_id": 1,
+                "username": 1,  # Include username as it might contain email
+                "name": 1,
+                "student_id": 1,
+                "section": 1,
+                "skill_level": 1,
+                "email": 1       # Explicitly include email field
+            }
+        ))
+
+        # Format the data for frontend
+        formatted_users = []
+        for user in users:
+            formatted_users.append({
+                "id": user.get("student_id", "N/A"),
+                "name": user.get("name", "Unknown"),
+                "section": user.get("section", "Unassigned"),
+                "score": user.get("skill_level", 0),
+                "email": user.get("email", user.get("username", "N/A"))  # Try both email and username
+            })
+
+        return {
+            "total_users": len(formatted_users),
+            "users": formatted_users
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch students: {str(e)}"
         )

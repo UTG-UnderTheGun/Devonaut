@@ -38,10 +38,12 @@ export default function CodingPage() {
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const [testType, setTestType] = useState('code');
   const [answers, setAnswers] = useState({});
+  const [outputAnswers, setOutputAnswers] = useState({});
   const [problemCodes, setProblemCodes] = useState({});
   const editorRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [aiChatKey, setAiChatKey] = useState(Date.now()); // Used to force re-render of AIChatInterface
+  const [importTimestamp, setImportTimestamp] = useState(Date.now()); // Added to force re-renders on import
   const [problems, setProblems] = useState([
     {
       id: 1,
@@ -51,6 +53,46 @@ export default function CodingPage() {
       starterCode: ''
     }
   ]);
+
+  // Debug helper function to analyze user answers
+  const debugUserAnswers = (data) => {
+    console.group('Debug User Answers');
+    
+    if (Array.isArray(data)) {
+      console.log('Input is an array with', data.length, 'problems');
+      
+      data.forEach((problem, index) => {
+        console.group(`Problem ${index + 1} (ID: ${problem.id})`);
+        console.log('Type:', problem.type);
+        console.log('Title:', problem.title);
+        
+        if (problem.userAnswers) {
+          console.log('Has userAnswers:', problem.userAnswers);
+          
+          if (problem.type === 'fill' && problem.userAnswers.fillAnswers) {
+            console.log('Fill Answers:', problem.userAnswers.fillAnswers);
+            
+            // Extract structure of fill answers
+            Object.entries(problem.userAnswers.fillAnswers).forEach(([key, value]) => {
+              const [_, problemId, blankIndex] = key.split('-');
+              console.log(`  Key format: problem ID=${problemId}, blank index=${blankIndex}, value=${value}`);
+            });
+          } else if (problem.type === 'output') {
+            console.log('Output Answer:', problem.userAnswers.answer || 'Not set');
+          }
+        } else {
+          console.log('No userAnswers data');
+        }
+        console.groupEnd();
+      });
+    } else {
+      console.log('Input is a single problem object');
+      console.log('Type:', data.type);
+      console.log('Has userAnswers:', !!data.userAnswers);
+    }
+    
+    console.groupEnd();
+  };
 
   // Complete clearing of conversation history and interface state
   const handleClearImport = async () => {
@@ -84,8 +126,7 @@ export default function CodingPage() {
       console.error('Error clearing conversation history:', error);
     }
   };
-  
-  // Handle file imports, with option to force reset chat
+
   const handleImport = async (data, forceReset = false) => {
     console.log("Importing data:", data);
     if (!data) {
@@ -93,75 +134,204 @@ export default function CodingPage() {
       return;
     }
 
+    // Debug user answers in the imported data
+    debugUserAnswers(data);
+
+    // Clear existing data before import
+    // Reset relevant states to ensure clean start
+    setCode("");
+    setConsoleOutput("");
+
     // Clear chat history if this is a new file import
     if (user_id && forceReset) {
       await handleClearImport();
     }
 
     // Process problems data and update state/localStorage
+    let validData = [];
+    let extractedAnswers = {};
+    let extractedOutputAnswers = {};
+
     if (Array.isArray(data)) {
       if (data.length === 0) {
         console.error("Empty problem array");
         return;
       }
-      const validData = data.map((problem, index) => ({
-        ...problem,
-        id: problem.id || index + 1,
-        type: problem.type || 'code',
-        title: problem.title || `Problem ${index + 1}`,
-        description: problem.description || '',
-        starterCode: problem.starterCode || problem.code || ''
-      }));
-      setProblems(validData);
-      setCurrentProblemIndex(0);
 
-      // Upload exercises data for quota tracking if user_id is available.
-      if (user_id) {
-        try {
-          const exercisesData = JSON.stringify(validData);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/upload-exercises`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id, exercises_data: exercisesData }),
-          });
-          if (!response.ok) throw new Error('Failed to upload exercises data');
-          const result = await response.json();
-          console.log('Exercises upload result:', result);
-        } catch (error) {
-          console.error('Error uploading exercises data:', error);
+      validData = data.map((problem, index) => {
+        // Extract user answers if they exist
+        if (problem.userAnswers) {
+          // For 'fill' type questions, get the fillAnswers
+          if (problem.type === 'fill' && problem.userAnswers.fillAnswers) {
+            Object.entries(problem.userAnswers.fillAnswers).forEach(([key, value]) => {
+              extractedAnswers[key] = value;
+            });
+          }
+          // For 'output' type questions, store the answer
+          else if (problem.type === 'output') {
+            // Handle both possible property names: answer and outputAnswer
+            if (problem.userAnswers.answer) {
+              extractedOutputAnswers[index] = problem.userAnswers.answer;
+            } else if (problem.userAnswers.outputAnswer) {
+              extractedOutputAnswers[index] = problem.userAnswers.outputAnswer;
+            }
+          }
         }
-      }
+
+        return {
+          ...problem,
+          id: problem.id || index + 1,
+          type: problem.type || 'code',
+          title: problem.title || `Problem ${index + 1}`,
+          description: problem.description || '',
+          starterCode: problem.starterCode || problem.code || ''
+        };
+      });
     } else {
       // Process a single problem object
       const validProblem = {
         ...data,
-        id: data.id || 1,
+        id: data.id || 1, 
         type: data.type || 'code',
         title: data.title || 'Problem',
         description: data.description || '',
         starterCode: data.starterCode || data.code || ''
       };
-      setProblems([validProblem]);
-      setCurrentProblemIndex(0);
-      if (user_id) {
-        try {
-          const exercisesData = JSON.stringify([validProblem]);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/upload-exercises`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id, exercises_data: exercisesData }),
+      
+      // Extract user answers from the single problem
+      if (data.userAnswers) {
+        if (data.type === 'fill' && data.userAnswers.fillAnswers) {
+          Object.entries(data.userAnswers.fillAnswers).forEach(([key, value]) => {
+            extractedAnswers[key] = value;
           });
-          if (!response.ok) throw new Error('Failed to upload exercise data');
-          const result = await response.json();
-          console.log('Exercise upload result:', result);
-        } catch (error) {
-          console.error('Error uploading exercise data:', error);
         }
+        else if (data.type === 'output') {
+          if (data.userAnswers.answer) {
+            extractedOutputAnswers[0] = data.userAnswers.answer;
+          } else if (data.userAnswers.outputAnswer) {
+            extractedOutputAnswers[0] = data.userAnswers.outputAnswer;
+          }
+        }
+      }
+      
+      validData = [validProblem];
+    }
+
+    // Update problems state
+    setProblems(validData);
+    setCurrentProblemIndex(0);
+    
+    // Update answers with the extracted data
+    if (Object.keys(extractedAnswers).length > 0) {
+      console.log('Setting fill answers:', extractedAnswers);
+      setAnswers(extractedAnswers);
+      localStorage.setItem('problem-answers', JSON.stringify(extractedAnswers));
+    }
+
+    // Update output answers if any were found
+    if (Object.keys(extractedOutputAnswers).length > 0) {
+      console.log('Setting output answers:', extractedOutputAnswers);
+      setOutputAnswers(extractedOutputAnswers);
+      localStorage.setItem('problem-outputs', JSON.stringify(extractedOutputAnswers));
+    }
+
+    // Set type based on the first problem
+    if (validData[0] && validData[0].type) {
+      setTestType(validData[0].type);
+    }
+
+    // Set initial code from starterCode if available
+    if (validData[0] && validData[0].starterCode) {
+      setCode(validData[0].starterCode);
+
+      // If editor reference exists, update it directly as well
+      if (editorRef.current) {
+        editorRef.current.setValue(validData[0].starterCode);
+      }
+
+      // Save to localStorage for the specific problem
+      const codeKey = `code-${validData[0].type || 'code'}-0`;
+      localStorage.setItem(codeKey, validData[0].starterCode);
+
+      // Update problemCodes state
+      setProblemCodes(prev => ({
+        ...prev,
+        [codeKey]: validData[0].starterCode
+      }));
+    }
+
+    // Set initial title and description
+    if (validData[0]) {
+      setTitle(validData[0].title || '');
+      setDescription(validData[0].description || '');
+
+      // Update localStorage
+      localStorage.setItem('problem-title', validData[0].title || '');
+      localStorage.setItem('problem-description', validData[0].description || '');
+    }
+
+    // Upload exercises data for quota tracking if user_id is available
+    if (user_id) {
+      try {
+        const exercisesData = JSON.stringify(validData);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/upload-exercises`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id, exercises_data: exercisesData }),
+        });
+
+        if (!response.ok) throw new Error('Failed to upload exercises data');
+        const result = await response.json();
+        console.log('Exercises upload result:', result);
+      } catch (error) {
+        console.error('Error uploading exercises data:', error);
       }
     }
 
     // Save problems data to localStorage
-    localStorage.setItem('saved-problems', JSON.stringify(Array.isArray(data) ? data : [data]));
+    localStorage.setItem('saved-problems', JSON.stringify(validData));
+    localStorage.setItem('problemsImported', 'true');
+
+    // Force re-render of AI chat interface
+    setAiChatKey(Date.now());
+    
+    // Force re-render of the entire component tree by updating importTimestamp
+    setImportTimestamp(Date.now());
+
+    // Set appropriate tabs based on the problem type
+    if (validData[0] && validData[0].type !== 'code') {
+      setIsConsoleFolded(true);
+      setSelectedDescriptionTab('ASK AI');
+    } else {
+      setIsConsoleFolded(false);
+      setSelectedDescriptionTab('Description');
+    }
+
+    // Dispatch event for any components that need to update
+    window.dispatchEvent(new CustomEvent('problems-imported', {
+      detail: {
+        timestamp: Date.now(),
+        problemCount: validData.length
+      }
+    }));
+    
+    // Add a new event: import-complete to signal final completion
+    window.dispatchEvent(new CustomEvent('import-complete', {
+      detail: {
+        timestamp: Date.now(),
+        problemCount: validData.length
+      }
+    }));
+
+    // Provide user feedback
+    setConsoleOutput("Problems imported successfully.");
+
+    // Optionally show toast notification
+    if (window.showToast) {
+      window.showToast(`Successfully imported ${validData.length} problem(s)`);
+    }
+
+    console.log(`Import complete. Loaded ${validData.length} problem(s).`);
   };
 
   // Listen for "file-import" events
@@ -169,17 +339,20 @@ export default function CodingPage() {
     const onFileImportEvent = async (event) => {
       const data = event.detail; // new file data (problems array or single object)
       console.log("Received file-import event with data:", data);
-      
+
       // Remove flag so that this new import is treated as a new file
       localStorage.removeItem('problemsImported');
-      
+
       // Force reset chat on new file import (true parameter)
       await handleImport(data, true);
-      
+
       // Force re-render the AIChatInterface by updating its key
       setAiChatKey(Date.now());
+      
+      // Update the import timestamp to force re-render throughout the app
+      setImportTimestamp(Date.now());
     };
-    
+
     window.addEventListener('file-import', onFileImportEvent);
     return () => window.removeEventListener('file-import', onFileImportEvent);
   }, [user_id]);
@@ -194,19 +367,37 @@ export default function CodingPage() {
       const storedConsoleFolded = localStorage.getItem('isConsoleFolded');
       const storedDescriptionFolded = localStorage.getItem('isDescriptionFolded');
       const storedProblems = localStorage.getItem('saved-problems');
+      const storedAnswers = localStorage.getItem('problem-answers');
+      const storedOutputs = localStorage.getItem('problem-outputs');
 
       if (storedTitle) setTitle(storedTitle);
       if (storedDescription) setDescription(storedDescription);
       if (storedCode) setCode(storedCode);
       if (storedConsoleFolded) setIsConsoleFolded(storedConsoleFolded === 'true');
       if (storedDescriptionFolded) setIsDescriptionFolded(storedDescriptionFolded === 'true');
+      
+      if (storedAnswers) {
+        try {
+          setAnswers(JSON.parse(storedAnswers));
+        } catch (error) {
+          console.error('Error parsing stored answers:', error);
+        }
+      }
+      
+      if (storedOutputs) {
+        try {
+          setOutputAnswers(JSON.parse(storedOutputs));
+        } catch (error) {
+          console.error('Error parsing stored outputs:', error);
+        }
+      }
 
       if (storedProblems) {
         try {
           const parsedProblems = JSON.parse(storedProblems);
           if (Array.isArray(parsedProblems) && parsedProblems.length > 0) {
             setProblems(parsedProblems);
-            
+
             // On refresh we load the problems but do not force a chat reset
             if (user_id && !localStorage.getItem('problemsImported')) {
               // This will upload exercise data to backend but not reset chat
@@ -304,23 +495,6 @@ export default function CodingPage() {
     }
   }, [testType]);
 
-  // Load answers from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedAnswers = localStorage.getItem('problem-answers');
-      if (savedAnswers) {
-        setAnswers(JSON.parse(savedAnswers));
-      }
-    }
-  }, []);
-
-  // Save answers to localStorage when they change
-  useEffect(() => {
-    if (answers && Object.keys(answers).length > 0) {
-      localStorage.setItem('problem-answers', JSON.stringify(answers));
-    }
-  }, [answers]);
-
   // Set test type based on the current problem
   useEffect(() => {
     if (problems && problems[currentProblemIndex] && problems[currentProblemIndex].type) {
@@ -414,36 +588,196 @@ export default function CodingPage() {
     localStorage.setItem('problem-description', newDescription);
   };
 
-  const handleReset = () => {
-    if (editorRef.current) {
-      editorRef.current.setValue('');
-    }
+  const handleReset = async () => {
+    console.log("Starting complete reset of the application state");
+    
+    // Create a reset timestamp that we'll use throughout the reset process
+    const resetTimestamp = Date.now();
+    localStorage.setItem('reset_timestamp', resetTimestamp.toString());
+    localStorage.setItem('editor_reset_timestamp', resetTimestamp.toString());
+    
+    // Reset in-memory state first (important to prevent references to old state)
     setTitle('');
     setDescription('');
     setConsoleOutput('');
     setCode('');
-    setProblemCodes(prev => {
-      const newCodes = { ...prev };
-      Object.keys(newCodes).forEach(key => {
-        if (key.includes(`-${currentProblemIndex}`)) {
-          delete newCodes[key];
-        }
-      });
-      return newCodes;
-    });
-    const newOutputAnswers = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
-    if (newOutputAnswers[currentProblemIndex]) {
-      delete newOutputAnswers[currentProblemIndex];
-      localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+    setProblemCodes({});
+    setAnswers({});
+    setOutputAnswers({});
+    
+    // Reset problems array with a default empty problem before clearing localStorage
+    // This ensures we have a clean state to start with
+    const defaultProblems = [{
+      id: 1,
+      type: 'code',
+      title: '',
+      description: '',
+      starterCode: ''
+    }];
+    
+    setProblems(defaultProblems);
+    setCurrentProblemIndex(0);
+    
+    // Take a full snapshot of localStorage keys first to avoid iteration issues
+    const allKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        allKeys.push(key);
+      }
     }
-    localStorage.removeItem('problem-title');
-    localStorage.removeItem('problem-description');
-    const typesToClear = ['code', 'output', 'fill'];
-    typesToClear.forEach(type => {
-      localStorage.removeItem(`code-${type}-${currentProblemIndex}`);
-      localStorage.removeItem(`editor-code-${type}-${currentProblemIndex}`);
+    
+    // Define all patterns to be cleared
+    const patternsToRemove = [
+      /^problem-title-/,
+      /^problem-description-/,
+      /^problem-code-/,
+      /^code-code-/,
+      /^code-output-/,
+      /^code-fill-/,
+      /^code-/,
+      /^starter-code-/,
+      /^editor-code-/,
+      /^problem-title$/,
+      /^problem-description$/,
+      /^problem-answers$/,
+      /^problem-outputs$/,
+      /^problem-code$/,
+      /^editorCode$/,
+      /^saved-problems$/,
+      /^is-imported$/,
+      /^problemsImported$/,
+      /^chat_/ // Add pattern to clear chat history in localStorage
+    ];
+    
+    // Filter keys that match our patterns
+    const keysToRemove = allKeys.filter(key => 
+      patternsToRemove.some(pattern => pattern.test(key))
+    );
+    
+    console.log(`Removing ${keysToRemove.length} localStorage items:`, keysToRemove);
+    
+    // Remove all identified keys
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error(`Failed to remove key: ${key}`, error);
+      }
     });
-    console.log("Reset handler executed for problem", currentProblemIndex);
+    
+    // Explicitly reset critical localStorage items to empty values or remove them
+    localStorage.removeItem('saved-problems');
+    localStorage.removeItem('problemsImported');
+    localStorage.removeItem('problem-code');
+    localStorage.removeItem('editorCode');
+    localStorage.setItem('problem-outputs', JSON.stringify({}));
+    localStorage.setItem('problem-answers', JSON.stringify({}));
+    
+    // Second verification pass to ensure all critical keys are removed
+    const criticalKeys = [
+      'saved-problems', 'problemsImported', 'is-imported',
+      'problem-code', 'editorCode'
+    ];
+    
+    criticalKeys.forEach(key => {
+      if (localStorage.getItem(key)) {
+        console.warn(`Critical key ${key} still exists after cleanup, forcing removal...`);
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Reset the editor instance if it exists
+    if (editorRef.current) {
+      try {
+        editorRef.current.setValue('');
+        console.log("Editor content reset successfully");
+      } catch (error) {
+        console.error("Error resetting editor content:", error);
+      }
+    }
+    
+    // Clear AI chat history on the server if user_id is available
+    if (user_id) {
+      try {
+        console.log("Clearing AI chat history from server");
+        
+        // Clear the backend conversation history
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ai/conversations/${user_id}`, {
+          method: 'DELETE',
+        });
+        console.log(`Cleared conversation history for user ${user_id}`);
+        
+        // Dispatch reset event for AI chat listeners
+        window.dispatchEvent(new CustomEvent('reset-chat-history'));
+        console.log("Dispatched reset-chat-history event");
+      } catch (error) {
+        console.error('Error clearing AI conversation history:', error);
+      }
+    }
+    
+    // Force re-render of AI chat interface with new key
+    setAiChatKey(resetTimestamp.toString());
+    
+    // Force re-render of the entire component tree
+    setImportTimestamp(resetTimestamp.toString());
+    
+    // Broadcast events to all components that need to respond to the reset
+    // First fire storage-reset which is captured by StorageManager and Editor
+    window.dispatchEvent(new CustomEvent('storage-reset', { 
+      detail: { 
+        source: 'reset-button', 
+        complete: true, 
+        timestamp: resetTimestamp 
+      } 
+    }));
+    
+    // Then code-reset for any code-specific handlers
+    window.dispatchEvent(new CustomEvent('code-reset', { 
+      detail: { 
+        problemIndex: 0, 
+        timestamp: resetTimestamp 
+      } 
+    }));
+    
+    // Finally app-reset for any remaining components
+    window.dispatchEvent(new CustomEvent('app-reset', { 
+      detail: { 
+        timestamp: resetTimestamp 
+      } 
+    }));
+    
+    // Reset CodeContext state through the resetState method
+    try {
+      const { resetState } = useCodeContext();
+      if (typeof resetState === 'function') {
+        resetState();
+        console.log("CodeContext state reset successfully");
+      }
+    } catch (error) {
+      console.error("Error resetting CodeContext state:", error);
+    }
+    
+    // Display feedback to the user
+    setConsoleOutput("All problems and chat history have been reset successfully.");
+    
+    console.log(`Reset complete. Cleared ${keysToRemove.length} localStorage items.`);
+    
+    // Show a toast notification if available
+    if (window.showToast) {
+      window.showToast("All problems and chat history have been reset successfully");
+    }
+    
+    // After a small delay, force a final update to ensure editor is really empty
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.setValue('');
+      }
+      // Trigger a final reset event to catch any components that may not have updated
+      window.dispatchEvent(new CustomEvent('final-reset', { 
+        detail: { timestamp: resetTimestamp } 
+      }));
+    }, 100);
   };
 
   const getCurrentProblemId = () => {
@@ -502,6 +836,8 @@ export default function CodingPage() {
     handleNextProblem,
     answers,
     setAnswers,
+    outputAnswers,
+    setOutputAnswers, // Make sure this is included
     consoleOutput,
     setConsoleOutput,
     handleReset,
@@ -511,7 +847,9 @@ export default function CodingPage() {
     setDescription,
     setSelectedDescriptionTab,
     user_id,
-    handleClearImport
+    handleClearImport,
+    isConsoleFolded,
+    setIsConsoleFolded
   };
 
   const consoleProps = {
@@ -530,7 +868,10 @@ export default function CodingPage() {
           key={`desc-panel-${getCurrentProblemId() || 'global'}-${aiChatKey}`}
         />
         <div className="editor-container">
-          <EditorSection {...editorProps} />
+          <EditorSection 
+            {...editorProps} 
+            key={`editor-section-${currentProblemIndex}-${importTimestamp}`} // Key forces re-render on problem change or import
+          />
           <ConsoleSection {...consoleProps} />
         </div>
       </div>

@@ -1,0 +1,215 @@
+/* QuestionEditor.css */
+.question-editor-container {
+  width: 100%;
+  max-width: 850px;
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  margin: 20px auto;
+}
+
+.question-editor-container h2 {
+  color: #2d3748;
+  margin-bottom: 25px;
+  font-size: 24px;
+  font-weight: 700;
+  border-bottom: 2px solid #edf2f7;
+  padding-bottom: 12px;
+}
+
+.question-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 15px;
+  transition: color 0.2s;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  background-color: #f8fafc;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+}
+
+.form-group input:hover,
+.form-group select:hover,
+.form-group textarea:hover {
+  border-color: #cbd5e0;
+}
+
+.form-group small {
+  color: #718096;
+  font-size: 13px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.code-textarea {
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 14px;
+  white-space: pre;
+  background-color: #f7fafc;
+  line-height: 1.6;
+  color: #2d3748;
+  min-height: 180px;
+}
+
+/* Visual Editor specific styles */
+.visual-editor-wrapper {
+  height: 320px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+  margin-top: 5px;
+}
+
+.visual-editor-wrapper:hover {
+  border-color: #cbd5e0;
+}
+
+.visual-editor-wrapper:focus-within {
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+}
+
+.editor-container {
+  margin-bottom: 10px;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+
+.save-btn, .cancel-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.save-btn {
+  background-color: #4a6cf7;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #3a58d6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.save-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cancel-btn {
+  background-color: #f7fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+}
+
+.cancel-btn:hover {
+  background-color: #edf2f7;
+  color: #2d3748;
+}
+
+.cancel-btn:active {
+  background-color: #e2e8f0;
+}
+
+/* VisualEditor specific style overrides */
+.visual-editor .monaco-editor {
+  padding-top: 8px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+}
+
+.blank-info {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background-color: #ebf4ff;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #4a6cf7;
+  border-left: 3px solid #4a6cf7;
+}
+
+.blank-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #fff8dc;
+  color: #806600;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 500;
+}
+
+/* Optional animation for showing/hiding the form */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.question-editor-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Responsive design adjustments */
+@media (max-width: 768px) {
+  .question-editor-container {
+    padding: 20px;
+    margin: 10px;
+    width: calc(100% - 20px);
+  }
+  
+  .visual-editor-wrapper {
+    height: 250px;
+  }
+  
+  .button-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .save-btn, .cancel-btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,210 @@
+/* Dashboard Skeleton Styles */
+.skeleton-stats {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto 2rem;
+  max-width: 1150px;
+  padding: 0 1.5rem;
+  gap: 1rem;
+}
+
+.skeleton-stat {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  height: 120px;
+  justify-content: space-between;
+}
+
+.skeleton-stat-title {
+  height: 1rem;
+  width: 70%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-stat-value {
+  height: 2rem;
+  width: 40%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.skeleton-table-container {
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.skeleton-table-title {
+  height: 1.25rem;
+  width: 200px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-table-subtitle {
+  height: 0.875rem;
+  width: 300px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-controls {
+  display: flex;
+  padding: 1rem 1.5rem;
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.skeleton-search {
+  height: 2.5rem;
+  width: 300px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+.skeleton-dropdown {
+  height: 2.5rem;
+  width: 200px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+.skeleton-table-wrap {
+  padding: 1rem 1.5rem;
+}
+
+.skeleton-table-header {
+  display: flex;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.skeleton-th {
+  flex: 1;
+  padding: 0 0.5rem;
+}
+
+.skeleton-th .skeleton-text {
+  height: 1rem;
+  width: 70%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-table-body {
+  margin-top: 0.5rem;
+}
+
+.skeleton-row {
+  display: flex;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.skeleton-td {
+  flex: 1;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton-td .skeleton-text {
+  height: 1rem;
+  width: 80%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-score-bar {
+  height: 0.5rem;
+  width: 70%;
+  border-radius: 999px;
+  margin-top: 0.25rem;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-pagination {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.skeleton-pagination-info {
+  height: 1rem;
+  width: 200px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-pagination-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.skeleton-pagination-controls::before,
+.skeleton-pagination-controls::after {
+  content: "";
+  height: 2rem;
+  width: 2rem;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.375rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .skeleton-stats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .skeleton-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .skeleton-search,
+  .skeleton-dropdown {
+    width: 100%;
+  }
+} 
