@@ -169,8 +169,11 @@ export default function CodingPage() {
           }
           // For 'output' type questions, store the answer
           else if (problem.type === 'output') {
+            // Handle both possible property names: answer and outputAnswer
             if (problem.userAnswers.answer) {
               extractedOutputAnswers[index] = problem.userAnswers.answer;
+            } else if (problem.userAnswers.outputAnswer) {
+              extractedOutputAnswers[index] = problem.userAnswers.outputAnswer;
             }
           }
         }
@@ -202,8 +205,12 @@ export default function CodingPage() {
             extractedAnswers[key] = value;
           });
         }
-        else if (data.type === 'output' && data.userAnswers.answer) {
-          extractedOutputAnswers[0] = data.userAnswers.answer;
+        else if (data.type === 'output') {
+          if (data.userAnswers.answer) {
+            extractedOutputAnswers[0] = data.userAnswers.answer;
+          } else if (data.userAnswers.outputAnswer) {
+            extractedOutputAnswers[0] = data.userAnswers.outputAnswer;
+          }
         }
       }
       

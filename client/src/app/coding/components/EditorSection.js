@@ -490,10 +490,21 @@ const EditorSection = ({
                 className="output-input"
                 value={outputAnswers[currentProblemIndex] || ''}
                 onChange={(e) => {
-                  const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: e.target.value };
+                  const newValue = e.target.value;
+                  const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: newValue };
                   setOutputAnswers(newOutputAnswers);
                   localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
-                  console.log(`Updated output answer for problem ${currentProblemIndex} to: ${e.target.value}`);
+                  
+                  // If we have an imported problem, also update its userAnswers properties
+                  if (problems && problems[currentProblemIndex] && problems[currentProblemIndex].userAnswers) {
+                    problems[currentProblemIndex].userAnswers.answer = newValue;
+                    problems[currentProblemIndex].userAnswers.outputAnswer = newValue;
+                    
+                    // Update in localStorage to persist
+                    localStorage.setItem('saved-problems', JSON.stringify(problems));
+                  }
+                  
+                  console.log(`Updated output answer for problem ${currentProblemIndex} to: ${newValue}`);
                 }}
                 rows={1}
                 onInput={(e) => {

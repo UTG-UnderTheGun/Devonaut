@@ -677,8 +677,18 @@ export const StorageService = {
       // Setup appropriate userAnswers based on type
       if (standardized.type === 'code' && !('codeAnswer' in standardized.userAnswers)) {
         standardized.userAnswers.codeAnswer = '';
-      } else if (standardized.type === 'output' && !('outputAnswer' in standardized.userAnswers)) {
-        standardized.userAnswers.outputAnswer = '';
+      } else if (standardized.type === 'output') {
+        // Use both property names for maximum compatibility
+        if (!('outputAnswer' in standardized.userAnswers)) {
+          standardized.userAnswers.outputAnswer = '';
+        }
+        if (!('answer' in standardized.userAnswers)) {
+          // If answer exists but outputAnswer doesn't, use that value
+          standardized.userAnswers.answer = standardized.userAnswers.outputAnswer || '';
+        } else if ('answer' in standardized.userAnswers && !('outputAnswer' in standardized.userAnswers)) {
+          // If outputAnswer exists but answer doesn't, use that value
+          standardized.userAnswers.outputAnswer = standardized.userAnswers.answer;
+        }
       } else if (standardized.type === 'fill') {
         if (!('fillAnswers' in standardized.userAnswers) || typeof standardized.userAnswers.fillAnswers !== 'object') {
           standardized.userAnswers.fillAnswers = {};
@@ -749,8 +759,18 @@ export const StorageService = {
           // Setup appropriate userAnswers based on sub-question type
           if (standardizedSub.type === 'code' && !('codeAnswer' in standardizedSub.userAnswers)) {
             standardizedSub.userAnswers.codeAnswer = '';
-          } else if (standardizedSub.type === 'output' && !('outputAnswer' in standardizedSub.userAnswers)) {
-            standardizedSub.userAnswers.outputAnswer = '';
+          } else if (standardizedSub.type === 'output') {
+            // Use both property names for maximum compatibility
+            if (!('outputAnswer' in standardizedSub.userAnswers)) {
+              standardizedSub.userAnswers.outputAnswer = '';
+            }
+            if (!('answer' in standardizedSub.userAnswers)) {
+              // If answer exists but outputAnswer doesn't, use that value
+              standardizedSub.userAnswers.answer = standardizedSub.userAnswers.outputAnswer || '';
+            } else if ('answer' in standardizedSub.userAnswers && !('outputAnswer' in standardizedSub.userAnswers)) {
+              // If outputAnswer exists but answer doesn't, use that value
+              standardizedSub.userAnswers.outputAnswer = standardizedSub.userAnswers.answer;
+            }
           } else if (standardizedSub.type === 'fill') {
             if (!('fillAnswers' in standardizedSub.userAnswers) || typeof standardizedSub.userAnswers.fillAnswers !== 'object') {
               standardizedSub.userAnswers.fillAnswers = {};
