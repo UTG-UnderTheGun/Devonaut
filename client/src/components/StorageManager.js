@@ -247,8 +247,17 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       
       // Process the imported data to extract answers and outputs
       if (Array.isArray(data)) {
-        // Save individual problem titles and descriptions
+        // Map exercise types more carefully - only convert if needed
         data.forEach((item, index) => {
+          // Only convert types that need conversion
+          if (item.type === 'coding' && item.type !== 'code') {
+            console.log(`Converting exercise ${index + 1} type from 'coding' to 'code'`);
+            item.type = 'code';
+          } else if (item.type === 'explain' && item.type !== 'output') {
+            console.log(`Converting exercise ${index + 1} type from 'explain' to 'output'`);
+            item.type = 'output';
+          }
+          
           // Store title and description in localStorage for each problem
           if (item.title) {
             localStorage.setItem(`problem-title-${index}`, item.title);

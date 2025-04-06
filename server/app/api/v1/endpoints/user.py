@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from app.core.security import get_current_user
 from app.db.database import collection
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 from bson import ObjectId
 from app.db.schemas import UserProfile
 from app.services.user_service import update_user_profile
+from app.services.assignment_service import get_assignments_for_student
 
 router = APIRouter()
 
@@ -276,4 +277,161 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch students: {str(e)}"
+        )
+
+@router.get("/dashboard",
+    summary="Get user dashboard data",
+    description="Returns the user's dashboard information including assigned tasks")
+async def get_user_dashboard(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        user, user_id = current_user
+        
+        # Debug: Log user info
+        print(f"Getting dashboard for user: {user.get('username')} (ID: {user_id})")
+        print(f"User section: {user.get('section')}")
+        print(f"User role: {user.get('role')}")
+        
+        # Get assignments for this student
+        assignments = await get_assignments_for_student(
+            db=request.app.mongodb,  # Use the MongoDB instance from the request
+            student_id=user_id,
+            student_section=user.get("section")
+        )
+        
+        # Format the data for the dashboard
+        formatted_assignments = []
+        for assignment in assignments:
+            try:
+                # Calculate progress based on submission status
+                progress = 0  # Default to 0
+                
+                # Format the date properly - handle both string and datetime objects
+                due_date = assignment["dueDate"]
+                if isinstance(due_date, str):
+                    try:
+                        due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+                    except ValueError:
+                        try:
+                            due_date = datetime.strptime(due_date, "%Y-%m-%dT%H:%M:%S")
+                        except ValueError:
+                            print(f"Failed to parse date: {due_date}, using default")
+                            due_date = datetime.now() + timedelta(days=7)
+                
+                # Check submission status
+                submission = await request.app.mongodb["assignment_submissions"].find_one({
+                    "assignment_id": assignment["id"],
+                    "user_id": user_id
+                })
+                
+                # Determine status based on submission and due date
+                status = "UPCOMING"
+                if submission:
+                    if submission["status"] == "graded":
+                        status = "COMPLETED"
+                        progress = 100
+                    else:
+                        status = "SUBMITTED"
+                        progress = 50
+                elif due_date < datetime.now():
+                    status = "OVERDUE"
+                
+                formatted_assignments.append({
+                    "id": assignment["id"],
+                    "title": assignment["title"],
+                    "chapter": assignment["chapter"],
+                    "link": f"/coding?assignment={assignment['id']}",
+                    "dueDate": due_date.strftime("%Y-%m-%d"),
+                    "dueTime": due_date.strftime("%H:%M"),
+                    "totalPoints": assignment["points"],
+                    "progress": progress,
+                    "status": status,
+                    "problems": [
+                        {
+                            "id": ex["id"],
+                            "completed": bool(submission),
+                            "type": ex["type"]
+                        } for ex in assignment["exercises"]
+                    ]
+                })
+            except Exception as ex:
+                print(f"Error formatting assignment {assignment.get('id', 'unknown')}: {str(ex)}")
+                continue
+        
+        # Debug: Log number of formatted assignments
+        print(f"Returning {len(formatted_assignments)} formatted assignments")
+        
+        # Calculate performance data based on submissions
+        total_score = 0
+        total_possible = 0
+        chapter_performances = {}
+        
+        # Get all graded submissions for this student
+        submissions_cursor = request.app.mongodb["assignment_submissions"].find({
+            "user_id": user_id,
+            "status": "graded"
+        })
+        submissions = await submissions_cursor.to_list(length=100)
+        
+        # Calculate scores by chapter
+        for submission in submissions:
+            assignment = next((a for a in assignments if a["id"] == submission["assignment_id"]), None)
+            if assignment:
+                chapter = assignment.get("chapter", "Uncategorized")
+                if chapter not in chapter_performances:
+                    chapter_performances[chapter] = {
+                        "id": chapter,
+                        "title": chapter,
+                        "score": 0,
+                        "total": 0,
+                        "completed": False
+                    }
+                
+                chapter_performances[chapter]["score"] += submission.get("score", 0)
+                chapter_performances[chapter]["total"] += assignment.get("points", 0)
+                chapter_performances[chapter]["completed"] = True
+                
+                total_score += submission.get("score", 0)
+                total_possible += assignment.get("points", 0)
+        
+        # Add chapters without submissions
+        for assignment in assignments:
+            chapter = assignment.get("chapter", "Uncategorized")
+            if chapter not in chapter_performances:
+                chapter_performances[chapter] = {
+                    "id": chapter,
+                    "title": chapter,
+                    "score": 0,
+                    "total": assignment.get("points", 0),
+                    "completed": False
+                }
+            elif not chapter_performances[chapter]["completed"]:
+                chapter_performances[chapter]["total"] += assignment.get("points", 0)
+        
+        return {
+            "user": {
+                "username": user["username"],
+                "user_id": str(user_id),
+                "name": user.get("name", None),
+                "student_id": user.get("student_id", None),
+                "section": user.get("section", None),
+                "skill_level": user.get("skill_level", None),
+            },
+            "chapters": formatted_assignments,
+            "performance": {
+                "totalScore": total_score,
+                "totalPossible": total_possible,
+                "chapters": list(chapter_performances.values())
+            }
+        }
+
+    except Exception as e:
+        print(f"Dashboard error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch dashboard data: {str(e)}"
         )

@@ -4,7 +4,9 @@ import "./assignment-table.css";
 import AssignmentDetail from '@/components/assignment/assignment-detail';
 
 const AssignmentTable = ({ 
-  loading: initialLoading = false
+  loading: initialLoading = false,
+  showCreateButton = false,
+  onCreateAssignment = null
 }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(initialLoading);
@@ -98,6 +100,15 @@ const AssignmentTable = ({
 
   return (
     <div className="table-wrapper">
+      {showCreateButton && onCreateAssignment && (
+        <div className="table-actions">
+          <button className="create-assignment-btn" onClick={onCreateAssignment}>
+            <span className="plus-icon">+</span>
+            Create Assignment
+          </button>
+        </div>
+      )}
+      
       {loading && (
         <div className="loading-overlay">
           <div className="loading-spinner" />

@@ -7,8 +7,10 @@ from app.services.assignment_service import (
     get_all_assignments,
     get_assignment_by_id,
     update_assignment,
-    delete_assignment
+    delete_assignment,
+    get_assignments_for_student
 )
+from datetime import datetime
 
 router = APIRouter()
 
@@ -38,14 +40,50 @@ async def list_assignments(
     """
     List all assignments
     For teachers: shows their created assignments
-    For students: shows all assignments
+    For students: shows assignments assigned to them
     """
     user, user_id = current_user
     
-    # If teacher, only show their assignments
-    teacher_id = user_id if user.get("role") == "teacher" else None
-    
-    return await get_all_assignments(request.app.mongodb, teacher_id)
+    try:
+        if user.get("role") == "teacher":
+            # Teachers see their created assignments
+            return await get_all_assignments(request.app.mongodb, user_id)
+        else:
+            # Students see assignments assigned to them
+            assignments = await get_assignments_for_student(
+                db=request.app.mongodb,
+                student_id=user_id,
+                student_section=user.get("section")
+            )
+            
+            # Format assignments as summaries
+            summaries = []
+            for assignment in assignments:
+                # Count pending submissions for this assignment
+                pending_count = await request.app.mongodb["assignment_submissions"].count_documents({
+                    "assignment_id": assignment["id"],
+                    "status": "pending"
+                })
+                
+                summary = {
+                    "id": assignment["id"],
+                    "title": assignment["title"],
+                    "chapter": assignment["chapter"],
+                    "dueDate": assignment["dueDate"],
+                    "points": assignment["points"],
+                    "pending": pending_count,
+                    "created_at": assignment.get("created_at", datetime.now())
+                }
+                summaries.append(summary)
+            
+            return summaries
+            
+    except Exception as e:
+        print(f"Error listing assignments: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list assignments: {str(e)}"
+        )
 
 
 @router.get("/{assignment_id}", response_model=Assignment)
