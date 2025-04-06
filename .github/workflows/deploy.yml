@@ -27,5 +27,13 @@ jobs:
           git reset --hard origin/production && \
           sudo docker-compose -f docker-compose.prod.yml down && \
           sudo docker system prune -f && \
+          # Remove images and containers before removing overlay2
+          sudo docker rm -f $(docker ps -aq) 2>/dev/null || true && \
+          sudo docker rmi -f $(docker images -q) 2>/dev/null || true && \
+          # Now it's safer to clean overlay2
           sudo rm -rf /var/lib/docker/overlay2/* && \
+          # Restart Docker to ensure clean state
+          sudo systemctl restart docker && \
+          # Wait for Docker to be fully up again
+          sleep 10 && \
           sudo docker-compose -f docker-compose.prod.yml up -d --build"
