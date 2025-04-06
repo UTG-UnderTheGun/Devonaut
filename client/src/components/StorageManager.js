@@ -1,9 +1,12 @@
 // StorageManager.js
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import '@/components/StorageManager.css';
 
 const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
   const fileInputRef = useRef(null);
+  const [showFilenameDialog, setShowFilenameDialog] = useState(false);
+  const [filenameInput, setFilenameInput] = useState('');
+  const [exportData, setExportData] = useState(null);
 
   // Add useEffect to listen for reset events
   useEffect(() => {
@@ -264,25 +267,101 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         return baseExport;
       });
       
-      // Convert to JSON and create download
-      const blob = new Blob([JSON.stringify(exportProblems, null, 2)], { type: 'application/json' });
+      // Get current date for default filename
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      // Generate a default filename based on problem type or test type
+      const testTypeStr = testType ? `-${testType}` : '';
+      const problemTypeStr = savedProblems[0]?.type || 'python';
+      const defaultFilename = `${problemTypeStr}-exercises${testTypeStr}-${dateStr}.json`;
+      
+      // Set default filename and export data
+      setFilenameInput(defaultFilename);
+      setExportData(exportProblems);
+      
+      // Show the filename dialog
+      setShowFilenameDialog(true);
+      
+    } catch (error) {
+      console.error('Error preparing export data:', error);
+      alert('Failed to prepare export: ' + error.message);
+    }
+  };
+  
+  // Handle the actual download when user confirms filename
+  const handleDownload = () => {
+    try {
+      if (!exportData) {
+        alert('No data to export');
+        return;
+      }
+      
+      // Format JSON with 2-space indentation for readability
+      const jsonString = JSON.stringify(exportData, null, 2);
+      
+      // Create a Blob and downloadable link
+      const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
+      
+      // Use provided filename or default if empty
+      const filename = filenameInput.trim() || `python-exercises-${new Date().toISOString().slice(0, 10)}.json`;
+      const finalFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+      
+      // Create and click a download link
       const a = document.createElement('a');
       a.href = url;
-      a.download = `python-exercises-export.json`;
+      a.download = finalFilename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 0);
+      
+      // Hide the dialog and reset state
+      setShowFilenameDialog(false);
+      setExportData(null);
+      
+      // Show success notification
+      alert(`Successfully exported ${exportData.length} problems to ${finalFilename}`);
       
     } catch (error) {
       console.error('Error exporting problems:', error);
       alert('Failed to export problems: ' + error.message);
     }
   };
+  
+  // Cancel export
+  const handleCancelExport = () => {
+    setShowFilenameDialog(false);
+    setExportData(null);
+    console.log('Export cancelled by user');
+  };
 
   const importData = async (file) => {
     try {
+      // Check file size before proceeding (limit to 10MB)
+      const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > maxFileSize) {
+        alert(`File is too large. Maximum size is 10MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+        return;
+      }
+
+      // Check file type - should be .json
+      if (!file.name.toLowerCase().endsWith('.json')) {
+        // Ask for confirmation if it's not a .json file
+        const continueImport = window.confirm(`The file "${file.name}" does not have a .json extension. Are you sure it's a valid JSON file and you want to continue?`);
+        if (!continueImport) {
+          return;
+        }
+      }
+
+      // Show progress indicator
+      alert(`Importing "${file.name}"... This may take a moment.`);
+
       const text = await file.text();
       const data = JSON.parse(text);
       
@@ -302,6 +381,26 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         }
       }
 
+      // Check if we're replacing existing problems
+      const existingProblems = localStorage.getItem('saved-problems');
+      let shouldReplace = true;
+      
+      if (existingProblems) {
+        try {
+          const parsedProblems = JSON.parse(existingProblems);
+          if (Array.isArray(parsedProblems) && parsedProblems.length > 0) {
+            // Ask user if they want to replace or append
+            shouldReplace = !window.confirm(
+              `You already have ${parsedProblems.length} existing problems. Would you like to append the imported problems? Click Cancel to replace all existing problems.`
+            );
+          }
+        } catch (e) {
+          console.error('Error parsing existing problems:', e);
+          // If there's an error parsing, default to replace
+          shouldReplace = true;
+        }
+      }
+
       // Prepare all import data in memory before touching localStorage
       const importData = {
         problems: Array.isArray(data) ? [...data] : [data],
@@ -309,6 +408,44 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         allAnswers: {},
         allOutputs: {}
       };
+      
+      // If we're appending, get existing problems and answers
+      if (!shouldReplace && existingProblems) {
+        try {
+          // Get existing problems
+          const existingProblemData = JSON.parse(existingProblems);
+          
+          // Get existing answers and outputs
+          const existingAnswers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
+          const existingOutputs = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
+          
+          // Calculate the offset for the new problems (will be appended after existing ones)
+          const offset = existingProblemData.length;
+          
+          // First add all existing problems to our import data
+          importData.problems = [...existingProblemData];
+          
+          // Append the new problems with adjusted IDs
+          if (Array.isArray(data)) {
+            data.forEach((item, index) => {
+              const adjustedItem = {...item, id: offset + index + 1};
+              importData.problems.push(adjustedItem);
+            });
+          } else {
+            const adjustedItem = {...data, id: offset + 1};
+            importData.problems.push(adjustedItem);
+          }
+          
+          // Merge existing answers and outputs
+          importData.allAnswers = existingAnswers;
+          importData.allOutputs = existingOutputs;
+        } catch (e) {
+          console.error('Error merging problems:', e);
+          // If there's an error, fall back to replace mode
+          importData.problems = Array.isArray(data) ? [...data] : [data];
+          shouldReplace = true;
+        }
+      }
       
       // Process the imported data to extract all information first
       importData.problems.forEach((item, index) => {
@@ -324,7 +461,16 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         if (item.userAnswers) {
           // Store type-specific answers
           Object.keys(item.userAnswers).forEach(key => {
-            importData.allAnswers[key] = item.userAnswers[key];
+            if (!shouldReplace && importData.allAnswers[key]) {
+              // If we're appending, merge with existing answers
+              if (typeof importData.allAnswers[key] === 'object') {
+                importData.allAnswers[key] = {...importData.allAnswers[key], ...item.userAnswers[key]};
+              } else {
+                importData.allAnswers[key] = item.userAnswers[key];
+              }
+            } else {
+              importData.allAnswers[key] = item.userAnswers[key];
+            }
           });
           
           // Handle code-type questions specifically
@@ -342,8 +488,10 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             }
             importData.allAnswers.codeAnswers[index] = item.userAnswers.codeAnswer;
             
-            // Also set individual codeAnswer for compatibility
-            importData.allAnswers.codeAnswer = item.userAnswers.codeAnswer;
+            // Also set individual codeAnswer for compatibility if this is the current problem
+            if (index === currentProblemIndex) {
+              importData.allAnswers.codeAnswer = item.userAnswers.codeAnswer;
+            }
           }
         }
         
@@ -354,8 +502,10 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         }
       });
       
-      // We have all data collected now, safe to clear localStorage
-      clearLocalStorage();
+      // If we're replacing, clear localStorage first
+      if (shouldReplace) {
+        clearLocalStorage();
+      }
       
       // Mark this as an imported session
       localStorage.setItem('is-imported', 'true');
@@ -389,14 +539,17 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       window.dispatchEvent(importCompleteEvent);
       
       if (typeof onImport === 'function') {
-        onImport(Array.isArray(data) ? data : [data]);
+        onImport(importData.problems);
       } else {
         throw new Error('Import handler not provided');
       }
 
+      // Show success message
+      alert(`Successfully imported ${Array.isArray(data) ? data.length : 1} problems from "${file.name}"`);
+
     } catch (error) {
       console.error('Error importing data:', error);
-      alert('Failed to import data: ' + error.message);
+      alert(`Failed to import data from "${file.name}": ${error.message}`);
     }
   };
 
@@ -416,10 +569,18 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
 
   return (
     <div className="import-tab">
-      <button onClick={handleExport} className="btn-compact">
+      <button 
+        onClick={handleExport} 
+        className="btn-compact"
+        title="Export problems to a JSON file"
+      >
         Export
       </button>
-      <button onClick={handleImportClick} className="btn-compact">
+      <button 
+        onClick={handleImportClick} 
+        className="btn-compact"
+        title="Import problems from a JSON file"
+      >
         Import
       </button>
       <input
@@ -429,6 +590,40 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />
+      
+      {/* Custom filename dialog for exports */}
+      {showFilenameDialog && (
+        <div className="filename-dialog-overlay">
+          <div className="filename-dialog">
+            <div className="filename-dialog-header">
+              <h3>Export Problems</h3>
+              <button className="filename-dialog-close" onClick={handleCancelExport}>×</button>
+            </div>
+            <div className="filename-dialog-body">
+              <p>Enter a filename for your exported problems:</p>
+              <input
+                type="text"
+                className="filename-input"
+                value={filenameInput}
+                onChange={(e) => setFilenameInput(e.target.value)}
+                placeholder="problems.json"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleDownload();
+                  }
+                }}
+              />
+            </div>
+            <div className="filename-dialog-footer">
+              <button className="cancel-btn" onClick={handleCancelExport}>Cancel</button>
+              <button className="download-btn" onClick={handleDownload}>
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

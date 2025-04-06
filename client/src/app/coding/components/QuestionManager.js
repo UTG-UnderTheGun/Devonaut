@@ -14,6 +14,9 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [showFilenameDialog, setShowFilenameDialog] = useState(false);
+  const [filenameInput, setFilenameInput] = useState('');
+  const [questionsToExport, setQuestionsToExport] = useState([]);
 
   // Load saved questions from localStorage on mount
   useEffect(() => {
@@ -119,47 +122,6 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
   const handleExport = () => {
     setIsExporting(true);
 
-    // Export function
-    const exportToJson = (questionsToExport) => {
-      try {
-        // Format JSON with 2-space indentation for readability
-        const jsonString = JSON.stringify(questionsToExport, null, 2);
-
-        // Create a Blob and downloadable link
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
-        // Prompt for filename
-        const filename = prompt('Enter filename for export:', 'questions.json') || 'questions.json';
-
-        // Create and click a download link
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename.endsWith('.json') ? filename : `${filename}.json`;
-        document.body.appendChild(a);
-        a.click();
-
-        // Clean up
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 0);
-
-        if (typeof onSuccess === 'function') {
-          onSuccess(`Exported ${questionsToExport.length} questions to ${a.download}`);
-        } else {
-          alert(`Exported ${questionsToExport.length} questions to ${a.download}`);
-        }
-      } catch (error) {
-        console.error('Export error:', error);
-        if (typeof onError === 'function') {
-          onError(`Export failed: ${error.message}`);
-        } else {
-          alert(`Export failed: ${error.message}`);
-        }
-      }
-    };
-
     // Get questions to export - either selected ones or all
     const questionsToExport = selectedQuestions.length > 0
       ? selectedQuestions.map(index => questions[index])
@@ -175,8 +137,72 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
       return;
     }
 
-    exportToJson(questionsToExport);
+    // Get current date for default filename
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const defaultFilename = `questions-${dateStr}.json`;
+    
+    // Set default filename in the input field
+    setFilenameInput(defaultFilename);
+    
+    // Store questions to export and show the custom filename dialog
+    setQuestionsToExport(questionsToExport);
+    setShowFilenameDialog(true);
+  };
+
+  // When user confirms the filename
+  const handleDownload = () => {
+    try {
+      // Format JSON with 2-space indentation for readability
+      const jsonString = JSON.stringify(questionsToExport, null, 2);
+
+      // Create a Blob and downloadable link
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      // Use provided filename or default if empty
+      const filename = filenameInput.trim() || `questions-${new Date().toISOString().slice(0, 10)}.json`;
+      const finalFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+
+      // Create and click a download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = finalFilename;
+      document.body.appendChild(a);
+      a.click();
+
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 0);
+
+      if (typeof onSuccess === 'function') {
+        onSuccess(`Exported ${questionsToExport.length} questions to ${finalFilename}`);
+      } else {
+        alert(`Exported ${questionsToExport.length} questions to ${finalFilename}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      if (typeof onError === 'function') {
+        onError(`Export failed: ${error.message}`);
+      } else {
+        alert(`Export failed: ${error.message}`);
+      }
+    } finally {
+      // Close the dialog and reset state
+      setShowFilenameDialog(false);
+      setIsExporting(false);
+    }
+  };
+
+  // Cancel the export
+  const handleCancelExport = () => {
+    setShowFilenameDialog(false);
     setIsExporting(false);
+    if (typeof onError === 'function') {
+      onError('Export cancelled by user');
+    }
   };
 
   // Import questions from a file
@@ -186,62 +212,128 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
 
     setIsImporting(true);
 
+    // Check file size before proceeding (limit to 10MB)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxFileSize) {
+      if (typeof onError === 'function') {
+        onError(`File is too large. Maximum size is 10MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+      } else {
+        alert(`File is too large. Maximum size is 10MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+      }
+      setIsImporting(false);
+      event.target.value = '';
+      return;
+    }
+
+    // Check file type - should be .json
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      // Ask for confirmation if it's not a .json file
+      const continueImport = window.confirm(`The file "${file.name}" does not have a .json extension. Are you sure it's a valid JSON file and you want to continue?`);
+      if (!continueImport) {
+        setIsImporting(false);
+        event.target.value = '';
+        return;
+      }
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const importedQuestions = JSON.parse(e.target.result);
+        
+        // Check if we should append or replace existing questions
+        let finalQuestions;
+        let mode = "replace";
+
+        if (questions.length > 0) {
+          const importChoice = window.confirm(
+            `You already have ${questions.length} existing questions. Would you like to:\n\n` +
+            `• Click "OK" to APPEND the imported questions to your existing set\n` +
+            `• Click "Cancel" to REPLACE all existing questions with the imported ones`
+          );
+          mode = importChoice ? "append" : "replace";
+        }
+
+        // Handle array of questions
         if (Array.isArray(importedQuestions)) {
-          setQuestions(importedQuestions);
+          if (mode === "append") {
+            // Append to existing questions, ensuring IDs are sequential
+            finalQuestions = [...questions, ...importedQuestions].map((q, idx) => ({
+              ...q,
+              id: idx + 1
+            }));
+          } else {
+            // Replace existing questions
+            finalQuestions = importedQuestions.map((q, idx) => ({
+              ...q,
+              id: idx + 1
+            }));
+          }
+
+          setQuestions(finalQuestions);
 
           // Call the onImport callback to notify parent components
           if (typeof onImport === 'function') {
-            onImport(importedQuestions);
+            onImport(finalQuestions);
           }
 
           // Show success message
+          const actionVerb = mode === "append" ? "Appended" : "Imported";
           if (typeof onSuccess === 'function') {
-            onSuccess(`Successfully imported ${importedQuestions.length} questions`);
+            onSuccess(`${actionVerb} ${importedQuestions.length} questions from "${file.name}"`);
           } else {
-            alert(`Successfully imported ${importedQuestions.length} questions`);
+            alert(`${actionVerb} ${importedQuestions.length} questions from "${file.name}"`);
           }
 
           // Dispatch custom event for integration with existing code
           const importEvent = new CustomEvent('file-import', {
-            detail: importedQuestions
+            detail: finalQuestions
           });
           window.dispatchEvent(importEvent);
         } else if (typeof importedQuestions === 'object' && importedQuestions !== null) {
           // Try to handle single question object
-          const questionArray = [importedQuestions];
-          setQuestions(questionArray);
+          if (mode === "append") {
+            finalQuestions = [...questions, importedQuestions].map((q, idx) => ({
+              ...q,
+              id: idx + 1
+            }));
+          } else {
+            finalQuestions = [importedQuestions].map((q, idx) => ({
+              ...q,
+              id: idx + 1
+            }));
+          }
+          
+          setQuestions(finalQuestions);
 
           if (typeof onImport === 'function') {
-            onImport(questionArray);
+            onImport(finalQuestions);
           }
 
+          const actionVerb = mode === "append" ? "Appended" : "Imported";
           if (typeof onSuccess === 'function') {
-            onSuccess('Successfully imported 1 question');
+            onSuccess(`${actionVerb} 1 question from "${file.name}"`);
           } else {
-            alert('Successfully imported 1 question');
+            alert(`${actionVerb} 1 question from "${file.name}"`);
           }
 
           const importEvent = new CustomEvent('file-import', {
-            detail: questionArray
+            detail: finalQuestions
           });
           window.dispatchEvent(importEvent);
         } else {
           if (typeof onError === 'function') {
-            onError('Invalid file format. Expected an array of questions or a single question object.');
+            onError(`Invalid file format in "${file.name}". Expected an array of questions or a single question object.`);
           } else {
-            alert('Invalid file format. Expected an array of questions or a single question object.');
+            alert(`Invalid file format in "${file.name}". Expected an array of questions or a single question object.`);
           }
         }
       } catch (error) {
         console.error('Error parsing imported file:', error);
         if (typeof onError === 'function') {
-          onError(`Import error: ${error.message}`);
+          onError(`Import error in "${file.name}": ${error.message}`);
         } else {
-          alert(`Import error: ${error.message}`);
+          alert(`Import error in "${file.name}": ${error.message}`);
         }
       } finally {
         setIsImporting(false);
@@ -250,9 +342,9 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
 
     reader.onerror = () => {
       if (typeof onError === 'function') {
-        onError('Error reading file');
+        onError(`Error reading file "${file.name}"`);
       } else {
-        alert('Error reading file');
+        alert(`Error reading file "${file.name}"`);
       }
       setIsImporting(false);
     };
@@ -363,6 +455,40 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
         Manage Questions
       </button>
 
+      {/* Custom filename dialog for exports */}
+      {showFilenameDialog && (
+        <div className="filename-dialog-overlay">
+          <div className="filename-dialog">
+            <div className="filename-dialog-header">
+              <h3>Export Questions</h3>
+              <button className="filename-dialog-close" onClick={handleCancelExport}>×</button>
+            </div>
+            <div className="filename-dialog-body">
+              <p>Enter a filename for your exported questions:</p>
+              <input
+                type="text"
+                className="filename-input"
+                value={filenameInput}
+                onChange={(e) => setFilenameInput(e.target.value)}
+                placeholder="questions.json"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleDownload();
+                  }
+                }}
+              />
+            </div>
+            <div className="filename-dialog-footer">
+              <button className="cancel-btn" onClick={handleCancelExport}>Cancel</button>
+              <button className="download-btn" onClick={handleDownload}>
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -393,8 +519,8 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
                     />
                   </div>
                   <div className="right-controls">
-                    <label className="import-btn">
-                      Import
+                    <label className="import-btn" title="Import questions from a JSON file">
+                      Import Questions
                       <input
                         type="file"
                         accept=".json"
@@ -409,10 +535,11 @@ const QuestionManager = ({ onImport, onError, onSuccess }) => {
                       className="export-btn"
                       onClick={handleExport}
                       disabled={isExporting || questions.length === 0}
+                      title="Export questions to a JSON file"
                     >
                       {selectedQuestions.length > 0
-                        ? `Export (${selectedQuestions.length})`
-                        : 'Export All'}
+                        ? `Export Selected (${selectedQuestions.length})`
+                        : 'Export All Questions'}
                     </button>
                     {isExporting && <span className="status-text">Exporting...</span>}
 
