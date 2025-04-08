@@ -248,21 +248,34 @@
 .assignment-type-options {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
 }
 
 .radio-label, .checkbox-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
   cursor: pointer;
   font-size: 0.875rem;
   color: #4B5563;
+  line-height: 1.25;
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.radio-label input, .checkbox-label input {
+.radio-label input[type="radio"], 
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
   cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  position: relative;
+  top: -0.5px; /* Fine-tune vertical alignment */
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: #7C3AED;
 }
 
 .settings-button {
@@ -289,66 +302,70 @@
   border: 1px solid #E5E7EB;
   border-radius: 0.5rem;
   padding: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
   background-color: #F9FAFB;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .selection-item {
-  padding: 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-bottom: 1px solid #E5E7EB;
-  transition: background-color 0.2s ease;
-  margin-left: 10px;
-}
-
-.selection-item:hover {
-  background-color: #F3F4F6;
+  transition: background-color 0.15s ease;
 }
 
 .selection-item:last-child {
   border-bottom: none;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: #4B5563;
-  width: 100%;
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: #7C3AED;
+.selection-item:hover {
+  background-color: #F3F4F6;
 }
 
 .no-items {
-  padding: 1.5rem;
+  padding: 1.25rem;
   color: #6B7280;
   text-align: center;
   font-style: italic;
   background-color: #F9FAFB;
   border-radius: 0.25rem;
+  border: 1px dashed #E5E7EB;
+  margin: 0.5rem 0;
 }
 
 /* Add a search input for filtering students */
 .search-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.375rem;
   font-size: 0.875rem;
-  margin-bottom: 1rem;
+  margin: 0.5rem 0 0.75rem;
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   transition: all 0.2s ease;
 }
 
 .search-input:focus {
   outline: none;
   border-color: #7C3AED;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+/* Add section headings for student/section lists */
+.assignment-settings .form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #374151;
+  font-size: 0.9375rem;
+}
+
+/* Improve layout for the assignment settings panel */
+.assignment-settings {
+  padding: 0.5rem 0;
+}
+
+.assignment-settings .form-group {
+  margin-bottom: 1.5rem;
 }
 
 /* Make sure we have a scrollbar for long content */
