@@ -145,7 +145,6 @@ const DescriptionPanel = ({
       <div className="panel-content">
         {selectedDescriptionTab === 'Description' && testType === 'code' ? (
           <>
-            {isImported ? (
               // Display as non-editable text for imported problems
               <div className="problem-display">
                 <h3 className="problem-title-display">{title || 'No Title'}</h3>
@@ -153,24 +152,6 @@ const DescriptionPanel = ({
                   {description || 'No description available.'}
                 </div>
               </div>
-            ) : (
-              // Editable fields for non-imported problems
-              <>
-                <input
-                  type="text"
-                  value={title || ''}
-                  onChange={handleTitleChange}
-                  className="problem-title"
-                  placeholder="Enter problem title..."
-                />
-                <textarea
-                  value={description || ''}
-                  onChange={handleDescriptionChange}
-                  className="problem-description"
-                  placeholder="Enter problem description..."
-                />
-              </>
-            )}
           </>
         ) : (
           <div className="ask-ai-content">
