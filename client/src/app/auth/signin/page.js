@@ -40,10 +40,10 @@ export default function Login() {
     if (urlParams.has('oauth') && urlParams.has('needs_profile')) {
       const needsProfile = urlParams.get('needs_profile') === 'true';
       const isNew = urlParams.get('is_new') === 'true';
-      
+
       // Store information for later use
       setGoogleRedirectInfo({ needsProfile, isNew });
-      
+
       // Redirect to appropriate page
       if (needsProfile) {
         router.push('/auth/profile');
@@ -79,7 +79,7 @@ export default function Login() {
     setSuccess('');
 
     try {
-      const response = await axios.post(`${API_BASE}/auth/tu`, {
+      const response = await axios.post(`${API_BASE}/auth/tu/login`, {
         username: tuFormData.username,
         password: tuFormData.password,
       }, {
@@ -91,64 +91,49 @@ export default function Login() {
 
       console.log('TU login response:', response.data);
 
-      // Destructure and verify role
-      const { access_token, role } = response.data;
-      
-      if (!role) {
-        console.error('No role received from server');
-        setError('Authentication error: No role assigned');
+      // Extract user data and type from response
+      const { message, type } = response.data;
+
+      if (!message || message !== "Success") {
+        setError('Authentication failed. Please check your credentials.');
         setIsLoading(false);
         return;
       }
 
-      // Store role in localStorage/sessionStorage
-      if (formData.rememberMe) {
-        localStorage.setItem('token', access_token);
-        localStorage.setItem('userRole', role);
-      } else {
-        sessionStorage.setItem('token', access_token);
-        sessionStorage.setItem('userRole', role);
-      }
-
       setSuccess('Login successful! Redirecting...');
 
-      // Add role to headers for subsequent requests
-      axios.defaults.headers.common['X-User-Role'] = role;
+      try {
+        const userResponse = await axios.get(`${API_BASE}/users/me`, {
+          withCredentials: true
+        });
 
-      const userResponse = await fetch(`${API_BASE}/users/me`, {
-        credentials: 'include',
-        headers: {
-          'X-User-Role': role
-        }
-      });
+        const userData = userResponse.data;
+        console.log('User data from /users/me:', userData);
 
-      if (!userResponse.ok) {
-        throw new Error('Failed to fetch user data');
+        setTimeout(() => {
+          // If teacher, go directly to teacher dashboard
+          if (type.toLowerCase() === 'teacher') {
+            console.log('Redirecting to teacher dashboard...');
+            router.push('/teacher/dashboard');
+          }
+          // If student with complete profile, go to dashboard
+          else if (userData.student_id && userData.section && userData.skill_level) {
+            router.push('/dashboard');
+          }
+          // If student with partial profile (has student_id and section but no skill_level)
+          else if (userData.student_id && userData.section) {
+            router.push('/auth/level');
+          }
+          // If student without profile, go to profile page
+          else {
+            router.push('/auth/profile');
+          }
+        }, 1500);
+      } catch (fetchErr) {
+        console.error('Error fetching user data:', fetchErr);
+        // Basic fallback if user data fetch fails
+        router.push(type.toLowerCase() === 'teacher' ? '/teacher/dashboard' : '/dashboard');
       }
-
-      const userData = await userResponse.json();
-      console.log('User data from /users/me:', userData);
-
-      setTimeout(() => {
-        // If teacher, go directly to teacher dashboard
-        if (role === 'teacher') {
-          console.log('Redirecting to teacher dashboard...');
-          router.push('/teacher/dashboard');
-        } 
-        // If student with complete profile, go to dashboard
-        else if (userData.student_id && userData.section && userData.skill_level) {
-          router.push('/dashboard');
-        }
-        // If student with partial profile (has student_id and section but no skill_level)
-        else if (userData.student_id && userData.section) {
-          router.push('/auth/level');
-        }
-        // If student without profile, go to profile page
-        else {
-          router.push('/auth/profile');
-        }
-      }, 1500);
-
     } catch (err) {
       console.error('Error during TU signin:', err);
       setError(err.response?.data?.detail || 'TU Login failed. Please check your credentials.');
@@ -219,7 +204,7 @@ export default function Login() {
         if (role === 'teacher') {
           console.log('Redirecting to teacher dashboard...');
           router.push('/teacher/dashboard');
-        } 
+        }
         // If student with complete profile, go to dashboard
         else if (userData.student_id && userData.section && userData.skill_level) {
           router.push('/dashboard');
