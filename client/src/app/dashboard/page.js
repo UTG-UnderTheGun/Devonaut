@@ -34,19 +34,43 @@ export default function Dashboard() {
       try {
         setIsLoading(true);
         
-        // Fetch chapters
-        const chaptersResponse = await fetch('/api/chapters', { credentials: 'include' });
-        const chaptersData = await chaptersResponse.json();
-        setChapters(chaptersData);
-
-        // Fetch performance
-        const performanceResponse = await fetch('/api/performance', { credentials: 'include' });
-        const performanceData = await performanceResponse.json();
-        setPerformance(performanceData);
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
+        console.log('Fetching dashboard data...');
+        
+        // Fetch dashboard data from the new endpoint
+        const dashboardResponse = await fetch(`${API_BASE}/users/dashboard`, { 
+          credentials: 'include' 
+        });
+        
+        if (!dashboardResponse.ok) {
+          const errorText = await dashboardResponse.text();
+          console.error('Dashboard response not OK:', dashboardResponse.status, errorText);
+          throw new Error(`Failed to fetch dashboard data: ${dashboardResponse.status} ${errorText}`);
+        }
+        
+        const dashboardData = await dashboardResponse.json();
+        console.log('Dashboard data received:', dashboardData);
+        
+        // Update the state with the received data
+        if (dashboardData.chapters && Array.isArray(dashboardData.chapters)) {
+          console.log(`Setting ${dashboardData.chapters.length} chapters`);
+          setChapters(dashboardData.chapters);
+        } else {
+          console.warn('No chapters array in dashboard data:', dashboardData);
+          setChapters([]);
+        }
+        
+        if (dashboardData.performance) {
+          console.log('Setting performance data:', dashboardData.performance);
+          setPerformance(dashboardData.performance);
+        } else {
+          console.warn('No performance data in dashboard response');
+        }
         
         setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching dashboard data:', error);
         setIsLoading(false);
       }
     };

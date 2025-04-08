@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import AIChatInterface from '../ai-interface/ai-interface';
 
+// Helper function to determine if the test type should show the description tab
+const shouldShowDescription = (type) => {
+  // Allow both original and mapped type values
+  return type === 'code' || type === 'coding' || type === 'fill';
+};
+
 const DescriptionPanel = ({
   isDescriptionFolded,
   setIsDescriptionFolded,
@@ -70,15 +76,16 @@ const DescriptionPanel = ({
     }, 400);
   };
   
-  // Check if this is an imported problem by checking localStorage
+  // Check if this is an imported problem or if we have an exercise_id (assignment)
   useEffect(() => {
     const importedFlag = localStorage.getItem('is-imported');
-    setIsImported(importedFlag === 'true');
+    // Consider both imported problems and assignments (with exercise_id) as non-editable
+    setIsImported(importedFlag === 'true' || !!exercise_id);
     
     // Set up a listener for storage changes
     const handleStorageChange = () => {
       const currentFlag = localStorage.getItem('is-imported');
-      setIsImported(currentFlag === 'true');
+      setIsImported(currentFlag === 'true' || !!exercise_id);
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -90,7 +97,7 @@ const DescriptionPanel = ({
       window.removeEventListener('storage-reset', handleStorageChange);
       window.removeEventListener('code-reset', handleStorageChange);
     };
-  }, []);
+  }, [exercise_id]);
   
   // Ensure initial tab is properly styled
   useEffect(() => {
@@ -105,6 +112,10 @@ const DescriptionPanel = ({
   // Log exercise_id changes for debugging
   useEffect(() => {
     console.log(`DescriptionPanel: exercise_id changed to ${exercise_id}`);
+    // Whenever exercise_id changes, update imported status
+    if (exercise_id) {
+      setIsImported(true);
+    }
   }, [exercise_id]);
 
   // Log title and description changes for debugging
@@ -112,13 +123,21 @@ const DescriptionPanel = ({
     console.log(`DescriptionPanel: title changed to: ${title}`);
     console.log(`DescriptionPanel: description changed (length: ${description ? description.length : 0})`);
     console.log(`DescriptionPanel: isImported = ${isImported}`);
-  }, [title, description, isImported]);
+    console.log(`DescriptionPanel: testType = ${testType}`);
+  }, [title, description, isImported, testType]);
+  
+  // Determine if we should show the description tab based on test type
+  const showDescriptionTab = shouldShowDescription(testType);
+  
+  // Force assignments to be non-editable - if we have an exercise_id, it's an assignment
+  const isAssignment = !!exercise_id;
+  const isEditable = !isImported && !isAssignment;
   
   return (
     <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
       <div className="panel-header">
         <div className="description-tabs">
-          {testType === 'code' && (
+          {showDescriptionTab && (
             <button
               ref={descriptionTabRef}
               className={`description-tab ${selectedDescriptionTab === 'Description' ? 'active' : ''} ${animatingTab === 'Description' ? 'animating' : ''}`}
@@ -143,10 +162,10 @@ const DescriptionPanel = ({
         </button>
       </div>
       <div className="panel-content">
-        {selectedDescriptionTab === 'Description' && testType === 'code' ? (
+        {selectedDescriptionTab === 'Description' && showDescriptionTab ? (
           <>
-            {isImported ? (
-              // Display as non-editable text for imported problems
+            {!isEditable ? (
+              // Display as non-editable text for imported problems or assignments
               <div className="problem-display">
                 <h3 className="problem-title-display">{title || 'No Title'}</h3>
                 <div className="problem-description-display">
@@ -154,7 +173,7 @@ const DescriptionPanel = ({
                 </div>
               </div>
             ) : (
-              // Editable fields for non-imported problems
+              // Editable fields for non-imported, non-assignment problems
               <>
                 <input
                   type="text"

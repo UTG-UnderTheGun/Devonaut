@@ -593,6 +593,20 @@ const EditorSection = ({
     }
   };
 
+  const mapExerciseType = (type) => {
+    // Map assignment exercise types to editor types, but maintain consistency
+    // to avoid infinite loops between "coding" and "code"
+    switch(type) {
+      case 'coding': return 'code';
+      case 'explain': return 'output';
+      case 'fill': return 'fill';
+      // Don't map "code" back to "coding" to avoid infinite loop
+      case 'code': return 'code';
+      case 'output': return 'output';
+      default: return type;
+    }
+  };
+
   return (
     <div className="code-editor">
       <div className="editor-header">
@@ -653,10 +667,18 @@ const EditorSection = ({
 
     const currentProblem = problems[currentProblemIndex];
     console.log("Current problem:", currentProblem);
-    const effectiveTestType = currentProblem.type || testType;
+    
+    // Map the problem type for consistency
+    const effectiveTestType = mapExerciseType(currentProblem.type || testType);
     console.log("Effective test type:", effectiveTestType);
 
-    if (effectiveTestType !== testType && setTestType) {
+    // Only update type if the mapped values are different
+    // This prevents infinite loops from testType being constantly updated
+    if (effectiveTestType !== testType && setTestType && 
+        !(
+          (testType === 'code' && currentProblem.type === 'coding') || 
+          (testType === 'output' && currentProblem.type === 'explain')
+        )) {
       console.log("Updating test type to", effectiveTestType);
       setTestType(effectiveTestType);
     }
