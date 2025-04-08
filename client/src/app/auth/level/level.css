@@ -226,3 +226,14 @@
 .select-wrapper option {
   padding: 10px;
 }
+
+.error-message {
+  color: #e53e3e;
+  background-color: rgba(229, 62, 62, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  text-align: center;
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
@@ -36,7 +36,12 @@ const useAuth = (allowedRoles = null) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const authCheckCompleted = useRef(false);
+
   useEffect(() => {
+    // Prevent multiple auth checks
+    if (authCheckCompleted.current) return;
+
     const checkAuth = async () => {
       try {
         const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
@@ -46,20 +51,20 @@ const useAuth = (allowedRoles = null) => {
             (pathname.startsWith('/dashboard') || pathname.includes('/auth/level'))) {
           router.push('/teacher/dashboard');
           setIsLoading(false);
+          authCheckCompleted.current = true;
           return;
         }
 
         // Enforce student restriction for teacher pages
         if (storedRole !== 'teacher' && pathname.startsWith('/teacher')) {
-
           router.push('/dashboard');
           setError('Unauthorized access - Teacher role required');
           setIsLoading(false);
+          authCheckCompleted.current = true;
           return;
         }
 
         const response = await axios.get(`${API_BASE}/users/me`, {
-
           withCredentials: true,
           headers: {
             'X-User-Role': storedRole
@@ -73,6 +78,7 @@ const useAuth = (allowedRoles = null) => {
         };
         
         setUser(userWithRole);
+        authCheckCompleted.current = true;
 
         // Special handling for teachers - skip profile completion checks
         if (storedRole === 'teacher') {
@@ -102,7 +108,9 @@ const useAuth = (allowedRoles = null) => {
           return;
         }
       } catch (err) {
+        console.error('Auth error:', err);
         setError('Not authenticated');
+        authCheckCompleted.current = true;
         
         if (!pathname.includes('/auth/')) {
           router.push('/auth/signin');
@@ -111,8 +119,11 @@ const useAuth = (allowedRoles = null) => {
         setIsLoading(false);
       }
     };
+
     checkAuth();
   }, [router, pathname, allowedRoles]);
+
   return { user, error, isLoading };
 };
+
 export default useAuth;

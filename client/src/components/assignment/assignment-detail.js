@@ -1,40 +1,46 @@
 import { useState, useEffect } from 'react';
 import './assignment-detail.css';
 
-
-const AssignmentEdit = ({ onBack }) => {
-  const [assignment, setAssignment] = useState({
-    title: 'For Loop Assignment',
-    description: `Write a function that calculates the sum of even numbers in a list.
-
-Requirements:
-1. Function should take a list of numbers as input
-2. Calculate sum of all even numbers
-3. Return the final sum
-4. Handle empty list case (return 0)
-5. Handle no even numbers case (return 0)`,
-    chapter: 'Chapter 6: Loops',
-    dueDate: '2025-02-14T23:59',
-    points: 10,
-    codeType: 'coding',
-    starterCode: `def sum_even_numbers(numbers):
-    # Your code here
-    total = 0
-    # TODO: Calculate sum of even numbers
-    return total`,
-    testCases: `Example Test Cases:
-Input: [1, 2, 3, 4, 5, 6]
-Output: 12
-Explanation: 2 + 4 + 6 = 12
-
-Input: [1, 3, 5]
-Output: 0
-Explanation: No even numbers`
-  });
-
+const AssignmentDetail = ({ assignmentId, onBack }) => {
+  const [assignment, setAssignment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedTab, setSelectedTab] = useState('Description');
   const [showStatus, setShowStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  
+  // Fetch assignment data
+  useEffect(() => {
+    const fetchAssignment = async () => {
+      try {
+        setLoading(true);
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch assignment details');
+        }
+
+        const data = await response.json();
+        setAssignment(data);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error loading assignment:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (assignmentId) {
+      fetchAssignment();
+    }
+  }, [assignmentId]);
 
   const handleInputChange = (field, value) => {
     setAssignment(prev => ({
@@ -43,11 +49,73 @@ Explanation: No even numbers`
     }));
   };
 
-  const handleSave = () => {
-    setStatusMessage('Changes saved successfully!');
-    setShowStatus(true);
-    setTimeout(() => setShowStatus(false), 3000);
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: assignment.title,
+          chapter: assignment.chapter,
+          description: assignment.description,
+          dueDate: assignment.dueDate,
+          points: assignment.points,
+          exercises: assignment.exercises
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update assignment');
+      }
+
+      setStatusMessage('Changes saved successfully!');
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 3000);
+    } catch (err) {
+      setError(err.message);
+      setStatusMessage('Error saving changes: ' + err.message);
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 3000);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <div>Loading assignment details...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="error-container">
+        <div>Error: {error}</div>
+        <button onClick={onBack} className="back-button">
+          ← Back to Assignments
+        </button>
+      </div>
+    );
+  }
+
+  if (!assignment) {
+    return (
+      <div className="not-found-container">
+        <div>Assignment not found</div>
+        <button onClick={onBack} className="back-button">
+          ← Back to Assignments
+        </button>
+      </div>
+    );
+  }
 
   const codeTypes = [
     { id: 'coding', label: 'Coding' },
@@ -55,10 +123,15 @@ Explanation: No even numbers`
     { id: 'fill', label: 'Fill in' }
   ];
 
-  const detailType =[
-    {id:'description', label:'Description'},
-    {id:'setting', label:'Setting'}
-  ];
+  // Get the first exercise's type or default to 'coding'
+  const codeType = assignment.exercises && assignment.exercises.length > 0 
+    ? assignment.exercises[0].type 
+    : 'coding';
+
+  // Get starter code from first exercise or empty string
+  const starterCode = assignment.exercises && assignment.exercises.length > 0 
+    ? assignment.exercises[0].starter_code || '' 
+    : '';
 
   return (
     <div className="coding-container">
@@ -77,13 +150,13 @@ Explanation: No even numbers`
           <div className="panel-header">
             <div className="description-selector">
               <button 
-                      className={`description-button ${selectedTab === 'Description' ? 'active' : ''}`}
-                      onClick={() => setSelectedTab('Description')}
+                className={`description-button ${selectedTab === 'Description' ? 'active' : ''}`}
+                onClick={() => setSelectedTab('Description')}
               >
                 Assignment Details
               </button>
               <button 
-                      className={`description-button ${selectedTab === 'Settings' ? 'active' : ''}`}
+                className={`description-button ${selectedTab === 'Settings' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('Settings')}
               >
                 Settings
@@ -130,8 +203,25 @@ Explanation: No even numbers`
                 <div className="form-group">
                   <label>Test Cases</label>
                   <textarea
-                    value={assignment.testCases}
-                    onChange={(e) => handleInputChange('testCases', e.target.value)}
+                    value={assignment.exercises && assignment.exercises.length > 0 
+                      ? assignment.exercises[0].test_cases || '' 
+                      : ''}
+                    onChange={(e) => {
+                      const updatedExercises = [...(assignment.exercises || [])];
+                      if (updatedExercises.length > 0) {
+                        updatedExercises[0].test_cases = e.target.value;
+                      } else {
+                        updatedExercises.push({
+                          id: 1,
+                          title: "Exercise 1",
+                          description: "Complete the exercise",
+                          type: "coding",
+                          points: assignment.points || 10,
+                          test_cases: e.target.value
+                        });
+                      }
+                      handleInputChange('exercises', updatedExercises);
+                    }}
                     className="form-textarea"
                     rows="6"
                     placeholder="Enter test cases"
@@ -144,7 +234,7 @@ Explanation: No even numbers`
                   <label>Due Date</label>
                   <input
                     type="datetime-local"
-                    value={assignment.dueDate}
+                    value={new Date(assignment.dueDate).toISOString().slice(0, 16)}
                     onChange={(e) => handleInputChange('dueDate', e.target.value)}
                     className="form-input"
                   />
@@ -176,8 +266,22 @@ Explanation: No even numbers`
                   {codeTypes.map(type => (
                     <button
                       key={type.id}
-                      className={`code-type-button ${assignment.codeType === type.id ? 'active' : ''}`}
-                      onClick={() => handleInputChange('codeType', type.id)}
+                      className={`code-type-button ${codeType === type.id ? 'active' : ''}`}
+                      onClick={() => {
+                        const updatedExercises = [...(assignment.exercises || [])];
+                        if (updatedExercises.length > 0) {
+                          updatedExercises[0].type = type.id;
+                        } else {
+                          updatedExercises.push({
+                            id: 1,
+                            title: "Exercise 1",
+                            description: "Complete the exercise",
+                            type: type.id,
+                            points: assignment.points || 10
+                          });
+                        }
+                        handleInputChange('exercises', updatedExercises);
+                      }}
                     >
                       {type.label}
                     </button>
@@ -187,8 +291,23 @@ Explanation: No even numbers`
             </div>
             <div className="code-area-wrapper">
               <textarea
-                value={assignment.starterCode}
-                onChange={(e) => handleInputChange('starterCode', e.target.value)}
+                value={starterCode}
+                onChange={(e) => {
+                  const updatedExercises = [...(assignment.exercises || [])];
+                  if (updatedExercises.length > 0) {
+                    updatedExercises[0].starter_code = e.target.value;
+                  } else {
+                    updatedExercises.push({
+                      id: 1,
+                      title: "Exercise 1",
+                      description: "Complete the exercise",
+                      type: "coding",
+                      points: assignment.points || 10,
+                      starter_code: e.target.value
+                    });
+                  }
+                  handleInputChange('exercises', updatedExercises);
+                }}
                 className="code-area"
                 spellCheck="false"
                 placeholder="Enter starter code for students..."
@@ -206,4 +325,4 @@ Explanation: No even numbers`
   );
 };
 
-export default AssignmentEdit;
+export default AssignmentDetail;

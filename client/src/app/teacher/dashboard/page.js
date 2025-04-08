@@ -20,6 +20,7 @@ import DashboardSkeleton from './dashboard-skeleton';
 import './dashboard.css';
 import './dashboard-skeleton.css';
 import useAuth from '@/hook/useAuth';
+import CreateAssignment from '@/components/assignment/create-assignment';
 
 const TeacherDashboard = () => {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -37,6 +38,7 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isReloading, setIsReloading] = useState(false);
+  const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
 
   // Define fetchStudents first, before it's used
   const fetchStudents = async (setLoadingState = true) => {
@@ -163,7 +165,12 @@ const TeacherDashboard = () => {
   };
 
   const handleCreateAssignment = () => {
-    // Create new assignment logic
+    setIsCreatingAssignment(true);
+  };
+
+  const handleAssignmentCreated = (newAssignment) => {
+    setIsCreatingAssignment(false);
+    handleReloadData();
   };
 
   const handleAssignmentSelect = (assignmentId, studentId) => {
@@ -258,6 +265,7 @@ const TeacherDashboard = () => {
             sortConfig={sortConfig}
             onSort={handleSort}
             loading={loading}
+            showCreateButton={false}
           />
         );
       case 'pending':
@@ -285,6 +293,19 @@ const TeacherDashboard = () => {
   };
 
   const renderContent = () => {
+    if (isCreatingAssignment) {
+      return (
+        <CreateAssignment 
+          onBack={() => setIsCreatingAssignment(false)}
+          onSuccess={handleAssignmentCreated}
+        />
+      );
+    }
+    
+    if (loading && !isCreatingAssignment && !isReloading) {
+      return <DashboardSkeleton />;
+    }
+
     if (selectedAssignment) {
       return (
         <StudentAssignment 

@@ -18,12 +18,15 @@ import DescriptionPanel from './components/DescriptionPanel';
 import EditorSection from './components/EditorSection';
 import ConsoleSection from './components/ConsoleSection';
 import useAntiCopyPaste from '@/hook/useAntiCopyPaste';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function CodingPage() {
   useAuth();
   useAntiCopyPaste();
 
   const problemState = useProblemState();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [user_id, setUser_id] = useState(null);
   const [code, setCode] = useState("# write code here");
@@ -51,6 +54,67 @@ export default function CodingPage() {
       starterCode: ''
     }
   ]);
+
+  // Load assignment if assignment ID is in URL
+  useEffect(() => {
+    const assignmentId = searchParams.get('assignment');
+    if (assignmentId) {
+      const fetchAssignment = async () => {
+        try {
+          const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch assignment');
+          }
+
+          const assignment = await response.json();
+          console.log('Loaded assignment:', assignment);
+
+          // Map exercise types to the correct format for the editor
+          const mapExerciseType = (type) => {
+            switch(type) {
+              case 'coding': return 'code';
+              case 'explain': return 'output';
+              case 'fill': return 'fill';
+              default: return type;
+            }
+          };
+
+          // Convert assignment exercises to problems format
+          const assignmentProblems = assignment.exercises.map(ex => ({
+            id: ex.id,
+            type: mapExerciseType(ex.type), // Map the type for editor compatibility
+            originalType: ex.type, // Store original type for reference
+            title: ex.title,
+            description: ex.description,
+            starterCode: ex.starter_code || ex.code || '',
+            testCases: ex.test_cases || '',
+            points: ex.points
+          }));
+
+          // Import the problems
+          await handleImport(assignmentProblems, true);
+          
+          // Set the title and description from the assignment
+          setTitle(assignment.title);
+          setDescription(assignment.description);
+          
+          // Force a chat reset since this is a new assignment
+          await handleClearImport();
+          
+        } catch (error) {
+          console.error('Error loading assignment:', error);
+          // Redirect back to dashboard if assignment load fails
+          router.push('/dashboard');
+        }
+      };
+
+      fetchAssignment();
+    }
+  }, [searchParams]);
 
   // Complete clearing of conversation history and interface state
   const handleClearImport = async () => {
