@@ -8,10 +8,14 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   const [currentExercise, setCurrentExercise] = useState(0);
   const [showStatus, setShowStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+
   const [sections, setSections] = useState([]);
   const [students, setStudents] = useState([]);
   const [showAssignmentSettings, setShowAssignmentSettings] = useState(false);
   
+
+
+
   // Fetch assignment data
   useEffect(() => {
     const fetchAssignment = async () => {
@@ -423,6 +427,37 @@ def binary_search(arr, target):
 
                 <div className="form-group">
                   <label>Due Date <span className="required">*</span></label>
+                  <label>Test Cases</label>
+                  <textarea
+                    value={assignment.exercises && assignment.exercises.length > 0
+                      ? assignment.exercises[0].test_cases || ''
+                      : ''}
+                    onChange={(e) => {
+                      const updatedExercises = [...(assignment.exercises || [])];
+                      if (updatedExercises.length > 0) {
+                        updatedExercises[0].test_cases = e.target.value;
+                      } else {
+                        updatedExercises.push({
+                          id: 1,
+                          title: "Exercise 1",
+                          description: "Complete the exercise",
+                          type: "coding",
+                          points: assignment.points || 10,
+                          test_cases: e.target.value
+                        });
+                      }
+                      handleInputChange('exercises', updatedExercises);
+                    }}
+                    className="form-textarea"
+                    rows="6"
+                    placeholder="Enter test cases"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="assignment-settings">
+                <div className="form-group">
+                  <label>Due Date</label>
                   <input
                     type="datetime-local"
                     value={assignment.dueDate ? new Date(assignment.dueDate).toISOString().slice(0, 16) : ''}

@@ -23,82 +23,82 @@ const DescriptionPanel = ({
   // State to track if the problem is from an import
   const [isImported, setIsImported] = useState(false);
   const [animatingTab, setAnimatingTab] = useState('');
-  
+
   // Create refs for tab buttons
   const descriptionTabRef = useRef(null);
   const askAITabRef = useRef(null);
-  
+
   // Function to create ripple effect on click
   const createRipple = (event) => {
     const button = event.currentTarget;
-    
+
     // Remove any existing ripple
     const ripple = button.querySelector('.ripple');
     if (ripple) {
       ripple.remove();
     }
-    
+
     // Create new ripple element
     const circle = document.createElement('span');
     const diameter = Math.max(button.clientWidth, button.clientHeight);
     const radius = diameter / 2;
-    
+
     // Calculate position
     const rect = button.getBoundingClientRect();
     circle.style.width = circle.style.height = `${diameter}px`;
     circle.style.left = `${event.clientX - rect.left}px`;
     circle.style.top = `${event.clientY - rect.top}px`;
     circle.classList.add('ripple');
-    
+
     // Add to button
     button.appendChild(circle);
-    
+
     // Remove after animation completes
     setTimeout(() => {
       circle.remove();
     }, 800);
   };
-  
+
   // Function to handle tab click with animation
   const handleTabClick = (event, tabName) => {
     // Create ripple effect
     createRipple(event);
-    
+
     // Immediately set the selected tab (this ensures bold text applies instantly)
     setSelectedDescriptionTab(tabName);
-    
+
     // Set animating state for the animation effect only
     setAnimatingTab(tabName);
-    
+
     // Reset animation state after animation completes
     setTimeout(() => {
       setAnimatingTab('');
     }, 400);
   };
-  
+
   // Check if this is an imported problem or if we have an exercise_id (assignment)
   useEffect(() => {
     const importedFlag = localStorage.getItem('is-imported');
     // Consider both imported problems and assignments (with exercise_id) as non-editable
     setIsImported(importedFlag === 'true' || !!exercise_id);
-    
+
     // Set up a listener for storage changes
     const handleStorageChange = () => {
       const currentFlag = localStorage.getItem('is-imported');
       setIsImported(currentFlag === 'true' || !!exercise_id);
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('storage-reset', handleStorageChange);
     window.addEventListener('code-reset', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('storage-reset', handleStorageChange);
       window.removeEventListener('code-reset', handleStorageChange);
     };
   }, [exercise_id]);
-  
+
   // Ensure initial tab is properly styled
   useEffect(() => {
     // Apply active state to the initial tab
@@ -108,7 +108,7 @@ const DescriptionPanel = ({
       askAITabRef.current.classList.add('active');
     }
   }, []);
-  
+
   // Log exercise_id changes for debugging
   useEffect(() => {
     console.log(`DescriptionPanel: exercise_id changed to ${exercise_id}`);
@@ -125,14 +125,14 @@ const DescriptionPanel = ({
     console.log(`DescriptionPanel: isImported = ${isImported}`);
     console.log(`DescriptionPanel: testType = ${testType}`);
   }, [title, description, isImported, testType]);
-  
+
   // Determine if we should show the description tab based on test type
   const showDescriptionTab = shouldShowDescription(testType);
-  
+
   // Force assignments to be non-editable - if we have an exercise_id, it's an assignment
   const isAssignment = !!exercise_id;
   const isEditable = !isImported && !isAssignment;
-  
+
   return (
     <div className={`description-panel ${isDescriptionFolded ? 'folded' : ''}`}>
       <div className="panel-header">
@@ -164,32 +164,12 @@ const DescriptionPanel = ({
       <div className="panel-content">
         {selectedDescriptionTab === 'Description' && showDescriptionTab ? (
           <>
-            {!isEditable ? (
-              // Display as non-editable text for imported problems or assignments
-              <div className="problem-display">
-                <h3 className="problem-title-display">{title || 'No Title'}</h3>
-                <div className="problem-description-display">
-                  {description || 'No description available.'}
-                </div>
+            <div className="problem-display">
+              <h3 className="problem-title-display">{title || 'No Title'}</h3>
+              <div className="problem-description-display">
+                {description || 'No description available.'}
               </div>
-            ) : (
-              // Editable fields for non-imported, non-assignment problems
-              <>
-                <input
-                  type="text"
-                  value={title || ''}
-                  onChange={handleTitleChange}
-                  className="problem-title"
-                  placeholder="Enter problem title..."
-                />
-                <textarea
-                  value={description || ''}
-                  onChange={handleDescriptionChange}
-                  className="problem-description"
-                  placeholder="Enter problem description..."
-                />
-              </>
-            )}
+            </div>
           </>
         ) : (
           <div className="ask-ai-content">

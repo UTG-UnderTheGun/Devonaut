@@ -24,7 +24,7 @@ const CreateAssignment = ({ onBack, onSuccess }) => {
     selectedStudents: [],
     selectedSections: []
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,13 +40,13 @@ const CreateAssignment = ({ onBack, onSuccess }) => {
     const fetchData = async () => {
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
+
         // Fetch sections
         console.log("Fetching sections...");
         const sectionsResponse = await fetch(`${API_BASE}/teacher/sections`, {
           credentials: 'include',
         });
-        
+
         if (sectionsResponse.ok) {
           const sectionsData = await sectionsResponse.json();
           console.log("Sections loaded:", sectionsData);
@@ -55,17 +55,17 @@ const CreateAssignment = ({ onBack, onSuccess }) => {
           console.error("Failed to fetch sections:", await sectionsResponse.text());
           setSections([]);
         }
-        
+
         // Fetch students from the endpoint that works
         console.log("Fetching students...");
         const studentsResponse = await fetch(`${API_BASE}/users/students`, {
           credentials: 'include',
         });
-        
+
         if (studentsResponse.ok) {
           const data = await studentsResponse.json();
           console.log("Student data response:", data);
-          
+
           // Handle both possible data structures
           let studentList = [];
           if (data && Array.isArray(data)) {
@@ -73,7 +73,7 @@ const CreateAssignment = ({ onBack, onSuccess }) => {
           } else if (data && data.users && Array.isArray(data.users)) {
             studentList = data.users;
           }
-          
+
           console.log("Processed student list:", studentList);
           setStudents(studentList);
         } else {
@@ -85,7 +85,7 @@ const CreateAssignment = ({ onBack, onSuccess }) => {
         setError(err.message);
       }
     };
-    
+
     fetchData();
   }, []);
 
@@ -94,13 +94,13 @@ const CreateAssignment = ({ onBack, onSuccess }) => {
     const timer = setTimeout(() => {
       setInitialLoading(false);
     }, 800);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
   // Function to get placeholder text based on exercise type
   const getPlaceholderForType = (type) => {
-    switch(type) {
+    switch (type) {
       case 'coding':
         return `# Example for a coding exercise:
 
@@ -178,7 +178,7 @@ def binary_search(arr, target):
       starter_code: "",
       test_cases: ""
     };
-    
+
     setAssignment(prev => ({
       ...prev,
       exercises: [...prev.exercises, newExercise]
@@ -193,13 +193,13 @@ def binary_search(arr, target):
       setTimeout(() => setShowStatus(false), 3000);
       return;
     }
-    
+
     const updatedExercises = assignment.exercises.filter((_, i) => i !== index);
     setAssignment(prev => ({
       ...prev,
       exercises: updatedExercises
     }));
-    
+
     if (currentExercise >= updatedExercises.length) {
       setCurrentExercise(updatedExercises.length - 1);
     }
@@ -223,7 +223,7 @@ def binary_search(arr, target):
       };
 
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_BASE}/assignments`, {
+      const response = await fetch(`${API_BASE}/assignments/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,7 +287,7 @@ def binary_search(arr, target):
   ];
 
   const currentExerciseData = assignment.exercises[currentExercise];
-  
+
   if (initialLoading) {
     return <CreateAssignmentSkeleton />;
   }
@@ -299,6 +299,7 @@ def binary_search(arr, target):
           ← Back to Assignments
         </button>
         <div className="action-buttons">
+
           <button onClick={handleCreate} className="save-button" disabled={loading}>
             {loading ? 'Creating...' : 'Create Assignment'}
           </button>
@@ -310,13 +311,13 @@ def binary_search(arr, target):
         <div className="description-panel">
           <div className="panel-header">
             <div className="description-selector">
-              <button 
+              <button
                 className={`description-button ${!showAssignmentSettings ? 'active' : ''}`}
                 onClick={() => setShowAssignmentSettings(false)}
               >
                 Assignment Details
               </button>
-              <button 
+              <button
                 className={`description-button ${showAssignmentSettings ? 'active' : ''}`}
                 onClick={() => setShowAssignmentSettings(true)}
               >
@@ -392,14 +393,14 @@ def binary_search(arr, target):
                   </div>
                   <div className="exercise-tabs">
                     {assignment.exercises.map((exercise, index) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className={`exercise-tab ${index === currentExercise ? 'active' : ''}`}
                         onClick={() => setCurrentExercise(index)}
                       >
                         <span>{exercise.title.length > 15 ? exercise.title.substring(0, 15) + '...' : exercise.title}</span>
-                        <button 
-                          className="remove-exercise" 
+                        <button
+                          className="remove-exercise"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRemoveExercise(index);
@@ -425,7 +426,7 @@ def binary_search(arr, target):
                         placeholder="Enter exercise title"
                       />
                     </div>
-                    
+
                     <div className="form-group">
                       <label>Exercise Description</label>
                       <textarea
@@ -436,7 +437,7 @@ def binary_search(arr, target):
                         placeholder="Enter exercise description"
                       />
                     </div>
-                    
+
                     <div className="form-group">
                       <label>Points</label>
                       <input
@@ -448,7 +449,7 @@ def binary_search(arr, target):
                         placeholder="Enter points for this exercise"
                       />
                     </div>
-                    
+
                     {currentExerciseData.type === "coding" && (
                       <div className="form-group">
                         <label>Test Cases</label>
@@ -461,7 +462,7 @@ def binary_search(arr, target):
                         />
                       </div>
                     )}
-                    
+
                     {currentExerciseData.type === "explain" && (
                       <div className="form-group">
                         <label>Code to Explain</label>
@@ -474,7 +475,7 @@ def binary_search(arr, target):
                         />
                       </div>
                     )}
-                    
+
                     {currentExerciseData.type === "fill" && (
                       <div className="form-group">
                         <label>Code Template (use ___ for blanks)</label>
@@ -570,7 +571,7 @@ def binary_search(arr, target):
                           const studentId = student.id || student._id || `student-${index}`;
                           const studentName = student.name || student.username || "Student " + (index + 1);
                           const studentSection = student.section || "Unassigned";
-                          
+
                           return (
                             <div key={studentId} className="selection-item">
                               <label className="checkbox-label">

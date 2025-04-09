@@ -47,7 +47,7 @@ const TeacherDashboard = () => {
         setLoading(true);
       }
       
-      const response = await fetch(`${API_BASE}/api/users/students`, {
+      const response = await fetch(`${API_BASE}/users/students`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',

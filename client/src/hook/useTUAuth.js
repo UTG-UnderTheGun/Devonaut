@@ -11,7 +11,7 @@ export const useTUAuth = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/tu/login', {
+      const response = await fetch('/auth/tu/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
