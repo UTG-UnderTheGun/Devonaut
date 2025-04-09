@@ -299,12 +299,7 @@ def binary_search(arr, target):
           ← Back to Assignments
         </button>
         <div className="action-buttons">
-          <button
-            onClick={() => setShowAssignmentSettings(!showAssignmentSettings)}
-            className="settings-button"
-          >
-            {showAssignmentSettings ? 'Hide Settings' : 'Assignment Settings'}
-          </button>
+
           <button onClick={handleCreate} className="save-button" disabled={loading}>
             {loading ? 'Creating...' : 'Create Assignment'}
           </button>

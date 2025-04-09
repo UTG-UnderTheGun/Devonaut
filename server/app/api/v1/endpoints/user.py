@@ -333,12 +333,12 @@ async def get_user_dashboard(
                         status = "COMPLETED"
                         progress = 100
                     else:
-                        status = "SUBMITTED"
+                        status = "COMPLETED"
                         progress = 50
                 elif due_date < datetime.now():
                     status = "OVERDUE"
                 
-                formatted_assignments.append({
+                formatted_assignment = {
                     "id": assignment["id"],
                     "title": assignment["title"],
                     "chapter": assignment["chapter"],
@@ -355,7 +355,19 @@ async def get_user_dashboard(
                             "type": ex["type"]
                         } for ex in assignment["exercises"]
                     ]
-                })
+                }
+                
+                # Change link to go to feedback view for any completed assignment
+                if status == "COMPLETED":
+                    formatted_assignment["link"] = f"/feedback?assignment={assignment['id']}"
+                
+                # Add score and feedback info for graded assignments
+                if submission and submission["status"] == "graded" and "score" in submission:
+                    formatted_assignment["score"] = submission["score"]
+                    formatted_assignment["feedback"] = submission.get("feedback", {})
+                    formatted_assignment["graded_at"] = submission.get("graded_at")
+                
+                formatted_assignments.append(formatted_assignment)
             except Exception as ex:
                 print(f"Error formatting assignment {assignment.get('id', 'unknown')}: {str(ex)}")
                 continue

@@ -117,6 +117,8 @@ async def trusted_host_middleware(request: Request, call_next):
 # Configure CORS for production
 allowed_origins = [
     "http://localhost:3000",  # Development
+    "https://localhost:3000", # Development with HTTPS
+    "http://127.0.0.1:3000",  # Alternative development URL
 ]
 
 # In production, add your domain
@@ -136,12 +138,20 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "X-CSRFToken"],
+    max_age=86400,
 )
 
 # Root endpoint for health checks
 @app.get("/")
 async def health_check():
     return {"status": "ok", "service": "DevOnaut API"}
+
+# Health check endpoint that can handle OPTIONS requests
+@app.options("/health-check")
+@app.get("/health-check")
+async def cors_health_check():
+    return {"status": "ok", "cors": "enabled"}
 
 # Include all the API routes
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

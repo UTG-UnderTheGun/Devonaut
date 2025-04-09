@@ -222,6 +222,7 @@ class AssignmentSubmission(BaseModel):
     submitted_at: datetime = Field(default_factory=datetime.now)
     graded_at: Optional[datetime] = None
     feedback: Optional[Dict[int, str]] = None  # exercise_id -> feedback
+    comments: Optional[List[Dict[str, Any]]] = []  # List of comments on the submission
     
     class Config:
         schema_extra = {
@@ -241,9 +242,60 @@ class AssignmentSubmission(BaseModel):
                 "submitted_at": "2023-03-23T11:00:00",
                 "graded_at": "2023-03-24T09:30:00",
                 "feedback": {
-                    "1": "Good solution using list comprehension!",
-                    "2": "Correct, but could be more detailed."
-                }
+                    "1": {"score": 5, "comments": [{"id": "1234567890", "user_id": "teacher123", "username": "Prof Smith", "role": "teacher", "text": "Good solution using list comprehension!", "timestamp": "2023-03-24T09:30:00"}]},
+                    "2": {"score": 3, "comments": [{"id": "1234567891", "user_id": "teacher123", "username": "Prof Smith", "role": "teacher", "text": "Correct, but could be more detailed.", "timestamp": "2023-03-24T09:30:00"}]}
+                },
+                "comments": [
+                    {
+                        "id": "1234567892",
+                        "user_id": "teacher123",
+                        "username": "Prof Smith",
+                        "role": "teacher",
+                        "text": "Overall good work!",
+                        "timestamp": "2023-03-24T09:30:00"
+                    },
+                    {
+                        "id": "1234567893",
+                        "user_id": "student123",
+                        "username": "john_doe",
+                        "role": "student",
+                        "text": "Thank you professor!",
+                        "timestamp": "2023-03-24T10:15:00"
+                    }
+                ]
+            }
+        }
+
+
+class SubmissionGrading(BaseModel):
+    score: float
+    feedback: Dict[str, Any] = {}
+    comments: Optional[List[Dict[str, Any]]] = []
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "score": 18.5,
+                "feedback": {
+                    "1": {"score": 5, "text": "Excellent solution"},
+                    "2": {"score": 3, "text": "Correct but incomplete"}
+                },
+                "comments": [
+                    {"text": "Good effort on this assignment!"}
+                ]
+            }
+        }
+
+
+class Comment(BaseModel):
+    text: str
+    exercise_id: Optional[int] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "text": "Great job explaining the algorithm!",
+                "exercise_id": 2  # If commenting on a specific exercise
             }
         }
 

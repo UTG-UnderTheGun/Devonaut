@@ -4,6 +4,7 @@ import Link from 'next/link';
 import './dashboard.css';
 import useAuth from '@/hook/useAuth';
 import DashboardSkeleton from './skeleton';
+import axios from 'axios';
 
 export default function Dashboard() {
   useAuth();
@@ -39,17 +40,11 @@ export default function Dashboard() {
         console.log('Fetching dashboard data...');
         
         // Fetch dashboard data from the new endpoint
-        const dashboardResponse = await fetch(`${API_BASE}/users/dashboard`, { 
-          credentials: 'include' 
+        const response = await axios.get(`${API_BASE}/users/dashboard`, { 
+          withCredentials: true 
         });
         
-        if (!dashboardResponse.ok) {
-          const errorText = await dashboardResponse.text();
-          console.error('Dashboard response not OK:', dashboardResponse.status, errorText);
-          throw new Error(`Failed to fetch dashboard data: ${dashboardResponse.status} ${errorText}`);
-        }
-        
-        const dashboardData = await dashboardResponse.json();
+        const dashboardData = response.data;
         console.log('Dashboard data received:', dashboardData);
         
         // Update the state with the received data
@@ -146,7 +141,13 @@ export default function Dashboard() {
     });
   };
 
-  const getTimeStatus = (dueDate, dueTime) => {
+  const getTimeStatus = (dueDate, dueTime, status) => {
+    // If the assignment is already completed, use completed style
+    if (status === 'COMPLETED') {
+      // If it has been graded, show green
+      return 'completed';
+    }
+    
     const deadline = new Date(dueDate + ' ' + dueTime);
     const now = new Date();
     const diffHours = (deadline - now) / (1000 * 60 * 60);
@@ -234,12 +235,15 @@ export default function Dashboard() {
             {filteredChapters.length > 0 ? (
               filteredChapters.map((chapter) => (
                 <Link href={chapter.link} key={chapter.id} className="assignment-link">
-                  <div className={`assignment-card-dashboard ${getTimeStatus(chapter.dueDate, chapter.dueTime)}`}>
+                  <div className={`assignment-card-dashboard ${getTimeStatus(chapter.dueDate, chapter.dueTime, chapter.status)}`}>
                     <div className="assignment-header">
                       <div className="assignment-info">
                         <div className="title-row">
                           <span className="assignment-icon">{getChapterIcon(chapter.problems)}</span>
                           <h3 className="assignment-title">{chapter.title}</h3>
+                          {chapter.status === "COMPLETED" && chapter.score !== undefined && (
+                            <span className="score-badge">{chapter.score}/{chapter.totalPoints}</span>
+                          )}
                         </div>
                         <div className="assignment-meta">
                           <span className="assignment-chapter">{chapter.chapter}</span>

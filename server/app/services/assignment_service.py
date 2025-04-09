@@ -284,4 +284,106 @@ async def get_assignments_for_student(db, student_id: str, student_section: Opti
         return results
     except Exception as e:
         print(f"Error getting assignments for student: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+async def submit_assignment(db, assignment_id: str, user_id: str, username: str, submission_data: Dict) -> Dict:
+    """
+    Submit an assignment for grading
+    """
+    try:
+        # Check if assignment exists
+        assignment = await db["assignments"].find_one({"_id": ObjectId(assignment_id)})
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        # Check if student has already submitted this assignment
+        existing_submission = await db["assignment_submissions"].find_one({
+            "assignment_id": assignment_id,
+            "user_id": user_id
+        })
+        
+        # If already submitted, we could either update or reject
+        if existing_submission:
+            # Option 1: Reject if already submitted
+            # raise HTTPException(status_code=400, detail="You have already submitted this assignment")
+            
+            # Option 2: Update existing submission (chosen approach)
+            submission_id = existing_submission["id"]
+            
+            # Update the submission
+            update_data = {
+                "answers": submission_data.get("answers", {}),
+                "code": submission_data.get("code", ""),
+                "output": submission_data.get("output", ""),
+                "error": submission_data.get("error", ""),
+                "status": "pending",  # Reset to pending when resubmitted
+                "submitted_at": datetime.now()
+            }
+            
+            await db["assignment_submissions"].update_one(
+                {"id": submission_id},
+                {"$set": update_data}
+            )
+            
+            return {
+                "success": True,
+                "message": "Assignment resubmitted successfully",
+                "id": submission_id,
+                "status": "COMPLETED"
+            }
+        
+        # Create new submission
+        submission = {
+            "id": str(datetime.now().timestamp()),
+            "assignment_id": assignment_id,
+            "user_id": user_id,
+            "username": username,
+            "answers": submission_data.get("answers", {}),
+            "code": submission_data.get("code", ""),
+            "output": submission_data.get("output", ""),
+            "error": submission_data.get("error", ""),
+            "score": None,
+            "status": "pending",
+            "submitted_at": datetime.now(),
+            "graded_at": None,
+            "feedback": None,
+            "comments": []
+        }
+        
+        # Insert the submission
+        result = await db["assignment_submissions"].insert_one(submission)
+        
+        if not result.inserted_id:
+            raise HTTPException(status_code=500, detail="Failed to save submission")
+        
+        # Update assignment stats
+        await db["assignments"].update_one(
+            {"_id": ObjectId(assignment_id)},
+            {"$inc": {"stats.submissions": 1, "stats.pending_review": 1}}
+        )
+        
+        # Save to code history as well for tracking
+        await db["code_history"].insert_one({
+            "user_id": user_id,
+            "username": username,
+            "code": submission_data.get("code", ""),
+            "output": submission_data.get("output", ""),
+            "error": submission_data.get("error", ""),
+            "is_submission": True,
+            "action_type": "submission",
+            "assignment_id": assignment_id,
+            "created_at": datetime.now()
+        })
+        
+        return {
+            "success": True,
+            "message": "Assignment submitted successfully",
+            "id": submission["id"],
+            "status": "COMPLETED"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error submitting assignment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit assignment: {str(e)}") 
