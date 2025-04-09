@@ -353,19 +353,47 @@ body {
 /* Status-specific styles */
 .assignment-card-dashboard.normal .due-date,
 .assignment-card-dashboard.normal .due-time {
-    color: var(--gray-800);
-    font-weight: 500;
+    color: var(--gray-500);
 }
 
 .assignment-card-dashboard.overdue .due-date,
 .assignment-card-dashboard.overdue .due-time {
     color: var(--danger);
-    font-weight: 500;
 }
 
 .assignment-card-dashboard.urgent .due-date,
 .assignment-card-dashboard.urgent .due-time {
     color: var(--warning);
+}
+
+/* Style for submitted assignments */
+.assignment-card-dashboard.submitted {
+    border-left: 3px solid var(--primary);
+}
+
+.assignment-card-dashboard.submitted .due-date,
+.assignment-card-dashboard.submitted .due-time {
+    color: var(--primary);
+}
+
+/* Style for completed assignments */
+.assignment-card-dashboard.completed {
+    border-left: 3px solid var(--success);
+}
+
+.assignment-card-dashboard.completed .due-date,
+.assignment-card-dashboard.completed .due-time {
+    color: var(--success);
+}
+
+/* Style for completed assignment score badge */
+.score-badge {
+    background-color: var(--success);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    margin-left: 0.5rem;
     font-weight: 500;
 }
 

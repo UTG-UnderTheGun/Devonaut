@@ -1,0 +1,256 @@
+.feedback-page {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  color: white;
+}
+
+.feedback-header h1 {
+  margin: 0 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.back-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.feedback-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.feedback-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.status-badge {
+  background: var(--primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.status-badge:has(:root .status[data-status="graded"]) {
+  background: var(--success);
+}
+
+.score-display {
+  font-size: 1.25rem;
+  color: var(--gray-700);
+}
+
+.score-display span {
+  font-weight: 600;
+  color: var(--success);
+}
+
+.feedback-details {
+  background: var(--gray-50);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
+
+.detail-value {
+  font-weight: 500;
+  color: var(--gray-700);
+  font-size: 0.875rem;
+}
+
+.feedback-content, .comments-section {
+  margin-top: 2rem;
+}
+
+.feedback-content h2, .comments-section h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.exercise-feedback {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.exercise-feedback:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.exercise-feedback h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 0.75rem;
+}
+
+.exercise-score {
+  font-weight: 500;
+  color: var(--success);
+  margin-bottom: 0.75rem;
+}
+
+.feedback-text {
+  background: var(--gray-50);
+  padding: 1rem;
+  border-radius: 8px;
+  color: var(--gray-700);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.comment-section {
+  margin-top: 1.5rem;
+}
+
+.comment-section h4 {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: 0.75rem;
+}
+
+.comment {
+  background: var(--gray-50);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.comment-time {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+
+.comment-text {
+  color: var(--gray-700);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.pending-notice {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(255, 201, 92, 0.1);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  color: var(--gray-700);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.feedback-page.loading, .feedback-page.error {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: white;
+}
+
+.feedback-page.error h2 {
+  margin-bottom: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .feedback-page {
+    margin: 1rem;
+    padding: 0;
+  }
+  
+  .feedback-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .feedback-header h1 {
+    margin: 1rem 0 0 0;
+  }
+  
+  .feedback-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .feedback-card {
+    padding: 1rem;
+  }
+  
+  .detail-row {
+    flex-direction: column;
+    margin-bottom: 0.75rem;
+  }
+  
+  .detail-value {
+    margin-top: 0.25rem;
+  }
+} 
