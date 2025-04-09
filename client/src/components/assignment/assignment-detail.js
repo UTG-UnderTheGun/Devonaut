@@ -5,9 +5,12 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTab, setSelectedTab] = useState('Description');
+  const [currentExercise, setCurrentExercise] = useState(0);
   const [showStatus, setShowStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [sections, setSections] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [showAssignmentSettings, setShowAssignmentSettings] = useState(false);
   
   // Fetch assignment data
   useEffect(() => {
@@ -42,6 +45,60 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     }
   }, [assignmentId]);
 
+  // Fetch sections and students
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
+        // Fetch sections
+        console.log("Fetching sections...");
+        const sectionsResponse = await fetch(`${API_BASE}/teacher/sections`, {
+          credentials: 'include',
+        });
+        
+        if (sectionsResponse.ok) {
+          const sectionsData = await sectionsResponse.json();
+          console.log("Sections loaded:", sectionsData);
+          setSections(sectionsData);
+        } else {
+          console.error("Failed to fetch sections:", await sectionsResponse.text());
+          setSections([]);
+        }
+        
+        // Fetch students
+        console.log("Fetching students...");
+        const studentsResponse = await fetch(`${API_BASE}/users/students`, {
+          credentials: 'include',
+        });
+        
+        if (studentsResponse.ok) {
+          const data = await studentsResponse.json();
+          console.log("Student data response:", data);
+          
+          // Handle both possible data structures
+          let studentList = [];
+          if (data && Array.isArray(data)) {
+            studentList = data;
+          } else if (data && data.users && Array.isArray(data.users)) {
+            studentList = data.users;
+          }
+          
+          console.log("Processed student list:", studentList);
+          setStudents(studentList);
+        } else {
+          console.error("Failed to fetch students:", await studentsResponse.text());
+          setStudents([]);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(err.message);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
   const handleInputChange = (field, value) => {
     setAssignment(prev => ({
       ...prev,
@@ -49,9 +106,76 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     }));
   };
 
+  const handleExerciseChange = (field, value) => {
+    const updatedExercises = [...(assignment.exercises || [])];
+    updatedExercises[currentExercise] = {
+      ...updatedExercises[currentExercise],
+      [field]: value
+    };
+    setAssignment(prev => ({
+      ...prev,
+      exercises: updatedExercises
+    }));
+  };
+
+  const handleAddExercise = () => {
+    const newId = assignment.exercises ? assignment.exercises.length + 1 : 1;
+    const newExercise = {
+      id: newId,
+      title: `Exercise ${newId}`,
+      description: "Complete the exercise",
+      type: "coding",
+      points: 5,
+      starter_code: "",
+      test_cases: ""
+    };
+    
+    setAssignment(prev => ({
+      ...prev,
+      exercises: [...(prev.exercises || []), newExercise]
+    }));
+    setCurrentExercise(assignment.exercises ? assignment.exercises.length : 0);
+  };
+
+  const handleRemoveExercise = (index) => {
+    if (!assignment.exercises || assignment.exercises.length <= 1) {
+      setStatusMessage("Assignment must have at least one exercise");
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 3000);
+      return;
+    }
+    
+    const updatedExercises = assignment.exercises.filter((_, i) => i !== index);
+    setAssignment(prev => ({
+      ...prev,
+      exercises: updatedExercises
+    }));
+    
+    if (currentExercise >= updatedExercises.length) {
+      setCurrentExercise(updatedExercises.length - 1);
+    }
+  };
+
   const handleSave = async () => {
+    if (!assignment || !assignment.title || !assignment.chapter || !assignment.dueDate || !assignment.exercises || assignment.exercises.length === 0) {
+      setError('Please fill in all required fields and add at least one exercise');
+      setStatusMessage('Please fill in all required fields and add at least one exercise');
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 3000);
+      return;
+    }
+
     try {
       setLoading(true);
+
+      // Format the request body with assignment targeting info
+      const requestBody = {
+        ...assignment,
+        assignmentType: assignment.assignmentType || 'all', // Include the assignment type
+        selectedStudents: assignment.assignmentType === 'specific' ? assignment.selectedStudents : [],
+        selectedSections: assignment.assignmentType === 'section' ? assignment.selectedSections : []
+      };
+
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
         method: 'PUT',
@@ -59,14 +183,7 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          title: assignment.title,
-          chapter: assignment.chapter,
-          description: assignment.description,
-          dueDate: assignment.dueDate,
-          points: assignment.points,
-          exercises: assignment.exercises
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -86,7 +203,97 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     }
   };
 
-  if (loading) {
+  const toggleStudentSelection = (studentId) => {
+    setAssignment(prev => {
+      const selectedStudents = [...(prev.selectedStudents || [])];
+      if (selectedStudents.includes(studentId)) {
+        return {
+          ...prev,
+          selectedStudents: selectedStudents.filter(id => id !== studentId)
+        };
+      } else {
+        return {
+          ...prev,
+          selectedStudents: [...selectedStudents, studentId]
+        };
+      }
+    });
+  };
+
+  const toggleSectionSelection = (sectionId) => {
+    setAssignment(prev => {
+      const selectedSections = [...(prev.selectedSections || [])];
+      if (selectedSections.includes(sectionId)) {
+        return {
+          ...prev,
+          selectedSections: selectedSections.filter(id => id !== sectionId)
+        };
+      } else {
+        return {
+          ...prev,
+          selectedSections: [...selectedSections, sectionId]
+        };
+      }
+    });
+  };
+  
+  // Function to get placeholder text based on exercise type
+  const getPlaceholderForType = (type) => {
+    switch(type) {
+      case 'coding':
+        return `# Example for a coding exercise:
+
+def calculate_sum(numbers):
+    # Student will implement this function to calculate the sum of numbers
+    pass
+
+# You can provide test cases like:
+# assert calculate_sum([1, 2, 3]) == 6
+# assert calculate_sum([-1, 1]) == 0`;
+
+      case 'explain':
+        return `# Example for an explanation exercise:
+
+# Students will need to explain what this code does
+numbers = [1, 2, 3, 4, 5]
+result = [x * x for x in numbers if x % 2 == 0]
+print(result)  # Output: [4, 16]
+
+# They should explain concepts like list comprehension, 
+# conditionals, and what the final result represents.`;
+
+      case 'fill':
+        return `# Example for a fill-in-the-blanks exercise:
+# Use ___ to indicate blanks
+
+def binary_search(arr, target):
+    left = 0
+    right = ___  # Student should fill: len(arr) - 1
+    
+    while left <= right:
+        mid = ___  # Student should fill: (left + right) // 2
+        
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = ___  # Student should fill: mid + 1
+        else:
+            right = ___  # Student should fill: mid - 1
+            
+    return -1`;
+
+      default:
+        return "Enter starter code for students...";
+    }
+  };
+
+  const codeTypes = [
+    { id: 'coding', label: 'Coding' },
+    { id: 'explain', label: 'Explain' },
+    { id: 'fill', label: 'Fill in' }
+  ];
+
+  if (loading && !assignment) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -95,7 +302,7 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     );
   }
 
-  if (error) {
+  if (error && !assignment) {
     return (
       <div className="error-container">
         <div>Error: {error}</div>
@@ -117,21 +324,31 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     );
   }
 
-  const codeTypes = [
-    { id: 'coding', label: 'Coding' },
-    { id: 'explain', label: 'Explain' },
-    { id: 'fill', label: 'Fill in' }
-  ];
+  // Ensure exercises array exists
+  if (!assignment.exercises) {
+    assignment.exercises = [{
+      id: 1,
+      title: "Exercise 1",
+      description: "Complete the exercise",
+      type: "coding",
+      points: 5,
+      starter_code: "",
+      test_cases: ""
+    }];
+  }
 
-  // Get the first exercise's type or default to 'coding'
-  const codeType = assignment.exercises && assignment.exercises.length > 0 
-    ? assignment.exercises[0].type 
-    : 'coding';
+  // Ensure assignment type and related arrays exist
+  if (!assignment.assignmentType) {
+    assignment.assignmentType = "all";
+  }
+  if (!assignment.selectedStudents) {
+    assignment.selectedStudents = [];
+  }
+  if (!assignment.selectedSections) {
+    assignment.selectedSections = [];
+  }
 
-  // Get starter code from first exercise or empty string
-  const starterCode = assignment.exercises && assignment.exercises.length > 0 
-    ? assignment.exercises[0].starter_code || '' 
-    : '';
+  const currentExerciseData = assignment.exercises[currentExercise];
 
   return (
     <div className="coding-container">
@@ -139,9 +356,11 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
         <button onClick={onBack} className="back-button">
           ← Back to Assignments
         </button>
-        <button onClick={handleSave} className="save-button">
-          Save Changes
-        </button>
+        <div className="action-buttons">
+          <button onClick={handleSave} className="save-button" disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
       </div>
 
       <div className="main-content-detail">
@@ -150,42 +369,44 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
           <div className="panel-header">
             <div className="description-selector">
               <button 
-                className={`description-button ${selectedTab === 'Description' ? 'active' : ''}`}
-                onClick={() => setSelectedTab('Description')}
+                className={`description-button ${!showAssignmentSettings ? 'active' : ''}`}
+                onClick={() => setShowAssignmentSettings(false)}
               >
                 Assignment Details
               </button>
               <button 
-                className={`description-button ${selectedTab === 'Settings' ? 'active' : ''}`}
-                onClick={() => setSelectedTab('Settings')}
+                className={`description-button ${showAssignmentSettings ? 'active' : ''}`}
+                onClick={() => setShowAssignmentSettings(true)}
               >
-                Settings
+                Assign To
               </button>
             </div>
           </div>
 
           <div className="panel-content">
-            {selectedTab === 'Description' ? (
+            {!showAssignmentSettings ? (
               <div className="assignment-form">
                 <div className="form-group">
-                  <label>Title</label>
+                  <label>Title <span className="required">*</span></label>
                   <input
                     type="text"
                     value={assignment.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                     className="form-input"
                     placeholder="Enter assignment title"
+                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Chapter</label>
+                  <label>Chapter <span className="required">*</span></label>
                   <input
                     type="text"
                     value={assignment.chapter}
                     onChange={(e) => handleInputChange('chapter', e.target.value)}
                     className="form-input"
-                    placeholder="Enter chapter"
+                    placeholder="Enter chapter (e.g. Chapter 3: Loops)"
+                    required
                   />
                 </div>
 
@@ -195,62 +416,240 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
                     value={assignment.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     className="form-textarea"
-                    rows="8"
+                    rows="4"
                     placeholder="Enter assignment description"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Test Cases</label>
-                  <textarea
-                    value={assignment.exercises && assignment.exercises.length > 0 
-                      ? assignment.exercises[0].test_cases || '' 
-                      : ''}
-                    onChange={(e) => {
-                      const updatedExercises = [...(assignment.exercises || [])];
-                      if (updatedExercises.length > 0) {
-                        updatedExercises[0].test_cases = e.target.value;
-                      } else {
-                        updatedExercises.push({
-                          id: 1,
-                          title: "Exercise 1",
-                          description: "Complete the exercise",
-                          type: "coding",
-                          points: assignment.points || 10,
-                          test_cases: e.target.value
-                        });
-                      }
-                      handleInputChange('exercises', updatedExercises);
-                    }}
-                    className="form-textarea"
-                    rows="6"
-                    placeholder="Enter test cases"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="assignment-settings">
-                <div className="form-group">
-                  <label>Due Date</label>
+                  <label>Due Date <span className="required">*</span></label>
                   <input
                     type="datetime-local"
-                    value={new Date(assignment.dueDate).toISOString().slice(0, 16)}
+                    value={assignment.dueDate ? new Date(assignment.dueDate).toISOString().slice(0, 16) : ''}
                     onChange={(e) => handleInputChange('dueDate', e.target.value)}
                     className="form-input"
+                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Points</label>
+                  <label>Total Points</label>
                   <input
                     type="number"
                     value={assignment.points}
-                    onChange={(e) => handleInputChange('points', parseInt(e.target.value))}
+                    onChange={(e) => handleInputChange('points', parseInt(e.target.value) || 0)}
                     className="form-input"
                     min="0"
-                    placeholder="Enter points"
+                    placeholder="Enter total points"
                   />
                 </div>
+
+                <div className="form-group">
+                  <div className="exercise-list-header">
+                    <label className="exercise-list-title">Exercises</label>
+                  </div>
+                  <div className="exercise-tabs">
+                    {assignment.exercises.map((exercise, index) => (
+                      <div 
+                        key={index} 
+                        className={`exercise-tab ${index === currentExercise ? 'active' : ''}`}
+                        onClick={() => setCurrentExercise(index)}
+                      >
+                        <span>{exercise.title.length > 15 ? exercise.title.substring(0, 15) + '...' : exercise.title}</span>
+                        <button 
+                          className="remove-exercise" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExercise(index);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button className="add-exercise" onClick={handleAddExercise}>+</button>
+                  </div>
+                </div>
+
+                {currentExerciseData && (
+                  <>
+                    <div className="form-group">
+                      <label>Exercise Title</label>
+                      <input
+                        type="text"
+                        value={currentExerciseData.title}
+                        onChange={(e) => handleExerciseChange('title', e.target.value)}
+                        className="form-input"
+                        placeholder="Enter exercise title"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Exercise Description</label>
+                      <textarea
+                        value={currentExerciseData.description}
+                        onChange={(e) => handleExerciseChange('description', e.target.value)}
+                        className="form-textarea"
+                        rows="3"
+                        placeholder="Enter exercise description"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Points</label>
+                      <input
+                        type="number"
+                        value={currentExerciseData.points}
+                        onChange={(e) => handleExerciseChange('points', parseInt(e.target.value) || 0)}
+                        className="form-input"
+                        min="0"
+                        placeholder="Enter points for this exercise"
+                      />
+                    </div>
+                    
+                    {currentExerciseData.type === "coding" && (
+                      <div className="form-group">
+                        <label>Test Cases</label>
+                        <textarea
+                          value={currentExerciseData.test_cases || ""}
+                          onChange={(e) => handleExerciseChange('test_cases', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="Enter test cases (e.g. assert sum([1,2,3]) == 6)"
+                        />
+                      </div>
+                    )}
+                    
+                    {currentExerciseData.type === "explain" && (
+                      <div className="form-group">
+                        <label>Code to Explain</label>
+                        <textarea
+                          value={currentExerciseData.code || ""}
+                          onChange={(e) => handleExerciseChange('code', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="Enter code for students to explain"
+                        />
+                      </div>
+                    )}
+                    
+                    {currentExerciseData.type === "fill" && (
+                      <div className="form-group">
+                        <label>Code Template (use ___ for blanks)</label>
+                        <textarea
+                          value={currentExerciseData.code || ""}
+                          onChange={(e) => handleExerciseChange('code', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="def function(x):\n    return x + ___"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="assignment-settings">
+                <div className="form-group">
+                  <label>Assign to</label>
+                  <div className="assignment-type-options">
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="assignmentType"
+                        value="all"
+                        checked={assignment.assignmentType === "all"}
+                        onChange={() => handleInputChange('assignmentType', 'all')}
+                      />
+                      All Students
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="assignmentType"
+                        value="section"
+                        checked={assignment.assignmentType === "section"}
+                        onChange={() => handleInputChange('assignmentType', 'section')}
+                      />
+                      Specific Sections
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="assignmentType"
+                        value="specific"
+                        checked={assignment.assignmentType === "specific"}
+                        onChange={() => handleInputChange('assignmentType', 'specific')}
+                      />
+                      Specific Students
+                    </label>
+                  </div>
+                </div>
+
+                {assignment.assignmentType === "section" && (
+                  <div className="form-group">
+                    <label>Select Sections</label>
+                    <div className="selection-list">
+                      {sections.length > 0 ? (
+                        sections.map(section => (
+                          <div key={section.id} className="selection-item">
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={assignment.selectedSections.includes(section.id)}
+                                onChange={() => toggleSectionSelection(section.id)}
+                              />
+                              {section.name}
+                            </label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-items">No sections available</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {assignment.assignmentType === "specific" && (
+                  <div className="form-group">
+                    <label>Select Students ({students ? students.length : 0})</label>
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="Search students by name or section..."
+                      onChange={(e) => {
+                        // TODO: Add student filtering
+                      }}
+                    />
+                    <div className="selection-list">
+                      {students && students.length > 0 ? (
+                        students.map((student, index) => {
+                          // Handle various student data formats
+                          const studentId = student.id || student._id || `student-${index}`;
+                          const studentName = student.name || student.username || "Student " + (index + 1);
+                          const studentSection = student.section || "Unassigned";
+                          
+                          return (
+                            <div key={studentId} className="selection-item">
+                              <label className="checkbox-label">
+                                <input
+                                  type="checkbox"
+                                  checked={assignment.selectedStudents.includes(studentId)}
+                                  onChange={() => toggleStudentSelection(studentId)}
+                                />
+                                {studentName} {student.student_id && `(${student.student_id})`} - {studentSection}
+                              </label>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="no-items">
+                          {error ? `Error loading students: ${error}` : "No students available"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -261,27 +660,12 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
           <div className="code-editor">
             <div className="panel-header">
               <div className="editor-top">
-                <span className="editor-title"></span>
                 <div className="code-type-selector">
                   {codeTypes.map(type => (
                     <button
                       key={type.id}
-                      className={`code-type-button ${codeType === type.id ? 'active' : ''}`}
-                      onClick={() => {
-                        const updatedExercises = [...(assignment.exercises || [])];
-                        if (updatedExercises.length > 0) {
-                          updatedExercises[0].type = type.id;
-                        } else {
-                          updatedExercises.push({
-                            id: 1,
-                            title: "Exercise 1",
-                            description: "Complete the exercise",
-                            type: type.id,
-                            points: assignment.points || 10
-                          });
-                        }
-                        handleInputChange('exercises', updatedExercises);
-                      }}
+                      className={`code-type-button ${currentExerciseData?.type === type.id ? 'active' : ''}`}
+                      onClick={() => handleExerciseChange('type', type.id)}
                     >
                       {type.label}
                     </button>
@@ -291,26 +675,11 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
             </div>
             <div className="code-area-wrapper">
               <textarea
-                value={starterCode}
-                onChange={(e) => {
-                  const updatedExercises = [...(assignment.exercises || [])];
-                  if (updatedExercises.length > 0) {
-                    updatedExercises[0].starter_code = e.target.value;
-                  } else {
-                    updatedExercises.push({
-                      id: 1,
-                      title: "Exercise 1",
-                      description: "Complete the exercise",
-                      type: "coding",
-                      points: assignment.points || 10,
-                      starter_code: e.target.value
-                    });
-                  }
-                  handleInputChange('exercises', updatedExercises);
-                }}
+                value={currentExerciseData?.starter_code || ""}
+                onChange={(e) => handleExerciseChange('starter_code', e.target.value)}
                 className="code-area"
                 spellCheck="false"
-                placeholder="Enter starter code for students..."
+                placeholder={getPlaceholderForType(currentExerciseData?.type)}
               />
             </div>
           </div>

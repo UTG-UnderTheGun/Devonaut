@@ -187,53 +187,41 @@ const EditorSection = ({
   }, [currentProblemIndex, problems]);
 
   useEffect(() => {
-    const loadProblemData = () => {
+    // Make sure to save current code before switching problems
+    if (code && testType) {
+      const previousKey = `code-${testType}-${currentProblemIndex}`;
+      console.log(`Saving code for problem ${currentProblemIndex} with key ${previousKey}`);
+      localStorage.setItem(previousKey, code);
+    }
+    
+    // Now load code for the new problem
+    const loadProblemCode = () => {
       if (!problems || !problems[currentProblemIndex]) return;
-
+      
       const currentProblem = problems[currentProblemIndex];
       const currentType = currentProblem.type || testType;
-
-      if (setTestType && currentType !== testType) {
-        setTestType(currentType);
-      }
-
-      const keysToTry = [
-        `code-${currentType}-${currentProblemIndex}`,
-        `editor-code-${currentType}-${currentProblemIndex}`,
-        `code-${testType}-${currentProblemIndex}`,
-        `starter-code-${currentProblemIndex}`
-      ];
-
-      let foundCode = null;
-      for (const key of keysToTry) {
-        const savedCode = localStorage.getItem(key);
-        if (savedCode) {
-          foundCode = savedCode;
-          console.log(`Found code for problem ${currentProblemIndex + 1} with key: ${key}`);
-          break;
-        }
-      }
-
-      if (!foundCode && currentProblem.starterCode) {
-        foundCode = currentProblem.starterCode;
-        console.log(`Using starter code for problem ${currentProblemIndex + 1}`);
-      }
-
-      if (foundCode) {
-        setEditorCodes(prev => ({
-          ...prev,
-          [currentProblemIndex]: foundCode
-        }));
+      
+      // Try to load saved code specifically for this problem
+      const key = `code-${currentType}-${currentProblemIndex}`;
+      const savedCode = localStorage.getItem(key);
+      
+      if (savedCode) {
+        console.log(`Loading saved code for problem ${currentProblemIndex} from ${key}: ${savedCode.substring(0, 30)}...`);
+        handleCodeChange(savedCode);
         if (editorRef.current) {
-          editorRef.current.setValue(foundCode);
+          editorRef.current.setValue(savedCode);
         }
-        if (handleCodeChange) {
-          handleCodeChange(foundCode);
+      } else if (currentProblem.starterCode) {
+        // Fall back to starter code if no saved code
+        console.log(`No saved code found for problem ${currentProblemIndex}, using starter code`);
+        handleCodeChange(currentProblem.starterCode);
+        if (editorRef.current) {
+          editorRef.current.setValue(currentProblem.starterCode);
         }
       }
     };
-
-    loadProblemData();
+    
+    loadProblemCode();
   }, [currentProblemIndex, problems, testType]);
 
   // Create a debounced function to save keystrokes
@@ -606,6 +594,30 @@ const EditorSection = ({
       default: return type;
     }
   };
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.editor) {
+      // Create global reference to monaco editors if it doesn't exist
+      if (!window.monacoEditors) {
+        window.monacoEditors = [];
+      }
+      
+      // Add this editor instance to the global list if not already there
+      if (!window.monacoEditors.includes(editorRef.current.editor)) {
+        window.monacoEditors.push(editorRef.current.editor);
+        console.log("Added editor to global monaco editors list");
+      }
+      
+      return () => {
+        // Remove editor from global list on component unmount
+        if (window.monacoEditors) {
+          window.monacoEditors = window.monacoEditors.filter(
+            editor => editor !== editorRef.current.editor
+          );
+        }
+      };
+    }
+  }, [editorRef.current]);
 
   return (
     <div className="code-editor">

@@ -83,6 +83,35 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       detail: { source: 'import', complete: true, timestamp: Date.now() }
     });
     window.dispatchEvent(resetEvent);
+
+    const testCodeSeparation = () => {
+      // Sample test data
+      const testProblems = [
+        { index: 0, code: "def problem_0():\n    return 'test0'" },
+        { index: 1, code: "def problem_1():\n    return 'test1'" }
+      ];
+      
+      console.log("TESTING CODE SEPARATION: Storing test codes for different problems");
+      
+      // Store test code for each problem
+      testProblems.forEach(problem => {
+        const key = `code-code-${problem.index}`;
+        localStorage.setItem(key, problem.code);
+        console.log(`Set ${key} = ${problem.code}`);
+      });
+      
+      // Verify each problem has correct code
+      testProblems.forEach(problem => {
+        const key = `code-code-${problem.index}`;
+        const storedCode = localStorage.getItem(key);
+        console.log(`Verification: ${key} = ${storedCode}`);
+        const isCorrect = storedCode === problem.code;
+        console.log(`Test ${problem.index} ${isCorrect ? 'PASSED' : 'FAILED'}`);
+      });
+    };
+    
+    // Uncomment next line to run test
+    // testCodeSeparation();
   };
 
   // Add a specific function to clear problem code
@@ -148,11 +177,53 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       const allAnswers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
       const allOutputs = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
       
+      // Get the current editor content directly from the DOM if possible
+      let currentEditorContent = '';
+      try {
+        // Try to access the current editor content via Monaco editor instance
+        if (window.monacoEditors && window.monacoEditors.length > 0) {
+          currentEditorContent = window.monacoEditors[0].getValue();
+          console.log("Got current editor content from Monaco:", currentEditorContent);
+        }
+      } catch (err) {
+        console.warn("Couldn't get editor content directly:", err);
+      }
+      
       // Create an array to hold all problems with their data
       const exportProblems = savedProblems.map((problem, index) => {
         // Get problem-specific code and data for each problem
         const problemType = problem.type || 'code';
-        const currentCode = localStorage.getItem(`code-${problemType}-${index}`) || problem.code || problem.starterCode || '';
+        
+        // Try multiple sources to get the current code for this problem
+        let currentCode = '';
+        
+        // If this is the current problem being edited and we have editor content, use that
+        if (index === currentProblemIndex && currentEditorContent) {
+          currentCode = currentEditorContent;
+          console.log(`Using current editor content for problem ${index}`);
+        } else {
+          // Otherwise try various localStorage keys
+          const possibleKeys = [
+            `code-${problemType}-${index}`,
+            `editor-code-${problemType}-${index}`,
+            `problem-code-${index}`,
+            `editorCode-${index}`
+          ];
+          
+          for (const key of possibleKeys) {
+            const storedCode = localStorage.getItem(key);
+            if (storedCode && storedCode.trim() !== '') {
+              currentCode = storedCode;
+              console.log(`Found code for problem ${index} in key ${key}`);
+              break;
+            }
+          }
+          
+          // If no stored code found, fall back to problem definition
+          if (!currentCode || currentCode.trim() === '') {
+            currentCode = problem.code || problem.starterCode || '';
+          }
+        }
         
         // Filter answers for this specific problem
         const problemAnswers = {};
@@ -162,17 +233,17 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
           }
         });
 
-        // สร้าง export object ตามประเภทของโจทย์
+        // Create export object based on problem type
         const baseExport = {
           id: index + 1,
           title: problem.title || '',
           description: problem.description || '',
           code: currentCode,
           type: problemType,
-          userAnswers: {} // เริ่มต้นด้วย empty object
+          userAnswers: {} // Start with empty object
         };
 
-        // เพิ่มข้อมูลเฉพาะตามประเภทของโจทย์
+        // Add type-specific data
         switch (problemType) {
           case 'fill':
             if (Object.keys(problemAnswers).length > 0) {
@@ -185,7 +256,8 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             }
             break;
           case 'code':
-            if (currentCode && currentCode !== problem.code) {
+            // Always include the code as an answer for code type problems
+            if (currentCode && currentCode.trim() !== '') {
               baseExport.userAnswers.codeAnswer = currentCode;
             }
             if (allOutputs[index]) {

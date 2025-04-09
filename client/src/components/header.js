@@ -59,8 +59,61 @@ const Header = () => {
     console.log('Imported data:', importedData);
   }
 
-  const handleSubmitCode = () => {
-    console.log('Submitting code...')
+  const handleSubmitCode = async () => {
+    try {
+      // Confirm submission
+      if (!confirm("Are you sure you want to submit this assignment? You won't be able to make changes after submission.")) {
+        return;
+      }
+
+      console.log('Submitting assignment...');
+      
+      // Get assignment ID from URL if available
+      const urlParams = new URLSearchParams(window.location.search);
+      const assignmentId = urlParams.get('assignment');
+      
+      if (!assignmentId) {
+        console.error('No assignment ID found in URL');
+        alert('Cannot submit: No assignment ID found. Make sure you are working on an assigned task.');
+        return;
+      }
+      
+      // Get any saved answers from localStorage for different problem types
+      let answers = {};
+      try {
+        const savedAnswers = localStorage.getItem('problem-answers');
+        if (savedAnswers) {
+          answers = JSON.parse(savedAnswers);
+        }
+      } catch (e) {
+        console.warn('Could not parse saved answers', e);
+      }
+      
+      // Submit to the backend
+      const response = await axios.post(`${API_BASE}/assignments/${assignmentId}/submit`, {
+        code: code,
+        output: output || '',
+        error: error || '',
+        answers: answers
+      }, { withCredentials: true });
+      
+      if (response.data.success) {
+        // Show success message
+        alert('Assignment submitted successfully! Your teacher will review and grade it soon.');
+        
+        // Clear localStorage of code/answers for this assignment
+        localStorage.removeItem('problem-answers');
+        localStorage.removeItem('problem-code');
+        
+        // Redirect to dashboard after submission
+        router.push('/dashboard');
+      } else {
+        alert('Error submitting assignment: ' + (response.data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Error submitting assignment:', err);
+      alert('Failed to submit assignment: ' + (err.response?.data?.detail || err.message));
+    }
   }
 
   useEffect(() => {
@@ -232,18 +285,18 @@ const Header = () => {
         </div>
 
         <div className="header-center">
-          {/* {isCodingPage && (
+          {isCodingPage && (
             <div className="coding-actions">
-              <button onClick={handleRunCode} className="action-button run">
+              {/* <button onClick={handleRunCode} className="action-button run">
                 <span className="action-icon">▶</span>
                 Run
-              </button>
+              </button> */}
               <button onClick={handleSubmitCode} className="action-button submit">
                 <span className="action-icon">⬆</span>
                 Submit
               </button>
             </div>
-          )} */}
+          )}
         </div>
 
         <div className="header-right">
