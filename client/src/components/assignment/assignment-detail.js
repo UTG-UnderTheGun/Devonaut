@@ -8,7 +8,7 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   const [selectedTab, setSelectedTab] = useState('Description');
   const [showStatus, setShowStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-  
+
   // Fetch assignment data
   useEffect(() => {
     const fetchAssignment = async () => {
@@ -124,13 +124,13 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   ];
 
   // Get the first exercise's type or default to 'coding'
-  const codeType = assignment.exercises && assignment.exercises.length > 0 
-    ? assignment.exercises[0].type 
+  const codeType = assignment.exercises && assignment.exercises.length > 0
+    ? assignment.exercises[0].type
     : 'coding';
 
   // Get starter code from first exercise or empty string
-  const starterCode = assignment.exercises && assignment.exercises.length > 0 
-    ? assignment.exercises[0].starter_code || '' 
+  const starterCode = assignment.exercises && assignment.exercises.length > 0
+    ? assignment.exercises[0].starter_code || ''
     : '';
 
   return (
@@ -149,13 +149,13 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
         <div className="description-panel">
           <div className="panel-header">
             <div className="description-selector">
-              <button 
+              <button
                 className={`description-button ${selectedTab === 'Description' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('Description')}
               >
                 Assignment Details
               </button>
-              <button 
+              <button
                 className={`description-button ${selectedTab === 'Settings' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('Settings')}
               >
@@ -203,8 +203,8 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
                 <div className="form-group">
                   <label>Test Cases</label>
                   <textarea
-                    value={assignment.exercises && assignment.exercises.length > 0 
-                      ? assignment.exercises[0].test_cases || '' 
+                    value={assignment.exercises && assignment.exercises.length > 0
+                      ? assignment.exercises[0].test_cases || ''
                       : ''}
                     onChange={(e) => {
                       const updatedExercises = [...(assignment.exercises || [])];
