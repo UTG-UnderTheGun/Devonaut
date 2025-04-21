@@ -471,32 +471,130 @@ def binary_search(arr, target):
 
                 <div className="form-group">
                   <label>Due Date <span className="required">*</span></label>
-                  <label>Test Cases</label>
-                  <textarea
-                    value={assignment.exercises && assignment.exercises.length > 0
-                      ? assignment.exercises[0].test_cases || ''
-                      : ''}
-                    onChange={(e) => {
-                      const updatedExercises = [...(assignment.exercises || [])];
-                      if (updatedExercises.length > 0) {
-                        updatedExercises[0].test_cases = e.target.value;
-                      } else {
-                        updatedExercises.push({
-                          id: 1,
-                          title: "Exercise 1",
-                          description: "Complete the exercise",
-                          type: "coding",
-                          points: assignment.points || 10,
-                          test_cases: e.target.value
-                        });
-                      }
-                      handleInputChange('exercises', updatedExercises);
-                    }}
-                    className="form-textarea"
-                    rows="6"
-                    placeholder="Enter test cases"
+                  <input
+                    type="datetime-local"
+                    value={assignment.dueDate}
+                    onChange={(e) => handleInputChange('dueDate', e.target.value)}
+                    className="form-input"
+                    required
                   />
                 </div>
+
+                <div className="form-group">
+                  <label>Total Points</label>
+                  <input
+                    type="number"
+                    value={assignment.points}
+                    onChange={(e) => handleInputChange('points', parseInt(e.target.value) || 0)}
+                    className="form-input"
+                    min="0"
+                    placeholder="Enter total points"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <div className="exercise-list-header">
+                    <label className="exercise-list-title">Exercises</label>
+                  </div>
+                  <div className="exercise-tabs">
+                    {assignment.exercises.map((exercise, index) => (
+                      <div
+                        key={index}
+                        className={`exercise-tab ${index === currentExercise ? 'active' : ''}`}
+                        onClick={() => setCurrentExercise(index)}
+                      >
+                        <span>{exercise.title.length > 15 ? exercise.title.substring(0, 15) + '...' : exercise.title}</span>
+                        <button
+                          className="remove-exercise"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExercise(index);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button className="add-exercise" onClick={handleAddExercise}>+</button>
+                  </div>
+                </div>
+
+                {currentExerciseData && (
+                  <>
+                    <div className="form-group">
+                      <label>Exercise Title</label>
+                      <input
+                        type="text"
+                        value={currentExerciseData.title}
+                        onChange={(e) => handleExerciseChange('title', e.target.value)}
+                        className="form-input"
+                        placeholder="Enter exercise title"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Exercise Description</label>
+                      <textarea
+                        value={currentExerciseData.description}
+                        onChange={(e) => handleExerciseChange('description', e.target.value)}
+                        className="form-textarea"
+                        rows="3"
+                        placeholder="Enter exercise description"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Points</label>
+                      <input
+                        type="number"
+                        value={currentExerciseData.points}
+                        onChange={(e) => handleExerciseChange('points', parseInt(e.target.value) || 0)}
+                        className="form-input"
+                        min="0"
+                        placeholder="Enter points for this exercise"
+                      />
+                    </div>
+
+                    {currentExerciseData.type === "coding" && (
+                      <div className="form-group">
+                        <label>Test Cases</label>
+                        <textarea
+                          value={currentExerciseData.test_cases || ""}
+                          onChange={(e) => handleExerciseChange('test_cases', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="Enter test cases (e.g. assert sum([1,2,3]) == 6)"
+                        />
+                      </div>
+                    )}
+
+                    {currentExerciseData.type === "explain" && (
+                      <div className="form-group">
+                        <label>Code to Explain</label>
+                        <textarea
+                          value={currentExerciseData.code || ""}
+                          onChange={(e) => handleExerciseChange('code', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="Enter code for students to explain"
+                        />
+                      </div>
+                    )}
+
+                    {currentExerciseData.type === "fill" && (
+                      <div className="form-group">
+                        <label>Code Template (use ___ for blanks)</label>
+                        <textarea
+                          value={currentExerciseData.code || ""}
+                          onChange={(e) => handleExerciseChange('code', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="def function(x):\n    return x + ___"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             ) : (
               <div className="assignment-settings">
