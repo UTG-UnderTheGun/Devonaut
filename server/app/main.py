@@ -134,7 +134,7 @@ if environment == "production":
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=allowed_origins if not debug_mode else ["*"],  # Allow all origins in debug mode
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

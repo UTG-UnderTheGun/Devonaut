@@ -22,6 +22,8 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
       try {
         setLoading(true);
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        console.log(`Fetching assignment with ID: ${assignmentId} from ${API_BASE}`);
+
         const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
           method: 'GET',
           headers: {
@@ -30,15 +32,26 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
           credentials: 'include',
         });
 
+        console.log(`Response status: ${response.status}`);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch assignment details');
+          const errorText = await response.text();
+          console.error(`Server error: ${errorText}`);
+          throw new Error(`Failed to fetch assignment details: ${response.status} ${errorText}`);
         }
 
         const data = await response.json();
+        console.log(`Assignment data loaded successfully:`, data);
         setAssignment(data);
       } catch (err) {
-        setError(err.message);
         console.error('Error loading assignment:', err);
+        
+        // Handle CORS errors specifically
+        if (err.message && err.message.includes('Failed to fetch')) {
+          setError('Network error: Could not connect to the server. This might be a CORS issue or the server is down.');
+        } else {
+          setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -123,10 +136,25 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   };
 
   const handleAddExercise = () => {
-    const newId = assignment.exercises ? assignment.exercises.length + 1 : 1;
+    const newId = `exercise_${Date.now()}`;
+    
+    // Find the highest exercise number in the existing exercises
+    let maxNumber = 0;
+    if (assignment.exercises) {
+      assignment.exercises.forEach(ex => {
+        const match = ex.title.match(/Exercise\s+(\d+)/);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      });
+    }
+    
     const newExercise = {
       id: newId,
-      title: `Exercise ${newId}`,
+      title: `Exercise ${maxNumber + 1}`,
       description: "Complete the exercise",
       type: "coding",
       points: 5,
@@ -150,14 +178,30 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     }
     
     const updatedExercises = assignment.exercises.filter((_, i) => i !== index);
+    
+    // Update the current exercise index if needed
+    let newCurrentExercise = currentExercise;
+    if (currentExercise >= updatedExercises.length) {
+      newCurrentExercise = updatedExercises.length - 1;
+    } else if (currentExercise === index) {
+      // If we're removing the current exercise, stay on the same index
+      // (which will now point to the next exercise)
+      // unless it was the last one
+      if (newCurrentExercise >= updatedExercises.length) {
+        newCurrentExercise = updatedExercises.length - 1;
+      }
+    } else if (currentExercise > index) {
+      // If we're removing an exercise before the current one, 
+      // decrement the current index
+      newCurrentExercise = currentExercise - 1;
+    }
+    
     setAssignment(prev => ({
       ...prev,
       exercises: updatedExercises
     }));
     
-    if (currentExercise >= updatedExercises.length) {
-      setCurrentExercise(updatedExercises.length - 1);
-    }
+    setCurrentExercise(newCurrentExercise);
   };
 
   const handleSave = async () => {
