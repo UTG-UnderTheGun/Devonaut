@@ -99,7 +99,13 @@ const EditorSection = ({
         // However, we still update outputAnswers if expectedOutput is found.
         const newOutputAnswers = { ...outputAnswers };
         parsedProblems.forEach((problem, index) => {
-          if (problem.expectedOutput && !newOutputAnswers[index]) {
+          // Check for output answers in the problem's userAnswers
+          if (problem.userAnswers && problem.userAnswers.outputAnswer) {
+            newOutputAnswers[index] = problem.userAnswers.outputAnswer;
+            console.log(`Loaded output answer for problem ${index}:`, problem.userAnswers.outputAnswer);
+          }
+          // Also check for expectedOutput for backward compatibility
+          else if (problem.expectedOutput && !newOutputAnswers[index]) {
             newOutputAnswers[index] = problem.expectedOutput;
           }
         });
@@ -119,7 +125,8 @@ const EditorSection = ({
     }
 
     if (savedOutputs) {
-      setOutputAnswers(JSON.parse(savedOutputs));
+      const parsedOutputs = JSON.parse(savedOutputs);
+      setOutputAnswers(parsedOutputs);
     }
 
     // Check if problems are imported in the initial useEffect
@@ -512,6 +519,24 @@ const EditorSection = ({
       }
     }
   }, [problems, currentProblemIndex, testType]);
+
+  // Add new useEffect to handle output answers when problem changes
+  useEffect(() => {
+    if (problems && problems[currentProblemIndex]) {
+      const currentProblem = problems[currentProblemIndex];
+      // Check for saved output answer in the problem's userAnswers
+      if (currentProblem.userAnswers && currentProblem.userAnswers.outputAnswer) {
+        const savedOutputAnswer = currentProblem.userAnswers.outputAnswer;
+        console.log(`Loading saved output answer for problem ${currentProblemIndex}:`, savedOutputAnswer);
+        // Update outputAnswers state and localStorage
+        setOutputAnswers(prev => {
+          const newOutputAnswers = { ...prev, [currentProblemIndex]: savedOutputAnswer };
+          localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
+          return newOutputAnswers;
+        });
+      }
+    }
+  }, [currentProblemIndex, problems]);
 
   const handleRunCode = async () => {
     // If console is folded, unfold it before running code

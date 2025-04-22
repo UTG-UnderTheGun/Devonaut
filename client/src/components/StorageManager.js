@@ -176,33 +176,20 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       // Get all answers and outputs from localStorage
       const allAnswers = JSON.parse(localStorage.getItem('problem-answers') || '{}');
       const allOutputs = JSON.parse(localStorage.getItem('problem-outputs') || '{}');
-      
-      // Get the current editor content directly from the DOM if possible
-      let currentEditorContent = '';
-      try {
-        // Try to access the current editor content via Monaco editor instance
-        if (window.monacoEditors && window.monacoEditors.length > 0) {
-          currentEditorContent = window.monacoEditors[0].getValue();
-          console.log("Got current editor content from Monaco:", currentEditorContent);
-        }
-      } catch (err) {
-        console.warn("Couldn't get editor content directly:", err);
-      }
+      console.log('Loaded outputs from localStorage:', allOutputs);
       
       // Create an array to hold all problems with their data
       const exportProblems = savedProblems.map((problem, index) => {
         // Get problem-specific code and data for each problem
         const problemType = problem.type || 'code';
         
-        // Try multiple sources to get the current code for this problem
+        // For output type problems, use the original problem code
         let currentCode = '';
-        
-        // If this is the current problem being edited and we have editor content, use that
-        if (index === currentProblemIndex && currentEditorContent) {
-          currentCode = currentEditorContent;
-          console.log(`Using current editor content for problem ${index}`);
+        if (problemType === 'output' || problemType === 'explain') {
+          currentCode = problem.code || problem.starterCode || '';
+          console.log(`Using original code for output problem ${index}:`, currentCode);
         } else {
-          // Otherwise try various localStorage keys
+          // For other types, try to get saved code
           const possibleKeys = [
             `code-${problemType}-${index}`,
             `editor-code-${problemType}-${index}`,
@@ -251,8 +238,12 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             }
             break;
           case 'output':
-            if (allOutputs[index]) {
-              baseExport.userAnswers.outputAnswer = allOutputs[index];
+          case 'explain':
+            // Check both direct index and string index for output answers
+            const outputAnswer = allOutputs[index] || allOutputs[index.toString()];
+            if (outputAnswer) {
+              console.log(`Found output answer for problem ${index}:`, outputAnswer);
+              baseExport.userAnswers.outputAnswer = outputAnswer;
             }
             break;
           case 'code':
@@ -260,12 +251,15 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             if (currentCode && currentCode.trim() !== '') {
               baseExport.userAnswers.codeAnswer = currentCode;
             }
-            if (allOutputs[index]) {
-              baseExport.userAnswers.outputAnswer = allOutputs[index];
+            // Check both direct index and string index for output answers
+            const codeOutputAnswer = allOutputs[index] || allOutputs[index.toString()];
+            if (codeOutputAnswer) {
+              baseExport.userAnswers.outputAnswer = codeOutputAnswer;
             }
             break;
         }
 
+        console.log(`Exporting problem ${index}:`, baseExport);
         return baseExport;
       });
       
