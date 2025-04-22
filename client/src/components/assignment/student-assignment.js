@@ -518,7 +518,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       </div>
 
       <div className="content-grid">
-        <div className="main-content">
+        <div className="main-content-assignment">
           {activeTab === 'code' && (
             <div className="code-section">
               <h3>Student Submission</h3>
