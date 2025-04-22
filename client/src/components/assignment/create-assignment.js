@@ -168,17 +168,30 @@ def binary_search(arr, target):
   };
 
   const handleAddExercise = () => {
-    const newId = assignment.exercises.length + 1;
+    const newId = `exercise_${Date.now()}`;
+    
+    // Find the highest exercise number in the existing exercises
+    let maxNumber = 0;
+    assignment.exercises.forEach(ex => {
+      const match = ex.title.match(/Exercise\s+(\d+)/);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    });
+    
     const newExercise = {
       id: newId,
-      title: `Exercise ${newId}`,
+      title: `Exercise ${maxNumber + 1}`,
       description: "Complete the exercise",
       type: "coding",
       points: 5,
       starter_code: "",
       test_cases: ""
     };
-
+    
     setAssignment(prev => ({
       ...prev,
       exercises: [...prev.exercises, newExercise]
@@ -195,14 +208,30 @@ def binary_search(arr, target):
     }
 
     const updatedExercises = assignment.exercises.filter((_, i) => i !== index);
+    
+    // Update the current exercise index if needed
+    let newCurrentExercise = currentExercise;
+    if (currentExercise >= updatedExercises.length) {
+      newCurrentExercise = updatedExercises.length - 1;
+    } else if (currentExercise === index) {
+      // If we're removing the current exercise, stay on the same index
+      // (which will now point to the next exercise)
+      // unless it was the last one
+      if (newCurrentExercise >= updatedExercises.length) {
+        newCurrentExercise = updatedExercises.length - 1;
+      }
+    } else if (currentExercise > index) {
+      // If we're removing an exercise before the current one, 
+      // decrement the current index
+      newCurrentExercise = currentExercise - 1;
+    }
+    
     setAssignment(prev => ({
       ...prev,
       exercises: updatedExercises
     }));
-
-    if (currentExercise >= updatedExercises.length) {
-      setCurrentExercise(updatedExercises.length - 1);
-    }
+    
+    setCurrentExercise(newCurrentExercise);
   };
 
   const handleCreate = async () => {

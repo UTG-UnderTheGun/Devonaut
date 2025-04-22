@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 from typing import List, Dict, Any, Optional
 from bson import ObjectId
@@ -117,18 +117,52 @@ async def get_assignment_by_id(db, assignment_id: str) -> Dict:
     Get a single assignment by ID with all necessary data for the coding interface
     """
     try:
-        assignment = await db["assignments"].find_one({"_id": ObjectId(assignment_id)})
+        # Convert string ID to ObjectId, handling invalid IDs gracefully
+        try:
+            obj_id = ObjectId(assignment_id)
+        except Exception as e:
+            print(f"Invalid assignment ID: {assignment_id} - Error: {str(e)}")
+            raise HTTPException(status_code=404, detail="Invalid assignment ID")
+
+        assignment = await db["assignments"].find_one({"_id": obj_id})
         
         if not assignment:
+            print(f"Assignment not found with ID: {assignment_id}")
             raise HTTPException(status_code=404, detail="Assignment not found")
         
         # Convert ObjectId to string
         assignment["id"] = str(assignment["_id"])
         del assignment["_id"]
         
+        # Add overdue status if dueDate exists
+        if "dueDate" in assignment and assignment["dueDate"]:
+            try:
+                # Handle different date formats
+                due_date_str = assignment["dueDate"]
+                if isinstance(due_date_str, str):
+                    if 'T' in due_date_str:
+                        # ISO format
+                        due_date_str = due_date_str.replace('Z', '+00:00')
+                        due_date = datetime.fromisoformat(due_date_str)
+                    else:
+                        # Other string format
+                        due_date = datetime.strptime(due_date_str, "%Y-%m-%d %H:%M:%S")
+                elif isinstance(due_date_str, datetime):
+                    due_date = due_date_str
+                else:
+                    # Default to not overdue if format is unrecognized
+                    due_date = datetime.now() + timedelta(days=1)
+                    
+                assignment["is_overdue"] = datetime.now() > due_date
+            except Exception as e:
+                print(f"Error parsing due date: {assignment['dueDate']} - Error: {str(e)}")
+                assignment["is_overdue"] = False
+        else:
+            assignment["is_overdue"] = False
+        
         # Count pending submissions
         pending_count = await db["assignment_submissions"].count_documents({
-            "assignment_id": assignment_id,
+            "assignment_id": assignment["id"],
             "status": "pending"
         })
         
@@ -136,7 +170,7 @@ async def get_assignment_by_id(db, assignment_id: str) -> Dict:
         if "stats" not in assignment or assignment["stats"] is None:
             assignment["stats"] = {
                 "total_students": await db["users"].count_documents({"role": "student"}),
-                "submissions": await db["assignment_submissions"].count_documents({"assignment_id": assignment_id}),
+                "submissions": await db["assignment_submissions"].count_documents({"assignment_id": assignment["id"]}),
                 "pending_review": pending_count,
                 "average_score": 0  # Will calculate this if there are graded submissions
             }
@@ -144,7 +178,7 @@ async def get_assignment_by_id(db, assignment_id: str) -> Dict:
             # Calculate average score if there are graded submissions
             if assignment["stats"]["submissions"] > 0:
                 pipeline = [
-                    {"$match": {"assignment_id": assignment_id, "status": "graded"}},
+                    {"$match": {"assignment_id": assignment["id"], "status": "graded"}},
                     {"$group": {"_id": None, "avg_score": {"$avg": "$score"}}}
                 ]
                 result = await db["assignment_submissions"].aggregate(pipeline).to_list(length=1)
