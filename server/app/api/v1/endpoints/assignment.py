@@ -88,7 +88,7 @@ async def list_assignments(
         )
 
 
-@router.get("/{assignment_id}", response_model=Assignment)
+@router.get("/{assignment_id}", response_model=None)
 async def get_assignment(
     request: Request,
     assignment_id: str,
@@ -97,7 +97,39 @@ async def get_assignment(
     """
     Get a specific assignment by ID
     """
-    return await get_assignment_by_id(request.app.mongodb, assignment_id)
+    try:
+        print(f"Fetching assignment with ID: {assignment_id}")
+        assignment = await get_assignment_by_id(request.app.mongodb, assignment_id)
+        
+        # Add user-specific data if student
+        user, user_id = current_user
+        if user.get("role") != "teacher":
+            # Get student's submission if exists
+            submission = await request.app.mongodb["assignment_submissions"].find_one({
+                "assignment_id": assignment_id,
+                "user_id": user_id
+            })
+            if submission:
+                assignment["user_submission"] = {
+                    "status": submission["status"],
+                    "submitted_at": submission["submitted_at"],
+                    "score": submission.get("score"),
+                    "feedback": submission.get("feedback")
+                }
+        
+        return assignment
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        print(f"HTTP Exception in get_assignment: {e.detail}")
+        raise
+    except Exception as e:
+        error_msg = f"Failed to get assignment: {str(e)}"
+        print(f"Error getting assignment: {error_msg}")
+        print(f"Assignment ID: {assignment_id}, User: {current_user[0].get('username', 'unknown')}")
+        raise HTTPException(
+            status_code=500,
+            detail=error_msg
+        )
 
 
 @router.put("/{assignment_id}", response_model=Assignment)
