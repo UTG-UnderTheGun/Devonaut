@@ -338,6 +338,14 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             localStorage.setItem(`problem-description-${index}`, item.description);
           }
 
+          // Store code for each problem with proper type and index
+          const problemType = item.type || 'code';
+          const codeKey = `code-${problemType}-${index}`;
+          if (item.code) {
+            localStorage.setItem(codeKey, item.code);
+            console.log(`Stored code for problem ${index} with key ${codeKey}`);
+          }
+
           // Save user answers if they exist
           if (item.userAnswers) {
             Object.keys(item.userAnswers).forEach(key => {
@@ -362,6 +370,14 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         }
         if (data.description) {
           localStorage.setItem('problem-description-0', data.description);
+        }
+
+        // Store code for single problem
+        const problemType = data.type || 'code';
+        const codeKey = `code-${problemType}-0`;
+        if (data.code) {
+          localStorage.setItem(codeKey, data.code);
+          console.log(`Stored code for single problem with key ${codeKey}`);
         }
 
         if (data.userAnswers) {

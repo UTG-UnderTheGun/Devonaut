@@ -199,25 +199,39 @@ const EditorSection = ({
       if (!problems || !problems[currentProblemIndex]) return;
       
       const currentProblem = problems[currentProblemIndex];
-      const currentType = currentProblem.type || testType;
+      const effectiveType = mapExerciseType(currentProblem.type || testType);
       
       // Try to load saved code specifically for this problem
-      const key = `code-${currentType}-${currentProblemIndex}`;
+      const key = `code-${effectiveType}-${currentProblemIndex}`;
       const savedCode = localStorage.getItem(key);
       
+      console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType}`);
+      console.log(`Looking for key: ${key}`);
+      
       if (savedCode) {
-        console.log(`Loading saved code for problem ${currentProblemIndex} from ${key}: ${savedCode.substring(0, 30)}...`);
+        console.log(`Found saved code for problem ${currentProblemIndex} from ${key}`);
         handleCodeChange(savedCode);
         if (editorRef.current) {
           editorRef.current.setValue(savedCode);
         }
+      } else if (currentProblem.code) {
+        // If no saved code, use the problem's original code
+        console.log(`Using original code for problem ${currentProblemIndex}`);
+        handleCodeChange(currentProblem.code);
+        if (editorRef.current) {
+          editorRef.current.setValue(currentProblem.code);
+        }
+        // Save this code to localStorage for future
+        localStorage.setItem(key, currentProblem.code);
       } else if (currentProblem.starterCode) {
-        // Fall back to starter code if no saved code
-        console.log(`No saved code found for problem ${currentProblemIndex}, using starter code`);
+        // Fall back to starter code if no saved code and no original code
+        console.log(`Using starter code for problem ${currentProblemIndex}`);
         handleCodeChange(currentProblem.starterCode);
         if (editorRef.current) {
           editorRef.current.setValue(currentProblem.starterCode);
         }
+        // Save this code to localStorage for future
+        localStorage.setItem(key, currentProblem.starterCode);
       }
     };
     
@@ -256,9 +270,14 @@ const EditorSection = ({
       [currentProblemIndex]: value
     }));
 
+    // Get the current problem type
     const currentProblem = problems && problems[currentProblemIndex];
     const currentType = currentProblem ? currentProblem.type || testType : testType;
-    localStorage.setItem(`code-${currentType}-${currentProblemIndex}`, value);
+    
+    // Save code with the correct type and index
+    const key = `code-${currentType}-${currentProblemIndex}`;
+    localStorage.setItem(key, value);
+    console.log(`Saving code for problem ${currentProblemIndex} with key ${key}`);
 
     if (typeof handleCodeChange === 'function') {
       handleCodeChange(value);
@@ -685,7 +704,6 @@ const EditorSection = ({
     console.log("Effective test type:", effectiveTestType);
 
     // Only update type if the mapped values are different
-    // This prevents infinite loops from testType being constantly updated
     if (effectiveTestType !== testType && setTestType && 
         !(
           (testType === 'code' && currentProblem.type === 'coding') || 
@@ -765,13 +783,17 @@ const EditorSection = ({
         );
       case 'output':
         console.log("Rendering output type");
+        // Always use the current problem's code for output type
+        const outputCode = currentProblem.code || '';
+        console.log(`Using code directly from problem ${currentProblemIndex}:`, outputCode);
+        
         return (
           <div className="output-question">
             <div className="question-title">{currentProblem.title || ''}</div>
             <div className="question-description">{currentProblem.description || ''}</div>
             <div className="code-display">
               <SyntaxHighlighter language="python" style={vs} customStyle={{ margin: 0, padding: '1rem', background: 'transparent', fontSize: '14px', lineHeight: '1.6' }}>
-                {currentCode}
+                {outputCode}
               </SyntaxHighlighter>
             </div>
             <div className="answer-section">
