@@ -191,121 +191,97 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [keystrokeHistory, setKeystrokeHistory] = useState([]);
   const [aiChatHistory, setAiChatHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('code');
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timelinePosition, setTimelinePosition] = useState(0);
 
-  // Fetch all necessary data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Try fetching assignment details
-        let assignmentData = null;
-        try {
-          const assignmentRes = await fetch(`/api/v1/assignments/${assignmentId}`);
-          if (assignmentRes.ok) {
-            assignmentData = await assignmentRes.json();
-          } else {
-            console.log('Using mock assignment data');
-            assignmentData = mockAssignment;
-          }
-        } catch (err) {
-          console.log('Error fetching assignment, using mock data:', err);
-          assignmentData = mockAssignment;
-        }
+  const fetchData = async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      // Fetch assignment data
+      const assignmentResponse = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!assignmentResponse.ok) {
+        setAssignment(mockAssignment);
+      } else {
+        const assignmentData = await assignmentResponse.json();
         setAssignment(assignmentData);
+      }
 
-        // Try fetching student submission
-        let submissionData = null;
-        try {
-          const submissionRes = await fetch(`/api/v1/assignments/${assignmentId}/submission/${studentId}`);
-          if (submissionRes.ok) {
-            submissionData = await submissionRes.json();
-          } else {
-            console.log('Using mock submission data');
-            submissionData = mockSubmission;
-          }
-        } catch (err) {
-          console.log('Error fetching submission, using mock data:', err);
-          submissionData = mockSubmission;
-        }
+      // Fetch submission data
+      const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${studentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!submissionResponse.ok) {
+        setSubmission(mockSubmission);
+      } else {
+        const submissionData = await submissionResponse.json();
         setSubmission(submissionData);
-        
         if (submissionData.score) {
           setScore(submissionData.score.toString());
         }
-        
-        // Try fetching code history
-        try {
-          const codeHistoryRes = await fetch(`/api/v1/code/code-analytics/user-journey/${studentId}?problem_index=${assignmentId}`);
-          if (codeHistoryRes.ok) {
-            const historyData = await codeHistoryRes.json();
-            setCodeHistory(historyData.filter(item => item.action_type === "run" || item.action_type === "submission"));
-          } else {
-            console.log('Using mock code history data');
-            setCodeHistory(mockCodeHistory);
-          }
-        } catch (err) {
-          console.log('Error fetching code history, using mock data:', err);
-          setCodeHistory(mockCodeHistory);
-        }
-        
-        // Try fetching keystroke history
-        try {
-          const keystrokeRes = await fetch(`/api/v1/code/code-analytics/access-patterns?user_id=${studentId}&problem_index=${assignmentId}`);
-          if (keystrokeRes.ok) {
-            const keystrokeData = await keystrokeRes.json();
-            setKeystrokeHistory(keystrokeData);
-          } else {
-            console.log('Using mock keystroke history data');
-            setKeystrokeHistory(mockKeystrokeHistory);
-          }
-        } catch (err) {
-          console.log('Error fetching keystroke history, using mock data:', err);
-          setKeystrokeHistory(mockKeystrokeHistory);
-        }
-        
-        // Try fetching AI chat history
-        try {
-          const aiChatRes = await fetch(`/api/v1/ai-chat/history?user_id=${studentId}&assignment_id=${assignmentId}`);
-          if (aiChatRes.ok) {
-            const aiChatData = await aiChatRes.json();
-            setAiChatHistory(aiChatData);
-          } else {
-            console.log('Using mock AI chat history data');
-            setAiChatHistory(mockAiChatHistory);
-          }
-        } catch (err) {
-          console.log('Error fetching AI chat history, using mock data:', err);
-          setAiChatHistory(mockAiChatHistory);
-        }
-
-      } catch (err) {
-        console.error("Error in data loading process:", err);
-        setError("Failed to load data. Please try again later.");
-        
-        // Fall back to mock data
-        setAssignment(mockAssignment);
-        setSubmission(mockSubmission);
-        setCodeHistory(mockCodeHistory);
-        setKeystrokeHistory(mockKeystrokeHistory);
-        setAiChatHistory(mockAiChatHistory);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    if (studentId && assignmentId) {
-      fetchData();
+      // Fetch code history
+      const historyResponse = await fetch(`${API_BASE}/api/code-history/${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!historyResponse.ok) {
+        setCodeHistory(mockCodeHistory);
+      } else {
+        const historyData = await historyResponse.json();
+        setCodeHistory(historyData);
+      }
+
+      // Fetch keystroke history
+      const keystrokeResponse = await fetch(`${API_BASE}/api/code-analytics/user-journey/${studentId}?problem_index=${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!keystrokeResponse.ok) {
+        setKeystrokeHistory(mockKeystrokeHistory);
+      } else {
+        const keystrokeData = await keystrokeResponse.json();
+        setKeystrokeHistory(keystrokeData);
+      }
+
+      // Fetch AI chat history
+      const aiChatResponse = await fetch(`${API_BASE}/api/chat-history/user-id=${studentId}&assignment_id=${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!aiChatResponse.ok) {
+        setAiChatHistory(mockAiChatHistory);
+      } else {
+        const aiChatData = await aiChatResponse.json();
+        setAiChatHistory(aiChatData);
+      }
+
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching data:', err);
+      // Use mock data as fallback
+      setAssignment(mockAssignment);
+      setSubmission(mockSubmission);
+      setCodeHistory(mockCodeHistory);
+      setKeystrokeHistory(mockKeystrokeHistory);
+      setAiChatHistory(mockAiChatHistory);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [studentId, assignmentId]);
 
   const handleBack = () => {
-    router.back();
+    router.push('/teacher/dashboard');
   };
 
   const handleScoreChange = (e) => {
@@ -427,18 +403,17 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   
   const timelineMarkers = generateTimelineMarkers();
 
-  if (loading) {
-    return <div className="loading-container">Loading assignment data...</div>;
-  }
-
   if (error && !assignment) {
     return <div className="error-container">Error: {error}</div>;
+  }
+
+  if (!assignment || !submission) {
+    return null;
   }
 
   return (
     <div className="student-assignment">
       <div className="assignment-header">
-        <button onClick={handleBack} className="btn-back">← Back</button>
         <h1>{assignment.title}</h1>
         <div className="assignment-meta">
           <span>Chapter: {assignment.chapter}</span>

@@ -1,3 +1,20 @@
+/* Base Styles */
+:root {
+  --primary-color: #7c3aed;
+  --primary-light: #ddd6fe;
+  --primary-dark: #6d28d9;
+  --text-primary: #1a1a1a;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --bg-color: #f8fafc;
+  --bg-content: #ffffff;
+  --error-color: #ef4444;
+  --success-color: #059669;
+  --pending-color: #eab308;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
 /* Main Container */
 .student-assignment {
   max-width: 1440px;
