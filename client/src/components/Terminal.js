@@ -6,7 +6,7 @@ const Terminal = () => {
   const { output, error, setOpenTerm } = useCodeContext();
   const [isClosing, setIsClosing] = useState(false);
   const [selectedText, setSelectedText] = useState('');
-  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0 });
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, text: '' });
   const [displayedOutput, setDisplayedOutput] = useState('');
   const terminalRef = useRef(null);
 
@@ -44,10 +44,13 @@ const Terminal = () => {
       // Calculate position relative to terminal
       const terminalRect = terminalRef.current.getBoundingClientRect();
       setContextMenu({
-        show: true,
+        visible: true,
         x: e.clientX - terminalRect.left,
-        y: e.clientY - terminalRect.top
+        y: e.clientY - terminalRect.top,
+        text: text
       });
+    } else {
+      setContextMenu({ visible: false, x: 0, y: 0, text: '' });
     }
   };
 
@@ -59,8 +62,8 @@ const Terminal = () => {
     
     // Create the message for AI
     const messageText = hasError 
-      ? `What caused this error?\n\`\`\`\n${selectedText}\n\`\`\``
-      : `Can you explain this console output?\n\`\`\`\n${selectedText}\n\`\`\``;
+      ? `What caused this error?\n\`\`\`\n${contextMenu.text}\n\`\`\``
+      : `Can you explain this console output?\n\`\`\`\n${contextMenu.text}\n\`\`\``;
 
     console.log('Creating message:', messageText);
 
@@ -85,7 +88,7 @@ const Terminal = () => {
 
       // Reset states
       setSelectedText('');
-      setContextMenu({ show: false, x: 0, y: 0 });
+      setContextMenu({ visible: false, x: 0, y: 0, text: '' });
     } catch (error) {
       console.error('Error handling Ask AI:', error);
     }
@@ -95,15 +98,15 @@ const Terminal = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (terminalRef.current && !terminalRef.current.contains(event.target)) {
-        setContextMenu({ show: false, x: 0, y: 0 });
+        setContextMenu({ visible: false, x: 0, y: 0, text: '' });
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('scroll', () => setContextMenu({ show: false, x: 0, y: 0 }));
+    document.addEventListener('scroll', () => setContextMenu({ visible: false, x: 0, y: 0, text: '' }));
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('scroll', () => setContextMenu({ show: false, x: 0, y: 0 }));
+      document.removeEventListener('scroll', () => setContextMenu({ visible: false, x: 0, y: 0, text: '' }));
     };
   }, []);
 
@@ -138,7 +141,7 @@ const Terminal = () => {
       }}>
         {formatErrorMessage(displayedOutput)}
       </pre>
-      {contextMenu.show && selectedText && (
+      {contextMenu.visible && contextMenu.text && (
         <div
           className="context-menu"
           style={{
