@@ -544,8 +544,16 @@ const EditorSection = ({
       setIsConsoleFolded(false);
     }
 
+    // Get the current code directly from the editor
+    const currentCode = editorRef.current ? editorRef.current.getValue() : code;
+
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, { code }, { withCredentials: true });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, 
+        { code: currentCode }, 
+        { withCredentials: true }
+      );
+      
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
@@ -559,7 +567,7 @@ const EditorSection = ({
       // Save code history with problem index
       try {
         const historyData = {
-          code: code,
+          code: currentCode,
           problem_index: currentProblemIndex,
           test_type: testType,
           output: response.data.output || '',
@@ -586,6 +594,17 @@ const EditorSection = ({
       setConsoleOutput('');
     }
   };
+
+  // Add new effect to sync initial code state
+  useEffect(() => {
+    if (editorRef.current && code) {
+      const currentValue = editorRef.current.getValue();
+      if (currentValue !== code) {
+        console.log('Syncing initial code state');
+        editorRef.current.setValue(code);
+      }
+    }
+  }, [code, editorRef.current]);
 
   const handleSubmitCode = async () => {
     console.log('Submitting code...');

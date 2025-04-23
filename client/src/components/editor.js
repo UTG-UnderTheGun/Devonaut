@@ -141,11 +141,24 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
   const handleEditorDidMount = (editor, monaco) => {
     setEditorInstance(editor);
     
+    // Set initial code value if available
+    if (code) {
+      editor.setValue(code);
+    }
+    
     // Add selection change listener
     editor.onDidChangeCursorSelection((e) => {
       const selection = editor.getModel().getValueInRange(e.selection);
       if (selection) {
         setSelectedText(selection);
+      }
+    });
+
+    // Add content change listener
+    editor.onDidChangeModelContent(() => {
+      const newValue = editor.getValue();
+      if (onChange) {
+        onChange(newValue);
       }
     });
 
@@ -177,6 +190,17 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       }
     });
   };
+
+  // Add effect to sync code changes
+  useEffect(() => {
+    if (editorInstance && code !== undefined) {
+      const currentValue = editorInstance.getValue();
+      if (currentValue !== code) {
+        console.log('Syncing editor value with code prop');
+        editorInstance.setValue(code);
+      }
+    }
+  }, [code, editorInstance]);
 
   const handleExplainCode = async (text) => {
     try {
