@@ -416,16 +416,23 @@ export default function CodingPage() {
 
   // Listen for "switch-description-tab" events
   useEffect(() => {
-    const handleSwitchTab = (event) => {
+    const handleSwitchTab = async (event) => {
       const { tab, pendingMessage } = event.detail;
+      console.log('Switching to tab:', tab, 'with message:', pendingMessage);
+      
+      // Switch tab first
       setSelectedDescriptionTab(tab);
+      
+      // Wait for tab switch to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       if (pendingMessage) {
-        requestAnimationFrame(() => {
-          const messageEvent = new CustomEvent('add-chat-message', {
-            detail: pendingMessage
-          });
-          window.dispatchEvent(messageEvent);
+        console.log('Dispatching chat message');
+        // Dispatch message event after tab switch
+        const messageEvent = new CustomEvent('add-chat-message', {
+          detail: pendingMessage
         });
+        window.dispatchEvent(messageEvent);
       }
     };
 
@@ -455,6 +462,17 @@ export default function CodingPage() {
     window.addEventListener('code-reset', handleCodeReset);
     return () => window.removeEventListener('code-reset', handleCodeReset);
   }, [currentProblemIndex]);
+
+  // Add new effect for console output updates
+  useEffect(() => {
+    if (consoleOutput) {
+      // Force re-render of Terminal when output changes
+      const event = new CustomEvent('console-output-updated', {
+        detail: { output: consoleOutput }
+      });
+      window.dispatchEvent(event);
+    }
+  }, [consoleOutput]);
 
   const handleCodeChange = (newCode) => {
     const key = `code-${testType}-${currentProblemIndex}`;
