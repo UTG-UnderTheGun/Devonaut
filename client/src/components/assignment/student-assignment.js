@@ -7,18 +7,43 @@ import './student-assignment.css';
 // Mock data to use when API calls fail
 const mockAssignment = {
   id: 'assign123',
-  title: 'Python For Loop Assignment',
+  title: 'Python Programming Assignment',
   chapter: 'Chapter 6: Control Structures',
   dueDate: '2025-02-14T23:59:00',
-  points: 10,
+  points: 50,
   created_by: 'teacher1',
   exercises: [
     {
       id: 1,
-      title: 'Sum Even Numbers',
-      description: 'Write a function to sum all even numbers in a list',
+      title: 'การคำนวณและการแสดงผลตัวแปร',
+      description: 'โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?',
+      type: 'output',
+      points: 5,
+      code: "x = 3\ny = 5\na = x + y * (5 + 1)\nb = y + 16 // x\nprint(x, a, b)"
+    },
+    {
+      id: 2,
+      title: 'การรับอินพุตและฟอร์แมตสตริง',
+      description: 'โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร? สมมติว่าผู้ใช้ป้อนค่า 1 และ 5 ตามลำดับ',
+      type: 'output',
+      points: 5,
+      code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nprint(f'{x+10*5:.2f}', end='-')\nx = 3\nprint(f'{x+y**2:.2f}')"
+    },
+    {
+      id: 11,
+      title: 'การคำนวณสมการทางคณิตศาสตร์',
+      description: 'เติมโค้ดในช่องว่างเพื่อคำนวณสมการ z = (x+1)²/2(y-1)³',
+      type: 'fill',
+      points: 10,
+      code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nz = ____"
+    },
+    {
+      id: 12,
+      title: 'พื้นที่และเส้นรอบวงของวงกลม',
+      description: 'เขียนโปรแกรมเพื่อคำนวณหาพื้นที่ของวงกลม (πr²) และเส้นรอบวง (2πr) โดยกำหนดให้ π มีค่าเท่ากับ 3.14 ต้องใช้ Named Constants และแสดงผลลัพธ์เป็นทศนิยม 3 ตำแหน่ง',
       type: 'coding',
-      points: 10
+      points: 15,
+      code: "# เขียนโค้ดของคุณที่นี่"
     }
   ]
 };
@@ -31,20 +56,11 @@ const mockSubmission = {
   section: '760001',
   status: 'pending',
   submitted_at: '2025-02-04T21:34:00',
-  code: `def sum_even_numbers(arr):
-    total = 0
-    for num in arr:
-        if num % 2 == 0:
-            total += num
-    return total
-`,
   answers: {
-    1: `def sum_even_numbers(arr):
-    total = 0
-    for num in arr:
-        if num % 2 == 0:
-            total += num
-    return total`
+    1: "3 33 8",
+    2: "51.00-28.00",
+    11: "(x+1)**2/(2*(y-1)**3)",
+    12: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\ncircumference = 2 * PI * r\nprint(f'Area: {area:.3f}')\nprint(f'Circumference: {circumference:.3f}')"
   },
   comments: []
 };
@@ -55,9 +71,7 @@ const mockCodeHistory = [
     user_id: 'student123',
     problem_index: 'assign123',
     action_type: 'run',
-    code: `def sum_even_numbers(arr):
-    # Initial attempt
-    return 0`,
+    code: "x = 3\ny = 5\na = x + y * (5 + 1)\nb = y + 16 // x\nprint(x, a, b)",
     created_at: '2025-02-04T20:30:00'
   },
   {
@@ -65,10 +79,7 @@ const mockCodeHistory = [
     user_id: 'student123',
     problem_index: 'assign123',
     action_type: 'run',
-    code: `def sum_even_numbers(arr):
-    total = 0
-    # Need to add loop
-    return total`,
+    code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nprint(f'{x+10*5:.2f}', end='-')\nx = 3\nprint(f'{x+y**2:.2f}')",
     created_at: '2025-02-04T20:45:00'
   },
   {
@@ -76,11 +87,7 @@ const mockCodeHistory = [
     user_id: 'student123',
     problem_index: 'assign123',
     action_type: 'run',
-    code: `def sum_even_numbers(arr):
-    total = 0
-    for num in arr:
-        total += num
-    return total`,
+    code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nz = (x+1)**2/(2*(y-1)**3)",
     created_at: '2025-02-04T21:00:00'
   },
   {
@@ -88,12 +95,7 @@ const mockCodeHistory = [
     user_id: 'student123',
     problem_index: 'assign123',
     action_type: 'run',
-    code: `def sum_even_numbers(arr):
-    total = 0
-    for num in arr:
-        if num % 2 == 0:
-            total += num
-    return total`,
+    code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\ncircumference = 2 * PI * r\nprint(f'Area: {area:.3f}')\nprint(f'Circumference: {circumference:.3f}')",
     created_at: '2025-02-04T21:20:00'
   },
   {
@@ -101,12 +103,7 @@ const mockCodeHistory = [
     user_id: 'student123',
     problem_index: 'assign123',
     action_type: 'submission',
-    code: `def sum_even_numbers(arr):
-    total = 0
-    for num in arr:
-        if num % 2 == 0:
-            total += num
-    return total`,
+    code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\ncircumference = 2 * PI * r\nprint(f'Area: {area:.3f}')\nprint(f'Circumference: {circumference:.3f}')",
     created_at: '2025-02-04T21:34:00'
   }
 ];
@@ -144,44 +141,190 @@ const mockKeystrokeHistory = [
   }
 ];
 
-const mockAiChatHistory = [
+// Mock data for exercises
+const mockExercises = [
   {
-    id: 'chat1',
-    role: 'user',
-    content: 'How do I find even numbers in a list?',
-    timestamp: '2025-02-04T20:25:00'
+    id: 1,
+    title: 'การคำนวณพื้นที่วงกลม',
+    description: 'เขียนโปรแกรมคำนวณพื้นที่วงกลม โดยรับค่ารัศมีจากผู้ใช้ และแสดงผลพื้นที่เป็นทศนิยม 2 ตำแหน่ง',
+    type: 'coding',
+    points: 10,
+    code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(f'Area: {area:.2f}')"
   },
   {
-    id: 'chat2',
-    role: 'assistant',
-    content: 'You can use the modulo operator (%) to check if a number is even. A number is even if number % 2 == 0.',
-    timestamp: '2025-02-04T20:25:15'
+    id: 2,
+    title: 'การแสดงผลลัพธ์',
+    description: 'โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?',
+    type: 'output',
+    points: 5,
+    code: "x = 5\ny = 3\nprint(x + y * 2)\nprint((x + y) * 2)"
   },
   {
-    id: 'chat3',
-    role: 'user',
-    content: 'How do I sum items in a list?',
-    timestamp: '2025-02-04T20:40:00'
-  },
-  {
-    id: 'chat4',
-    role: 'assistant',
-    content: 'You can iterate through the list using a for loop and add each item to a total variable that starts at 0.',
-    timestamp: '2025-02-04T20:40:20'
-  },
-  {
-    id: 'chat5',
-    role: 'user',
-    content: 'Can you help me combine those concepts to sum even numbers?',
-    timestamp: '2025-02-04T21:10:00'
-  },
-  {
-    id: 'chat6',
-    role: 'assistant',
-    content: 'Sure! You can use a for loop to iterate through the list, check if each number is even using number % 2 == 0, and if it is, add it to your total.',
-    timestamp: '2025-02-04T21:10:30'
+    id: 3,
+    title: 'การเติมคำในช่องว่าง',
+    description: 'เติมโค้ดในช่องว่างเพื่อให้โปรแกรมทำงานได้ถูกต้อง',
+    type: 'fill',
+    points: 8,
+    code: "def calculate_average(numbers):\n    total = ____\n    for num in numbers:\n        total += num\n    return total / ____"
   }
 ];
+
+// Mock data for student answers
+const mockAnswers = {
+  1: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(f'Area: {area:.2f}')",
+  2: "11\n16",
+  3: "0\nlen(numbers)"
+};
+
+// Mock data for AI chat history by exercise
+const mockAiChatHistory = {
+  1: [
+    {
+      id: 1,
+      timestamp: '2024-02-20T10:30:00',
+      role: 'student',
+      content: 'ช่วยอธิบายการคำนวณพื้นที่วงกลมหน่อยครับ'
+    },
+    {
+      id: 2,
+      timestamp: '2024-02-20T10:30:15',
+      role: 'ai',
+      content: 'พื้นที่วงกลมคำนวณจากสูตร πr² โดยที่ π มีค่าประมาณ 3.14 และ r คือรัศมีของวงกลม'
+    },
+    {
+      id: 3,
+      timestamp: '2024-02-20T10:35:00',
+      role: 'student',
+      content: 'แล้วการแสดงผลทศนิยม 2 ตำแหน่งทำยังไงครับ?'
+    },
+    {
+      id: 4,
+      timestamp: '2024-02-20T10:35:10',
+      role: 'ai',
+      content: 'ใช้ f-string กับ format specifier เช่น f\'{number:.2f}\' จะแสดงทศนิยม 2 ตำแหน่ง'
+    }
+  ],
+  2: [
+    {
+      id: 5,
+      timestamp: '2024-02-20T10:40:00',
+      role: 'student',
+      content: 'ลำดับการคำนวณในโจทย์นี้เป็นยังไงครับ?'
+    },
+    {
+      id: 6,
+      timestamp: '2024-02-20T10:40:15',
+      role: 'ai',
+      content: 'ในบรรทัดแรก x + y * 2 จะคำนวณ y * 2 ก่อน แล้วค่อยบวกกับ x ส่วนบรรทัดที่สอง (x + y) * 2 จะคำนวณในวงเล็บก่อน แล้วค่อยคูณ 2'
+    }
+  ],
+  3: [
+    {
+      id: 7,
+      timestamp: '2024-02-20T10:45:00',
+      role: 'student',
+      content: 'การคำนวณค่าเฉลี่ยต้องเริ่มต้น total ด้วยอะไรครับ?'
+    },
+    {
+      id: 8,
+      timestamp: '2024-02-20T10:45:10',
+      role: 'ai',
+      content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
+    }
+  ]
+};
+
+// Mock data for coding activity by exercise
+const mockCodingActivity = {
+  1: [
+    {
+      id: 1,
+      timestamp: '2024-02-20T10:25:00',
+      action: 'start',
+      exerciseId: 1
+    },
+    {
+      id: 2,
+      timestamp: '2024-02-20T10:28:00',
+      action: 'run',
+      exerciseId: 1,
+      code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(area)"
+    },
+    {
+      id: 3,
+      timestamp: '2024-02-20T10:30:00',
+      action: 'chat',
+      exerciseId: 1
+    },
+    {
+      id: 4,
+      timestamp: '2024-02-20T10:32:00',
+      action: 'edit',
+      exerciseId: 1,
+      code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(f'Area: {area:.2f}')"
+    },
+    {
+      id: 5,
+      timestamp: '2024-02-20T10:33:00',
+      action: 'submit',
+      exerciseId: 1
+    }
+  ],
+  2: [
+    {
+      id: 6,
+      timestamp: '2024-02-20T10:35:00',
+      action: 'start',
+      exerciseId: 2
+    },
+    {
+      id: 7,
+      timestamp: '2024-02-20T10:37:00',
+      action: 'run',
+      exerciseId: 2,
+      code: "x = 5\ny = 3\nprint(x + y * 2)\nprint((x + y) * 2)"
+    },
+    {
+      id: 8,
+      timestamp: '2024-02-20T10:40:00',
+      action: 'chat',
+      exerciseId: 2
+    },
+    {
+      id: 9,
+      timestamp: '2024-02-20T10:42:00',
+      action: 'submit',
+      exerciseId: 2
+    }
+  ],
+  3: [
+    {
+      id: 10,
+      timestamp: '2024-02-20T10:43:00',
+      action: 'start',
+      exerciseId: 3
+    },
+    {
+      id: 11,
+      timestamp: '2024-02-20T10:44:00',
+      action: 'edit',
+      exerciseId: 3,
+      code: "def calculate_average(numbers):\n    total = 0\n    for num in numbers:\n        total += num\n    return total / len(numbers)"
+    },
+    {
+      id: 12,
+      timestamp: '2024-02-20T10:45:00',
+      action: 'chat',
+      exerciseId: 3
+    },
+    {
+      id: 13,
+      timestamp: '2024-02-20T10:46:00',
+      action: 'submit',
+      exerciseId: 3
+    }
+  ]
+};
 
 const StudentAssignment = ({ studentId, assignmentId }) => {
   const router = useRouter();
@@ -190,122 +333,102 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [codeHistory, setCodeHistory] = useState([]);
   const [keystrokeHistory, setKeystrokeHistory] = useState([]);
   const [aiChatHistory, setAiChatHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('code');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('exercises');
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [error, setError] = useState(null);
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timelinePosition, setTimelinePosition] = useState(0);
+  const [exercises] = useState(mockExercises);
+  const [answers] = useState(mockAnswers);
+  const [codingActivity] = useState(mockCodingActivity);
 
-  // Fetch all necessary data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Try fetching assignment details
-        let assignmentData = null;
-        try {
-          const assignmentRes = await fetch(`/api/v1/assignments/${assignmentId}`);
-          if (assignmentRes.ok) {
-            assignmentData = await assignmentRes.json();
-          } else {
-            console.log('Using mock assignment data');
-            assignmentData = mockAssignment;
-          }
-        } catch (err) {
-          console.log('Error fetching assignment, using mock data:', err);
-          assignmentData = mockAssignment;
-        }
+  const fetchData = async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      // Fetch assignment data
+      const assignmentResponse = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!assignmentResponse.ok) {
+        setAssignment(mockAssignment);
+      } else {
+        const assignmentData = await assignmentResponse.json();
         setAssignment(assignmentData);
+      }
 
-        // Try fetching student submission
-        let submissionData = null;
-        try {
-          const submissionRes = await fetch(`/api/v1/assignments/${assignmentId}/submission/${studentId}`);
-          if (submissionRes.ok) {
-            submissionData = await submissionRes.json();
-          } else {
-            console.log('Using mock submission data');
-            submissionData = mockSubmission;
-          }
-        } catch (err) {
-          console.log('Error fetching submission, using mock data:', err);
-          submissionData = mockSubmission;
-        }
+      // Fetch submission data
+      const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${studentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!submissionResponse.ok) {
+        setSubmission(mockSubmission);
+      } else {
+        const submissionData = await submissionResponse.json();
         setSubmission(submissionData);
-        
         if (submissionData.score) {
           setScore(submissionData.score.toString());
         }
-        
-        // Try fetching code history
-        try {
-          const codeHistoryRes = await fetch(`/api/v1/code/code-analytics/user-journey/${studentId}?problem_index=${assignmentId}`);
-          if (codeHistoryRes.ok) {
-            const historyData = await codeHistoryRes.json();
-            setCodeHistory(historyData.filter(item => item.action_type === "run" || item.action_type === "submission"));
-          } else {
-            console.log('Using mock code history data');
-            setCodeHistory(mockCodeHistory);
-          }
-        } catch (err) {
-          console.log('Error fetching code history, using mock data:', err);
-          setCodeHistory(mockCodeHistory);
-        }
-        
-        // Try fetching keystroke history
-        try {
-          const keystrokeRes = await fetch(`/api/v1/code/code-analytics/access-patterns?user_id=${studentId}&problem_index=${assignmentId}`);
-          if (keystrokeRes.ok) {
-            const keystrokeData = await keystrokeRes.json();
-            setKeystrokeHistory(keystrokeData);
-          } else {
-            console.log('Using mock keystroke history data');
-            setKeystrokeHistory(mockKeystrokeHistory);
-          }
-        } catch (err) {
-          console.log('Error fetching keystroke history, using mock data:', err);
-          setKeystrokeHistory(mockKeystrokeHistory);
-        }
-        
-        // Try fetching AI chat history
-        try {
-          const aiChatRes = await fetch(`/api/v1/ai-chat/history?user_id=${studentId}&assignment_id=${assignmentId}`);
-          if (aiChatRes.ok) {
-            const aiChatData = await aiChatRes.json();
-            setAiChatHistory(aiChatData);
-          } else {
-            console.log('Using mock AI chat history data');
-            setAiChatHistory(mockAiChatHistory);
-          }
-        } catch (err) {
-          console.log('Error fetching AI chat history, using mock data:', err);
-          setAiChatHistory(mockAiChatHistory);
-        }
-
-      } catch (err) {
-        console.error("Error in data loading process:", err);
-        setError("Failed to load data. Please try again later.");
-        
-        // Fall back to mock data
-        setAssignment(mockAssignment);
-        setSubmission(mockSubmission);
-        setCodeHistory(mockCodeHistory);
-        setKeystrokeHistory(mockKeystrokeHistory);
-        setAiChatHistory(mockAiChatHistory);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    if (studentId && assignmentId) {
-      fetchData();
+      // Fetch code history
+      const historyResponse = await fetch(`${API_BASE}/api/code-history/${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!historyResponse.ok) {
+        setCodeHistory(mockCodeHistory);
+      } else {
+        const historyData = await historyResponse.json();
+        setCodeHistory(historyData);
+      }
+
+      // Fetch keystroke history
+      const keystrokeResponse = await fetch(`${API_BASE}/api/code-analytics/user-journey/${studentId}?problem_index=${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!keystrokeResponse.ok) {
+        setKeystrokeHistory(mockKeystrokeHistory);
+      } else {
+        const keystrokeData = await keystrokeResponse.json();
+        setKeystrokeHistory(keystrokeData);
+      }
+
+      // Fetch AI chat history
+      const aiChatResponse = await fetch(`${API_BASE}/api/chat-history/user-id=${studentId}&assignment_id=${assignmentId}`, {
+        credentials: 'include'
+      });
+      
+      if (!aiChatResponse.ok) {
+        setAiChatHistory(mockAiChatHistory);
+      } else {
+        const aiChatData = await aiChatResponse.json();
+        setAiChatHistory(aiChatData);
+      }
+
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching data:', err);
+      // Use mock data as fallback
+      setAssignment(mockAssignment);
+      setSubmission(mockSubmission);
+      setCodeHistory(mockCodeHistory);
+      setKeystrokeHistory(mockKeystrokeHistory);
+      setAiChatHistory(mockAiChatHistory);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [studentId, assignmentId]);
 
   const handleBack = () => {
-    router.back();
+    router.push('/teacher/dashboard');
   };
 
   const handleScoreChange = (e) => {
@@ -392,12 +515,21 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
     return date.toLocaleString();
   };
 
-  // Filter code history by time for timeline visualization
+  // Get code history for current exercise
+  const getCurrentExerciseHistory = () => {
+    if (!codeHistory.length) return [];
+    return codeHistory.filter(history => 
+      history.problem_index === exercises[currentExerciseIndex].id
+    );
+  };
+
+  // Get code at specific timeline position for current exercise
   const getCodeAtTimeIndex = (index) => {
-    if (!codeHistory.length) return '';
+    const exerciseHistory = getCurrentExerciseHistory();
+    if (!exerciseHistory.length) return '';
     
     // Sort by timestamp
-    const sortedHistory = [...codeHistory].sort((a, b) => 
+    const sortedHistory = [...exerciseHistory].sort((a, b) => 
       new Date(a.created_at) - new Date(b.created_at)
     );
     
@@ -410,11 +542,12 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
     return sortedHistory[index].code;
   };
 
-  // Generate timeline markers based on code history
+  // Generate timeline markers for current exercise
   const generateTimelineMarkers = () => {
-    if (!codeHistory.length) return [];
+    const exerciseHistory = getCurrentExerciseHistory();
+    if (!exerciseHistory.length) return [];
     
-    const sortedHistory = [...codeHistory].sort((a, b) => 
+    const sortedHistory = [...exerciseHistory].sort((a, b) => 
       new Date(a.created_at) - new Date(b.created_at)
     );
     
@@ -424,21 +557,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       type: item.action_type
     }));
   };
-  
-  const timelineMarkers = generateTimelineMarkers();
 
-  if (loading) {
-    return <div className="loading-container">Loading assignment data...</div>;
-  }
+  const handleNextExercise = () => {
+    if (currentExerciseIndex < exercises.length - 1) {
+      setCurrentExerciseIndex(prev => prev + 1);
+      setTimelinePosition(0);
+    }
+  };
+
+  const handlePrevExercise = () => {
+    if (currentExerciseIndex > 0) {
+      setCurrentExerciseIndex(prev => prev - 1);
+      setTimelinePosition(0);
+    }
+  };
+
+  const timelineMarkers = generateTimelineMarkers();
 
   if (error && !assignment) {
     return <div className="error-container">Error: {error}</div>;
   }
 
+  if (!assignment || !submission) {
+    return null;
+  }
+
   return (
     <div className="student-assignment">
       <div className="assignment-header">
-        <button onClick={handleBack} className="btn-back">← Back</button>
         <h1>{assignment.title}</h1>
         <div className="assignment-meta">
           <span>Chapter: {assignment.chapter}</span>
@@ -492,10 +638,10 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
       <div className="tab-navigation">
         <button 
-          className={activeTab === 'code' ? 'active' : ''} 
-          onClick={() => setActiveTab('code')}
+          className={activeTab === 'exercises' ? 'active' : ''} 
+          onClick={() => setActiveTab('exercises')}
         >
-          Final Code
+          Exercises
         </button>
         <button 
           className={activeTab === 'timeline' ? 'active' : ''} 
@@ -519,83 +665,209 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
       <div className="content-grid">
         <div className="main-content-assignment">
-          {activeTab === 'code' && (
-            <div className="code-section">
-              <h3>Student Submission</h3>
-              <pre className="code-display">
-                <code>{submission.answers && typeof submission.answers === 'object' ? 
-                  Object.values(submission.answers).join('\n\n') : 
-                  submission.code || 'No code submitted'}</code>
-              </pre>
+          {activeTab === 'exercises' && (
+            <div className="exercise-section">
+              <div className="exercise-navigation">
+                <button 
+                  className="nav-button prev" 
+                  onClick={handlePrevExercise}
+                  disabled={currentExerciseIndex === 0}
+                >
+                  Previous
+                </button>
+                <span className="exercise-counter">
+                  Exercise {currentExerciseIndex + 1} of {exercises.length}
+                </span>
+                <button 
+                  className="nav-button next" 
+                  onClick={handleNextExercise}
+                  disabled={currentExerciseIndex === exercises.length - 1}
+                >
+                  Next
+                </button>
+              </div>
+
+              <div className="exercise-content">
+                <h3>{exercises[currentExerciseIndex].title}</h3>
+                <p className="exercise-description">
+                  {exercises[currentExerciseIndex].description}
+                </p>
+
+                {exercises[currentExerciseIndex].type === 'output' && (
+                  <div className="exercise-output">
+                    <h4>Code:</h4>
+                    <pre className="code-display">
+                      <code>{exercises[currentExerciseIndex].code}</code>
+                    </pre>
+                    <h4>Student's Answer:</h4>
+                    <div className="answer-display">
+                      {answers[exercises[currentExerciseIndex].id]}
+                    </div>
+                  </div>
+                )}
+
+                {exercises[currentExerciseIndex].type === 'fill' && (
+                  <div className="exercise-fill">
+                    <h4>Code Template:</h4>
+                    <pre className="code-display">
+                      <code>{exercises[currentExerciseIndex].code}</code>
+                    </pre>
+                    <h4>Student's Answer:</h4>
+                    <div className="answer-display">
+                      {answers[exercises[currentExerciseIndex].id]}
+                    </div>
+                  </div>
+                )}
+
+                {exercises[currentExerciseIndex].type === 'coding' && (
+                  <div className="exercise-coding">
+                    <h4>Student's Code:</h4>
+                    <pre className="code-display">
+                      <code>{answers[exercises[currentExerciseIndex].id]}</code>
+                    </pre>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {activeTab === 'timeline' && (
             <div className="timeline-section">
-              <h3>Code Evolution Timeline</h3>
+              <div className="exercise-navigation">
+                <button 
+                  className="nav-button prev" 
+                  onClick={handlePrevExercise}
+                  disabled={currentExerciseIndex === 0}
+                >
+                  Previous
+                </button>
+                <span className="exercise-counter">
+                  Exercise {currentExerciseIndex + 1} of {exercises.length}
+                </span>
+                <button 
+                  className="nav-button next" 
+                  onClick={handleNextExercise}
+                  disabled={currentExerciseIndex === exercises.length - 1}
+                >
+                  Next
+                </button>
+              </div>
+
+              <h3>Code Evolution Timeline - {exercises[currentExerciseIndex].title}</h3>
+              
               <div className="timeline-slider-container">
                 <input 
                   type="range" 
                   min="0" 
-                  max={timelineMarkers.length - 1} 
+                  max={codingActivity[exercises[currentExerciseIndex].id].length - 1} 
                   value={timelinePosition} 
                   onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
                   className="timeline-slider"
                 />
                 <div className="timeline-markers">
-                  {timelineMarkers.map((marker, idx) => (
+                  {codingActivity[exercises[currentExerciseIndex].id].map((activity, idx) => (
                     <div 
-                      key={idx} 
-                      className={`timeline-marker ${marker.type} ${idx === timelinePosition ? 'active' : ''}`}
-                      style={{left: `${(idx / (timelineMarkers.length - 1)) * 100}%`}}
+                      key={activity.id}
+                      className={`timeline-marker ${activity.action} ${idx === timelinePosition ? 'active' : ''}`}
+                      style={{left: `${(idx / (codingActivity[exercises[currentExerciseIndex].id].length - 1)) * 100}%`}}
                       onClick={() => setTimelinePosition(idx)}
-                      title={`${marker.time} - ${marker.type}`}
+                      title={`${new Date(activity.timestamp).toLocaleTimeString()} - ${activity.action}`}
                     >
-                      <span className="marker-tooltip">{marker.time}<br/>{marker.type}</span>
+                      <span className="marker-tooltip">
+                        {new Date(activity.timestamp).toLocaleTimeString()}
+                        <br/>
+                        {activity.action}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
+
               <div className="timeline-info">
-                {timelineMarkers.length > 0 && (
-                  <div className="current-position-info">
-                    <span>Time: {timelineMarkers[timelinePosition]?.time || 'N/A'}</span>
-                    <span>Action: {timelineMarkers[timelinePosition]?.type || 'N/A'}</span>
-                  </div>
-                )}
+                <div className="current-position-info">
+                  <span>Time: {new Date(codingActivity[exercises[currentExerciseIndex].id][timelinePosition].timestamp).toLocaleTimeString()}</span>
+                  <span>Action: {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].action}</span>
+                </div>
               </div>
-              <pre className="code-display">
-                <code>{getCodeAtTimeIndex(timelinePosition)}</code>
-              </pre>
+
+              <div className="code-display">
+                <pre>
+                  <code>
+                    {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].code || 
+                     exercises[currentExerciseIndex].code}
+                  </code>
+                </pre>
+              </div>
             </div>
           )}
 
           {activeTab === 'ai-chat' && (
             <div className="ai-chat-section">
-              <h3>AI Chat History</h3>
-              {aiChatHistory && aiChatHistory.length > 0 ? (
-                <div className="chat-container">
-                  {aiChatHistory.map((message, idx) => (
-                    <div key={idx} className={`chat-message ${message.role}`}>
-                      <div className="message-header">
-                        <span className="message-sender">{message.role === 'user' ? 'Student' : 'AI Assistant'}</span>
-                        <span className="message-time">{formatDateTime(message.timestamp)}</span>
-                      </div>
-                      <div className="message-content">
-                        {message.content}
-                      </div>
+              <div className="exercise-navigation">
+                <button 
+                  className="nav-button prev" 
+                  onClick={handlePrevExercise}
+                  disabled={currentExerciseIndex === 0}
+                >
+                  Previous
+                </button>
+                <span className="exercise-counter">
+                  Exercise {currentExerciseIndex + 1} of {exercises.length}
+                </span>
+                <button 
+                  className="nav-button next" 
+                  onClick={handleNextExercise}
+                  disabled={currentExerciseIndex === exercises.length - 1}
+                >
+                  Next
+                </button>
+              </div>
+
+              <h3>AI Chat History - {exercises[currentExerciseIndex].title}</h3>
+              
+              <div className="chat-container">
+                {aiChatHistory[exercises[currentExerciseIndex].id].map((message) => (
+                  <div key={message.id} className={`chat-message ${message.role}`}>
+                    <div className="message-header">
+                      <span className="message-sender">
+                        {message.role === 'student' ? 'Student' : 'AI Assistant'}
+                      </span>
+                      <span className="message-time">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">No AI chat history available</div>
-              )}
+                    <div className="message-content">
+                      {message.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {activeTab === 'keystroke' && (
             <div className="keystroke-section">
-              <h3>Coding Activity</h3>
+              <div className="exercise-navigation">
+                <button 
+                  className="nav-button prev" 
+                  onClick={handlePrevExercise}
+                  disabled={currentExerciseIndex === 0}
+                >
+                  Previous
+                </button>
+                <span className="exercise-counter">
+                  Exercise {currentExerciseIndex + 1} of {exercises.length}
+                </span>
+                <button 
+                  className="nav-button next" 
+                  onClick={handleNextExercise}
+                  disabled={currentExerciseIndex === exercises.length - 1}
+                >
+                  Next
+                </button>
+              </div>
+
+              <h3>Coding Activity - {exercises[currentExerciseIndex].title}</h3>
               {keystrokeHistory && keystrokeHistory.length > 0 ? (
                 <div className="activity-visualization">
                   <div className="activity-heatmap">
