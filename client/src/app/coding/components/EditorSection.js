@@ -685,11 +685,11 @@ const EditorSection = ({
                 Problem {currentProblemIndex + 1} of {problems.length}
               </span>
               <div className="nav-arrows">
-                <button className="nav-button" onClick={handlePreviousProblem} disabled={currentProblemIndex === 0}>
-                  ←
+                <button className="nav-button prev-button" onClick={handlePreviousProblem} disabled={currentProblemIndex === 0}>
+                  <span className="arrow-icon">←</span>
                 </button>
-                <button className="nav-button" onClick={handleNextProblem} disabled={currentProblemIndex === problems.length - 1}>
-                  →
+                <button className="nav-button next-button" onClick={handleNextProblem} disabled={currentProblemIndex === problems.length - 1}>
+                  <span className="arrow-icon">→</span>
                 </button>
               </div>
             </div>
