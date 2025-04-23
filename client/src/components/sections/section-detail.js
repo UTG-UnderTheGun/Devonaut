@@ -3,6 +3,9 @@ import './section-detail.css';
 import StudentDetailModal from '@/components/tables/student-detail';
 import axios from 'axios';
 
+// Define API_BASE constant
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const TableSkeleton = () => {
   return (
     <div className="skeleton-table">
@@ -46,19 +49,13 @@ const SectionDetail = ({ section }) => {
 
   useEffect(() => {
     const getStudentsFromSection = () => {
-      console.log('Section detail received section:', section);
-      
-      // สำเนาข้อมูล section ป้องกันการอ้างอิงถึงข้อมูลเดิม
       const sectionCopy = section ? {...section} : null;
       
       if (sectionCopy && sectionCopy.students && Array.isArray(sectionCopy.students) && sectionCopy.students.length > 0) {
-        console.log('Using students array from section:', sectionCopy.students);
         setStudents(sectionCopy.students);
       } else {
-        console.log('No students array in section or empty array');
         setStudents([]);
         
-        // ถ้าไม่มีข้อมูลนักเรียนใน section และมี section id, ลองดึงข้อมูลจาก API
         if (sectionCopy && sectionCopy.id) {
           fetchStudentsBySection(sectionCopy.id);
         }
@@ -68,31 +65,54 @@ const SectionDetail = ({ section }) => {
     getStudentsFromSection();
   }, [section]);
   
-  // ฟังก์ชั่นดึงข้อมูลนักเรียนจาก API โดยตรง ในกรณีที่ไม่มีข้อมูลใน section
+  useEffect(() => {
+    // Keep empty useEffect for future use if needed
+  }, [section, students]);
+
   const fetchStudentsBySection = async (sectionId) => {
     try {
       setLoading(true);
-      console.log('Fetching students directly for section:', sectionId);
       
-      // ดึงข้อมูล sections ทั้งหมดแล้วกรองเฉพาะที่ต้องการ
-      const response = await axios.get('/api/v1/users/students-by-section', {
+      const endpoint = `${API_BASE}/users/students-by-section`;
+      
+      const response = await axios.get(endpoint, {
         withCredentials: true
       });
       
-      console.log('Direct API response:', response.data);
+      if (!Array.isArray(response.data)) {
+        setStudents([]);
+        return;
+      }
       
-      const sectionsData = Array.isArray(response.data) ? response.data : [];
-      const targetSection = sectionsData.find(s => String(s.id) === String(sectionId));
+      const sectionsData = response.data;
+      
+      let targetSection = sectionsData.find(s => s.id === sectionId) ||
+                          sectionsData.find(s => String(s.id) === String(sectionId)) ||
+                          sectionsData.find(s => s.id === Number(sectionId));
+                          
+      if (!targetSection) {
+        const matchedStudents = [];
+        sectionsData.forEach(section => {
+          if (section.students && Array.isArray(section.students)) {
+            const students = section.students.filter(s => String(s.section) === String(sectionId));
+            if (students.length > 0) {
+              matchedStudents.push(...students);
+            }
+          }
+        });
+        
+        if (matchedStudents.length > 0) {
+          setStudents(matchedStudents);
+          return;
+        }
+      }
       
       if (targetSection && targetSection.students && Array.isArray(targetSection.students)) {
-        console.log('Found students in API response:', targetSection.students);
         setStudents(targetSection.students);
       } else {
-        console.log('No students found in API response for section:', sectionId);
         setStudents([]);
       }
     } catch (error) {
-      console.error('Error fetching students by section:', error);
       setStudents([]);
     } finally {
       setLoading(false);
@@ -100,15 +120,13 @@ const SectionDetail = ({ section }) => {
   };
 
   const handleRowClick = (student) => {
-    console.log('Student clicked:', student);
     setSelectedStudent(student);
     setShowModal(true);
   };
 
   if (!section) return null;
 
-  // Calculate section totals
-  const totalStudents = students.length;
+  const totalStudents = section.totalStudents || students.length || 0;
 
   const EmptyState = () => (
     <div className="empty-state">
@@ -147,10 +165,10 @@ const SectionDetail = ({ section }) => {
           <div className="progress-bar">
             <div 
               className="progress-fill" 
-              style={{ width: `${totalStudents > 0 ? 100 : 0}%` }}
+              style={{ width: `${students.length > 0 ? 100 : 0}%` }}
             />
           </div>
-          <span className="progress-text">{totalStudents > 0 ? '100%' : '0%'} Complete</span>
+          <span className="progress-text">{students.length > 0 ? '100%' : '0%'} Complete</span>
         </div>
 
         <div className="stats-grid-section">
@@ -163,7 +181,7 @@ const SectionDetail = ({ section }) => {
             <span className="stat-label">Pending</span>
           </div>
           <div className="stat-box">
-            <span className="stat-value">0</span>
+            <span className="stat-value">{students.reduce((sum, student) => sum + (student.score || 0), 0)}</span>
             <span className="stat-label">Total Score</span>
           </div>
         </div>
