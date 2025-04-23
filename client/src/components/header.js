@@ -341,13 +341,13 @@ const Header = () => {
                   )}
                 </div>
 
-                <div className="menu-items">
-                  <Link href="/profile" className="menu-item">
+                <div className="">{/* menu-items */}
+                  {/* <Link href="/profile" className="menu-item">
                     Profile
                   </Link>
                   <Link href="/settings" className="menu-item">
                     Settings
-                  </Link>
+                  </Link> */}
                   <button
                     onClick={handleSignOut}
                     className="menu-item sign-out"
