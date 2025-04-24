@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import "./student-table.css";
 import StudentDetailModal from './student-detail'; // Make sure path is correct
 
+// Define API_BASE constant for consistency
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const TableSkeleton = () => {
   return (
     <div className="skeleton-table">

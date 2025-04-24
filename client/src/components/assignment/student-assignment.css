@@ -202,7 +202,7 @@
   flex: 1;
 }
 
-.main-content {
+.main-content-assignment {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -266,17 +266,20 @@
   position: relative;
   height: 24px;
   margin-top: -12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .timeline-marker {
-  position: absolute;
+  position: relative;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background-color: var(--primary-color);
-  transform: translateX(-50%);
   cursor: pointer;
   z-index: 2;
+  transition: all 0.2s;
 }
 
 .timeline-marker.run {
@@ -598,6 +601,81 @@
   color: var(--error-color);
 }
 
+/* Exercise Tabs */
+.exercise-tabs {
+  display: flex;
+  overflow-x: auto;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.exercise-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--bg-content);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.exercise-tab:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+.exercise-tab.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Exercise Content */
+.exercise-content {
+  padding: 1.25rem;
+  background: var(--bg-content);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.exercise-description {
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Exercise Types */
+.exercise-output,
+.exercise-fill,
+.exercise-coding {
+  margin-top: 1rem;
+}
+
+.exercise-output h4,
+.exercise-fill h4,
+.exercise-coding h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.answer-display {
+  padding: 1rem;
+  background: var(--bg-color);
+  border-radius: 0.375rem;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
   .content-grid {
@@ -624,6 +702,19 @@
     overflow-x: auto;
     padding-bottom: 1rem;
   }
+  
+  .exercise-tabs {
+    padding: 0.25rem;
+  }
+  
+  .exercise-tab {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  
+  .exercise-content {
+    padding: 1rem;
+  }
 }
 
 @media (max-width: 576px) {
@@ -635,4 +726,103 @@
     flex-direction: column;
     gap: 0.5rem;
   }
+}
+
+/* Exercise Navigation */
+.exercise-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-content);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+}
+
+.nav-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--bg-content);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-button:hover:not(:disabled) {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+.nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.exercise-counter {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Exercise Section */
+.exercise-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.exercise-content {
+  flex: 1;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.exercise-content h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.exercise-description {
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Exercise Types */
+.exercise-output,
+.exercise-fill,
+.exercise-coding {
+  margin-top: 1.5rem;
+}
+
+.exercise-output h4,
+.exercise-fill h4,
+.exercise-coding h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.answer-display {
+  padding: 1rem;
+  background: var(--bg-color);
+  border-radius: 0.375rem;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+}
+
+/* Timeline Section Updates */
+.timeline-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  padding: 0 1.25rem;
 }

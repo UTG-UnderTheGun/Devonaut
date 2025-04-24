@@ -579,4 +579,59 @@ async def get_assignment_feedback(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get feedback: {str(e)}"
+        )
+
+
+@router.get("/student/{student_id}/stats")
+async def get_student_stats(
+    request: Request,
+    student_id: str,
+    current_user=Depends(get_current_user)
+):
+    """
+    Get statistics for a specific student including completed, pending assignments and total score
+    """
+    try:
+        user, user_id = current_user
+        
+        # Verify the user is a teacher
+        if user.get("role") != "teacher":
+            raise HTTPException(
+                status_code=403,
+                detail="Only teachers can access this endpoint"
+            )
+
+        # Get all assignments for the student
+        student = await request.app.mongodb["users"].find_one({"student_id": student_id})
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # Get all submissions for this student
+        submissions = await request.app.mongodb["assignment_submissions"].find({
+            "user_id": str(student["_id"])
+        }).to_list(length=100)
+
+        # Calculate statistics
+        completed = 0
+        pending = 0
+        total_score = 0
+
+        for submission in submissions:
+            if submission["status"] == "graded":
+                completed += 1
+                total_score += submission.get("score", 0)
+            elif submission["status"] == "pending":
+                pending += 1
+
+        return {
+            "completed": completed,
+            "pending": pending,
+            "totalScore": total_score
+        }
+
+    except Exception as e:
+        print(f"Error getting student stats: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get student stats: {str(e)}"
         ) 

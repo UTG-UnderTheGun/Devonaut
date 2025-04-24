@@ -70,40 +70,50 @@ export default function SkillLevel() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Select your Python skill level</label>
-            <div className="select-wrapper">
-              <select
-                value={skill}
-                onChange={(e) => setSkill(e.target.value)}
-                required
-                disabled={isLoading}
+            <h2 className="form-label">Select your Python skill level</h2>
+            
+            <div className="skill-level-blocks">
+              <div 
+                className={`skill-block ${skill === 'beginner' ? 'selected' : ''}`}
+                onClick={() => setSkill('beginner')}
               >
-                <option value="">กรุณาเลือกระดับของคุณ</option>
-                <option value="beginner">
-                  มือใหม่ - เพิ่งเริ่มเรียนเขียนโปรแกรม
-                </option>
-                <option value="intermediate">
-                  ระดับกลาง - เข้าใจพื้นฐาน if-else, loops, lists
-                </option>
-                <option value="advanced">
-                  ก้าวหน้า - เข้าใจ functions และโครงสร้างข้อมูลพื้นฐาน
-                </option>
-              </select>
-            </div>
-          </div>
+                <h3 className="skill-title">
+                  <span className="skill-icon beginner-icon">🐣</span>
+                  Beginner
+                </h3>
+                <p className="skill-description">
+                  เหมาะสำหรับผู้ที่เพิ่งเริ่มต้นเขียนโปรแกรม เน้นการเรียนรู้พื้นฐานที่สุด เช่น ตัวแปร การรับค่า-แสดงผล และการคำนวณอย่างง่าย
+                </p>
+                {skill === 'beginner' && <div className="check-mark">✓</div>}
+              </div>
 
-          <div className="level-descriptions">
-            <div className="level-description">
-              <h3>มือใหม่</h3>
-              <p>เหมาะสำหรับผู้ที่เพิ่งเริ่มต้นเขียนโปรแกรม เน้นการเรียนรู้พื้นฐานที่สุด เช่น ตัวแปร การรับค่า-แสดงผล และการคำนวณอย่างง่าย</p>
-            </div>
-            <div className="level-description">
-              <h3>ระดับกลาง</h3>
-              <p>สำหรับผู้ที่เข้าใจพื้นฐานแล้ว พร้อมเรียนรู้เรื่อง if-else, loops, lists และ functions พื้นฐาน</p>
-            </div>
-            <div className="level-description">
-              <h3>ก้าวหน้า</h3>
-              <p>สำหรับผู้ที่เข้าใจหลักการพื้นฐานดี พร้อมเรียนรู้การจัดการข้อมูลที่ซับซ้อนขึ้น และการจัดการ errors เบื้องต้น</p>
+              <div 
+                className={`skill-block ${skill === 'intermediate' ? 'selected' : ''}`}
+                onClick={() => setSkill('intermediate')}
+              >
+                <h3 className="skill-title">
+                  <span className="skill-icon intermediate-icon">🚀</span>
+                  Intermediate
+                </h3>
+                <p className="skill-description">
+                  สำหรับผู้ที่เข้าใจพื้นฐานแล้ว พร้อมเรียนรู้เรื่อง if-else, loops, lists 
+                </p>
+                {skill === 'intermediate' && <div className="check-mark">✓</div>}
+              </div>
+
+              <div 
+                className={`skill-block ${skill === 'advanced' ? 'selected' : ''}`}
+                onClick={() => setSkill('advanced')}
+              >
+                <h3 className="skill-title">
+                  <span className="skill-icon advanced-icon">⭐</span>
+                  Advanced
+                </h3>
+                <p className="skill-description">
+                  สำหรับผู้ที่เข้าใจหลักการfunctions พื้นฐาน พร้อมเรียนรู้การจัดการข้อมูลที่ซับซ้อนขึ้น และการจัดการ errors เบื้องต้น
+                </p>
+                {skill === 'advanced' && <div className="check-mark">✓</div>}
+              </div>
             </div>
           </div>
 

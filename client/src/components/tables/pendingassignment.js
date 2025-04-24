@@ -4,8 +4,33 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import StudentAssignment from '@/components/assignment/student-assignment';
-import Pagination from '@/components/controls/pagination';
 import './pendingassignment.css';
+
+const TableSkeleton = () => {
+  return (
+    <div className="skeleton-table">
+      <div className="skeleton-header">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="skeleton-th">
+            <div className="skeleton-text"></div>
+          </div>
+        ))}
+      </div>
+      <div className="skeleton-body">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="skeleton-row">
+            {[1, 2, 3, 4].map(j => (
+              <div key={j} className="skeleton-td">
+                <div className="skeleton-text"></div>
+                {j === 4 && <div className="skeleton-score-bar"></div>}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const PendingAssignments = () => {
   const router = useRouter();
@@ -13,16 +38,11 @@ const PendingAssignments = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [isReloading, setIsReloading] = useState(false);
 
   const fetchAssignmentsAndStudents = async () => {
     try {
-      setIsReloading(true);
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       
-      // 1. Get all assignments that the teacher has created
       const response = await fetch(`${API_BASE}/assignments/`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -35,7 +55,6 @@ const PendingAssignments = () => {
 
       const assignmentsResult = await response.json();
       
-      // 2. Get all students in the class
       const studentsResponse = await fetch(`${API_BASE}/users/students`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -49,15 +68,15 @@ const PendingAssignments = () => {
       const studentsResult = await studentsResponse.json();
       const students = studentsResult.users || [];
       
-      // 3. Process each assignment
+      // Process assignments and students
       const processedAssignments = [];
       
       for (const assignment of assignmentsResult) {
         try {
-          // Try to get submissions for this assignment if the endpoint exists
+          // Try to get submissions for this assignment
           const submissionsMap = {};
           try {
-            const submissionsUrl = `${API_BASE}/teacher/assignment/${assignment.id}/submissions`;
+            const submissionsUrl = `${API_BASE}/assignments/${assignment.id}/submissions`;
             const submissionsResponse = await fetch(submissionsUrl, {
               method: 'GET',
               headers: { 'Content-Type': 'application/json' },
@@ -66,7 +85,6 @@ const PendingAssignments = () => {
             
             if (submissionsResponse.ok) {
               const submissions = await submissionsResponse.json();
-              // Create a map of user_id to submission
               submissions.forEach(sub => {
                 submissionsMap[sub.user_id] = sub;
               });
@@ -110,15 +128,16 @@ const PendingAssignments = () => {
               section: student.section || "Unassigned",
               submissionTime: submissionTime,
               status: status,
-              score: score
+              score: score,
+              submission: submission
             };
           });
           
-          // Add this assignment with its students to our list
           processedAssignments.push({
             id: assignment.id,
             title: assignment.title,
-            students: studentEntries
+            students: studentEntries,
+            ...assignment
           });
           
         } catch (assignmentError) {
@@ -132,7 +151,6 @@ const PendingAssignments = () => {
       console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
-      setIsReloading(false);
     }
   };
 
@@ -141,117 +159,102 @@ const PendingAssignments = () => {
   }, []);
 
   const handleRowClick = (assignmentId, studentId) => {
-    setSelectedAssignment({ assignmentId, studentId });
+    const assignment = assignments.find(a => a.id === assignmentId);
+    const student = assignment?.students.find(s => s.studentId === studentId);
+    
+    if (assignment && student) {
+      setSelectedAssignment({
+        assignment: {
+          id: assignment.id,
+          title: assignment.title,
+          chapter: assignment.chapter || '',
+          dueDate: assignment.dueDate,
+          points: assignment.points || 10,
+          exercises: assignment.exercises || []
+        },
+        student: {
+          id: student.studentId,
+          name: student.studentName,
+          section: student.section,
+          submission: student.submission
+        }
+      });
+    }
   };
-
-  const handleBack = () => {
-    setSelectedAssignment(null);
-  };
-
-  const handleReload = () => {
-    fetchAssignmentsAndStudents();
-  };
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentAssignments = assignments.slice(indexOfFirstItem, indexOfLastItem);
 
   if (loading) {
-    return <div className="loading-message">Loading assignments...</div>;
-  }
-
-  if (error) {
-    return <div className="error-message">Error: {error}</div>;
-  }
-
-  if (assignments.length === 0) {
-    return <div className="empty-state">No assignments found</div>;
-  }
-
-  // If an assignment is selected, show the StudentAssignment component
-  if (selectedAssignment) {
     return (
-      <div className="assignment-view">
-        <StudentAssignment 
-          studentId={selectedAssignment.studentId}
-          assignmentId={selectedAssignment.assignmentId}
-          onBack={handleBack}
-        />
+      <div className="page-container">
+        <div className="table-section">
+          <TableSkeleton />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="assignments-container">
-      {loading ? (
-        <div className="loading-message">Loading assignments...</div>
-      ) : error ? (
-        <div className="error-message">{error}</div>
-      ) : selectedAssignment ? (
-        <div className="assignment-view">
-          <StudentAssignment
-            assignment={selectedAssignment}
-            onBack={() => setSelectedAssignment(null)}
-            onSubmissionUpdate={handleReload}
-          />
-        </div>
-      ) : (
-        <div className="assignment-section">
-          <div className="assignment-header">
-            <h3>Pending Assignments</h3>
+    <div className="page-container">
+      <div className="table-section">
+        {selectedAssignment ? (
+          <div className="selected-assignment-view">
+            <button 
+              className="back-button"
+              onClick={() => setSelectedAssignment(null)}
+            >
+              ← Back to List
+            </button>
+            <StudentAssignment
+              studentId={selectedAssignment.student.id}
+              assignmentId={selectedAssignment.assignment.id}
+              onBack={() => setSelectedAssignment(null)}
+              onSubmissionUpdate={fetchAssignmentsAndStudents}
+            />
           </div>
-          <div className="table-wrapper">
-            <table className="student-table">
-              <thead>
+        ) : (
+          <table className="student-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Assignment Title</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {error ? (
                 <tr>
-                  <th>Student Name</th>
-                  <th>Assignment Title</th>
-                  <th>Due Date</th>
-                  <th>Status</th>
-                  <th>Score</th>
+                  <td colSpan="5" className="error-cell">{error}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {currentAssignments.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="empty-state">
-                      No pending assignments found
-                    </td>
-                  </tr>
-                ) : (
-                  currentAssignments.flatMap((assignment) =>
-                    assignment.students.map((student) => (
-                      <tr
-                        key={`${assignment.id}-${student.studentId}`}
-                        onClick={() => handleRowClick(assignment.id, student.studentId)}
-                        style={{ cursor: 'pointer' }}
-                        className={student.status.toLowerCase().replace(' ', '-')}
-                      >
-                        <td>{student.studentName}</td>
-                        <td>{assignment.title}</td>
-                        <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
-                        <td>
-                          <span className={`status-badge ${student.status.toLowerCase().replace(' ', '-')}`}>
-                            {student.status}
-                          </span>
-                        </td>
-                        <td>{student.score || 'N/A'}</td>
-                      </tr>
-                    ))
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            itemsPerPage={itemsPerPage}
-            totalItems={assignments.length}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      )}
+              ) : assignments.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="empty-cell">No pending assignments found</td>
+                </tr>
+              ) : (
+                assignments.flatMap((assignment) =>
+                  assignment.students.map((student) => (
+                    <tr
+                      key={`${assignment.id}-${student.studentId}`}
+                      onClick={() => handleRowClick(assignment.id, student.studentId)}
+                      className="clickable-row"
+                    >
+                      <td>{student.studentName}</td>
+                      <td>{assignment.title}</td>
+                      <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
+                      <td>
+                        <span className={`status-badge ${student.status.toLowerCase().replace(' ', '-')}`}>
+                          {student.status}
+                        </span>
+                      </td>
+                      <td>{student.score || 'N/A'}</td>
+                    </tr>
+                  ))
+                )
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };
