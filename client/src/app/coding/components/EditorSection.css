@@ -255,11 +255,21 @@
 /* เพิ่ม animation สำหรับ code display */
 .code-display {
   position: relative;
-  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  cursor: text;
 }
 
-.code-display pre {
-  transition: all 0.3s ease-out;
+.code-display pre,
+.code-display code,
+.code-display span {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  cursor: text !important;
 }
 
 /* เพิ่ม animation สำหรับ textarea */
@@ -358,4 +368,54 @@
 .coding-actions button:active {
   background: #e5e7eb;
   transform: scale(0.95);
+}
+
+.code-context-menu {
+  position: fixed;
+  background: linear-gradient(135deg, #9333ea, #7c3aed);
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
+  padding: 2px;
+  z-index: 9999;
+  animation: menuFadeIn 0.15s ease-out;
+  isolation: isolate;
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.code-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.code-context-menu button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.code-context-menu button:active {
+  transform: translateY(0px);
+  background-color: rgba(0, 0, 0, 0.15);
 }
