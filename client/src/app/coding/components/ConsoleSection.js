@@ -17,7 +17,7 @@ const ConsoleSection = ({
           {isConsoleFolded ? '▲' : '▼'}
         </button>
       </div>
-      <div className="console-content">
+      <div className="console-content" style={{ position: 'relative', height: 'calc(100% - 30px)' }}>
         <Terminal />
       </div>
     </div>

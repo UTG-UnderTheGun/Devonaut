@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Editor from '@/components/editor';
 import StorageManager from '@/components/StorageManager';
 import Header from '@/components/header';
@@ -12,6 +13,34 @@ import _ from 'lodash';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
+
+// Add ContextMenu component
+const ContextMenu = ({ x, y, onAskAI, onClose }) => {
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!e.target.closest('.code-context-menu')) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="code-context-menu"
+      style={{
+        position: 'fixed',
+        left: `${x}px`,
+        top: `${y}px`,
+      }}
+    >
+      <button onClick={onAskAI}>Ask AI</button>
+    </div>,
+    document.body
+  );
+};
 
 const EditorSection = ({
   testType,
@@ -47,6 +76,7 @@ const EditorSection = ({
   const [isImported, setIsImported] = useState(false);
   const [lastKeystrokeTime, setLastKeystrokeTime] = useState(null);
   const KEYSTROKE_DEBOUNCE_TIME = 1000; // 1 second
+  const [contextMenu, setContextMenu] = useState(null);
 
   // This wrapper is used when StorageManager calls onImport.
   const handleImportWrapper = async (data) => {
@@ -544,8 +574,16 @@ const EditorSection = ({
       setIsConsoleFolded(false);
     }
 
+    // Get the current code directly from the editor
+    const currentCode = editorRef.current ? editorRef.current.getValue() : code;
+
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, { code }, { withCredentials: true });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, 
+        { code: currentCode }, 
+        { withCredentials: true }
+      );
+      
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
@@ -559,7 +597,7 @@ const EditorSection = ({
       // Save code history with problem index
       try {
         const historyData = {
-          code: code,
+          code: currentCode,
           problem_index: currentProblemIndex,
           test_type: testType,
           output: response.data.output || '',
@@ -586,6 +624,17 @@ const EditorSection = ({
       setConsoleOutput('');
     }
   };
+
+  // Add new effect to sync initial code state
+  useEffect(() => {
+    if (editorRef.current && code) {
+      const currentValue = editorRef.current.getValue();
+      if (currentValue !== code) {
+        console.log('Syncing initial code state');
+        editorRef.current.setValue(code);
+      }
+    }
+  }, [code, editorRef.current]);
 
   const handleSubmitCode = async () => {
     console.log('Submitting code...');
@@ -663,6 +712,67 @@ const EditorSection = ({
     }
   }, [editorRef.current]);
 
+  // Add handleAskAI function
+  const handleAskAI = (selectedText, questionType) => {
+    // Create appropriate message based on question type
+    let messageText;
+    switch (questionType) {
+      case 'output':
+        messageText = `Can you explain this code?\n\`\`\`python\n${selectedText}\n\`\`\``;
+        break;
+      case 'fill':
+        messageText = `Can you explain this code?\n\`\`\`python\n${selectedText}\n\`\`\``;
+        break;
+      default:
+        messageText = `Can you explain this code?\n\`\`\`python\n${selectedText}\n\`\`\``;
+    }
+
+    // Create message event
+    const message = {
+      id: Date.now(),
+      text: messageText,
+      isUser: true,
+      timestamp: new Date()
+    };
+
+    // Switch to AI tab with the message
+    const switchEvent = new CustomEvent('switch-description-tab', {
+      detail: { 
+        tab: 'ASK AI',
+        pendingMessage: message
+      }
+    });
+    window.dispatchEvent(switchEvent);
+  };
+
+  const handleContextMenu = (e, code) => {
+    e.preventDefault();
+    const selection = window.getSelection().toString().trim();
+    
+    if (selection) {
+      const currentProblem = problems[currentProblemIndex];
+      const effectiveTestType = mapExerciseType(currentProblem?.type || testType);
+      
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        text: selection,
+        type: effectiveTestType
+      });
+    }
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleAskAIFromMenu = () => {
+    if (contextMenu) {
+      handleAskAI(contextMenu.text, contextMenu.type);
+      handleCloseContextMenu();
+    }
+  };
+
   return (
     <div className="code-editor">
       <div className="editor-header">
@@ -710,6 +820,15 @@ const EditorSection = ({
         </div>
       ) : (
         renderEditorContent()
+      )}
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onAskAI={handleAskAIFromMenu}
+          onClose={handleCloseContextMenu}
+        />
       )}
     </div>
   );
@@ -808,16 +927,25 @@ const EditorSection = ({
         );
       case 'output':
         console.log("Rendering output type");
-        // Always use the current problem's code for output type
         const outputCode = currentProblem.code || '';
-        console.log(`Using code directly from problem ${currentProblemIndex}:`, outputCode);
         
         return (
           <div className="output-question">
             <div className="question-title">{currentProblem.title || ''}</div>
             <div className="question-description">{currentProblem.description || ''}</div>
-            <div className="code-display">
-              <SyntaxHighlighter language="python" style={vs} customStyle={{ margin: 0, padding: '1rem', background: 'transparent', fontSize: '14px', lineHeight: '1.6' }}>
+            <div className="code-display" onContextMenu={(e) => handleContextMenu(e, outputCode)}>
+              <SyntaxHighlighter 
+                language="python" 
+                style={vs} 
+                customStyle={{ 
+                  margin: 0, 
+                  padding: '1rem', 
+                  background: 'transparent', 
+                  fontSize: '14px', 
+                  lineHeight: '1.6',
+                  userSelect: 'text'
+                }}
+              >
                 {outputCode}
               </SyntaxHighlighter>
             </div>
@@ -830,7 +958,6 @@ const EditorSection = ({
                   const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: e.target.value };
                   setOutputAnswers(newOutputAnswers);
                   localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
-                  console.log(`Updated output answer for problem ${currentProblemIndex} to: ${e.target.value}`);
                 }}
                 rows={1}
                 onInput={(e) => {
@@ -857,14 +984,22 @@ const EditorSection = ({
           <div className="fill-question">
             <div className="question-title">{currentProblem.title || ''}</div>
             <div className="question-description">{currentProblem.description || ''}</div>
-            <div className="code-display">
-              <pre style={{ margin: 0, background: 'transparent' }}>
+            <div className="code-display" onContextMenu={(e) => handleContextMenu(e, currentCode)}>
+              <pre style={{ margin: 0, background: 'transparent', userSelect: 'text' }}>
                 {codeParts.map((part, index, array) => (
                   <React.Fragment key={index}>
                     <SyntaxHighlighter
                       language="python"
                       style={vs}
-                      customStyle={{ margin: 0, padding: 0, background: 'transparent', display: 'inline', fontSize: '14px', lineHeight: '1.6' }}
+                      customStyle={{ 
+                        margin: 0, 
+                        padding: 0, 
+                        background: 'transparent', 
+                        display: 'inline', 
+                        fontSize: '14px', 
+                        lineHeight: '1.6',
+                        userSelect: 'text'
+                      }}
                       PreTag="span"
                     >
                       {part}
