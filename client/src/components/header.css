@@ -15,7 +15,6 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  background: transparent; /* Ensure no background color */
 }
 
 /* Fixed header for coding page */
@@ -30,7 +29,6 @@
   padding: 2px 20px;
   max-width: 100%;
   width: 100%;
-  background: transparent; /* Ensure no background color */
 }
 
 .header.coding-header .logo-img {

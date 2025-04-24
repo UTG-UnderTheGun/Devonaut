@@ -77,33 +77,103 @@ const Header = () => {
         alert('Cannot submit: No assignment ID found. Make sure you are working on an assigned task.');
         return;
       }
-      
-      // Get any saved answers from localStorage for different problem types
-      let answers = {};
+
+      // Collect all answers from localStorage
+      let submissionData = {
+        // Code and output from context
+        code: code || '',
+        output: output || '',
+        error: error || '',
+        
+        // Problem-specific answers
+        answers: {},
+        
+        // Additional metadata
+        submitted_at: new Date().toISOString(),
+        action_type: 'submit'
+      };
+
+      // Get code answers
+      try {
+        const savedCode = localStorage.getItem(`code-${assignmentId}`);
+        if (savedCode) {
+          submissionData.code = savedCode;
+        }
+      } catch (e) {
+        console.warn('Could not get saved code', e);
+      }
+
+      // Get output/explain answers
+      try {
+        const savedOutputs = localStorage.getItem('problem-outputs');
+        if (savedOutputs) {
+          submissionData.answers.outputs = JSON.parse(savedOutputs);
+        }
+      } catch (e) {
+        console.warn('Could not parse saved outputs', e);
+      }
+
+      // Get fill-in-blank answers
       try {
         const savedAnswers = localStorage.getItem('problem-answers');
         if (savedAnswers) {
-          answers = JSON.parse(savedAnswers);
+          submissionData.answers.blanks = JSON.parse(savedAnswers);
         }
       } catch (e) {
         console.warn('Could not parse saved answers', e);
       }
+
+      // Get any keystrokes history from localStorage
+      try {
+        const keystrokeHistory = localStorage.getItem(`keystrokes-${assignmentId}`);
+        if (keystrokeHistory) {
+          submissionData.keystroke_history = JSON.parse(keystrokeHistory);
+        }
+      } catch (e) {
+        console.warn('Could not parse keystroke history', e);
+      }
+
+      // Get code run history from localStorage
+      try {
+        const codeHistory = localStorage.getItem(`code-history-${assignmentId}`);
+        if (codeHistory) {
+          submissionData.code_history = JSON.parse(codeHistory);
+        }
+      } catch (e) {
+        console.warn('Could not parse code history', e);
+      }
       
       // Submit to the backend
-      const response = await axios.post(`${API_BASE}/assignments/${assignmentId}/submit`, {
-        code: code,
-        output: output || '',
-        error: error || '',
-        answers: answers
-      }, { withCredentials: true });
+      const response = await axios.post(
+        `${API_BASE}/assignments/${assignmentId}/submit`, 
+        submissionData,
+        { withCredentials: true }
+      );
       
       if (response.data.success) {
         // Show success message
         alert('Assignment submitted successfully! Your teacher will review and grade it soon.');
         
-        // Clear localStorage of code/answers for this assignment
-        localStorage.removeItem('problem-answers');
-        localStorage.removeItem('problem-code');
+        // Clear localStorage of all data related to this assignment
+        const keysToRemove = [
+          `code-${assignmentId}`,
+          'problem-outputs',
+          'problem-answers',
+          `keystrokes-${assignmentId}`,
+          `code-history-${assignmentId}`,
+          'saved-problems',
+          'problem-code',
+          'editor-code',
+          'is-imported'
+        ];
+
+        keysToRemove.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            console.warn(`Could not remove ${key} from localStorage`, e);
+          }
+        });
         
         // Redirect to dashboard after submission
         router.push('/dashboard');
@@ -150,29 +220,26 @@ const Header = () => {
 
   const handleSignOut = async () => {
     try {
-      setIsLoggingOut(true); // Start loading
+      setIsLoggingOut(true);
+      setIsMenuOpen(false);
 
-      // Call the logout endpoint
       await axios.post(`${API_BASE}/users/logout`, {}, {
         withCredentials: true
       });
 
-      // Clear ALL stored tokens and user data
+      // Clear storage
       sessionStorage.clear();
       localStorage.clear();
 
-      // Clear any cookies
+      // Clear cookies
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
 
-      // Close the menu
-      setIsMenuOpen(false);
-
-      // Show loading and redirect after delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Redirect after a short delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
       window.location.href = '/';
 
     } catch (err) {
@@ -200,41 +267,31 @@ const Header = () => {
         });
         
         const user = response.data;
-        
-        // Extract email
         const email = user.email || user.username || '';
-        
-        // Get name ONLY from the name field, don't use email as fallback for fullName
         const fullName = user.name || '';
         
-        // For first name, only use if name exists
         let firstName = '';
         if (user.name) {
-          // If name exists, get the first part
           firstName = user.name.split(' ')[0];
         } else if (email.includes('@')) {
-          // If no name but email available, use part before @
           firstName = email.split('@')[0];
         } else {
-          // Fallback to username or email
           firstName = user.username || email;
         }
         
         setUserData({
           username: user.username || email,
           email: email,
-          fullName: fullName, // Only use actual name, not email fallback
+          fullName: fullName,
           firstName: firstName
         });
       } catch (err) {
         console.error('Error fetching user data:', err);
-        
-        // Even for fallback, don't use email as full name
         const email = sessionStorage.getItem('email') || localStorage.getItem('email') || '';
         setUserData({
           username: email,
           email: email,
-          fullName: '', // Set to empty if no real name available
+          fullName: '',
           firstName: email.split('@')[0]
         });
       }
@@ -262,7 +319,7 @@ const Header = () => {
     return 'U'; // Ultimate fallback is "U" for User
   };
 
-  // Show loading screen when logging out
+  // Show loading screen ONLY when logging out
   if (isLoggingOut) {
     return <Loading />;
   }
