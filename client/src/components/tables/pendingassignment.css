@@ -29,9 +29,6 @@
   background: #f9fafb;
 }
 
-
-
-
 .table-section {
   background: white;
   border-radius: 8px;
@@ -105,7 +102,8 @@
 
 .student-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: white;
 }
 
@@ -120,6 +118,9 @@
   background: #f9fafb;
   font-weight: 600;
   color: #374151;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .student-table tbody tr:hover {
@@ -131,32 +132,163 @@
   transition: background-color 0.2s;
 }
 
-.status-badge {
-  display: inline-block;
+/* Assignment Group Styles */
+.assignment-group {
+  border-left: 4px solid transparent;
+}
+
+.assignment-group.q4 {
+  border-left-color: #7C3AED;
+  background-color: #faf5ff;
+}
+
+.assignment-group.j {
+  border-left-color: #3B82F6;
+  background-color: #f0f7ff;
+}
+
+.assignment-group:hover {
+  filter: brightness(0.98);
+}
+
+/* Assignment Title Styles */
+.assignment-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.assignment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  min-width: 2.5rem;
+}
+
+.assignment-badge.q4 {
+  background-color: #7C3AED;
+  color: white;
+}
+
+.assignment-badge.j {
+  background-color: #3B82F6;
+  color: white;
+}
+
+/* Add visual separation between different assignments */
+.assignment-separator {
+  height: 1rem;
+  background-color: #f9fafb;
+  border: none;
+}
+
+/* Time Remaining Styles */
+.time-remaining {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.time-plenty {
+  color: #047857;
+  background-color: #d1fae5;
+}
+
+.time-warning {
+  color: #b45309;
+  background-color: #fef3c7;
+}
+
+.time-critical {
+  color: #b91c1c;
+  background-color: #fee2e2;
+}
+
+.time-overdue {
+  color: #991b1b;
+  background-color: #fee2e2;
+  position: relative;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Difficulty Badge Styles */
+.difficulty-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.difficulty-easy {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.difficulty-medium {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.difficulty-hard {
+  background-color: #ffe4e6;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+/* Improve status badge visibility */
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .status-badge.not-submitted {
   background: #fee2e2;
   color: #991b1b;
+  border: 1px solid #fca5a5;
 }
 
 .status-badge.submitted {
   background: #fef3c7;
   color: #92400e;
+  border: 1px solid #fcd34d;
 }
 
 .status-badge.completed {
   background: #dcfce7;
   color: #166534;
+  border: 1px solid #86efac;
 }
 
 .status-badge.late-submitted {
   background: #dbeafe;
   color: #1e40af;
+  border: 1px solid #93c5fd;
 }
 
 .error-cell,

@@ -6,6 +6,27 @@ import { useRouter } from 'next/navigation';
 import StudentAssignment from '@/components/assignment/student-assignment';
 import './pendingassignment.css';
 
+// Predefined colors for assignments
+const COLORS = [
+  { badge: '#3B82F6' }, // Blue
+  { badge: '#7C3AED' }, // Purple
+  { badge: '#22C55E' }, // Green
+  { badge: '#F97316' }, // Orange
+  { badge: '#EF4444' }, // Red
+  { badge: '#475569' }, // Slate
+  { badge: '#D946EF' }, // Pink
+  { badge: '#06B6D4' }, // Cyan
+  { badge: '#CA8A04' }, // Yellow
+  { badge: '#2563EB' }, // Indigo
+  { badge: '#8B5CF6' }, // Violet
+  { badge: '#EC4899' }, // Pink
+  { badge: '#14B8A6' }, // Teal
+  { badge: '#F59E0B' }, // Amber
+  { badge: '#6366F1' }, // Indigo alt
+];
+
+const LOCAL_STORAGE_KEY = 'assignment_colors';
+
 const TableSkeleton = () => {
   return (
     <div className="skeleton-table">
@@ -38,6 +59,131 @@ const PendingAssignments = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [assignmentColors, setAssignmentColors] = useState({});
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Load saved colors from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedColors = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedColors) {
+        setAssignmentColors(JSON.parse(savedColors));
+      }
+    } catch (e) {
+      console.error('Error loading saved colors:', e);
+    }
+  }, []);
+
+  // อัปเดตเวลาปัจจุบันทุก 1 นาที
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // 60000 ms = 1 นาที
+    
+    return () => clearInterval(timer);
+  }, []);
+
+  // Extract assignment identifier from title (like Q4, Q21, etc)
+  const extractAssignmentId = (title) => {
+    // Look for patterns like Q4, Q21, etc. at the beginning or anywhere in the title
+    const match = title.match(/Q\d+/i);
+    if (match) {
+      return match[0].toUpperCase();
+    }
+    
+    // If no Q pattern found, use the first word/token
+    return title.split(/\s+/)[0];
+  };
+
+  const getAssignmentColor = (assignmentId) => {
+    // ถ้ามีสีอยู่แล้ว ใช้สีเดิม
+    if (assignmentColors[assignmentId]) {
+      return assignmentColors[assignmentId];
+    }
+
+    // หาสีที่ยังไม่ถูกใช้
+    const usedColors = Object.values(assignmentColors);
+    const availableColors = COLORS.filter(color => 
+      !usedColors.some(used => used.badge === color.badge)
+    );
+
+    // ถ้ามีสีที่ยังไม่ถูกใช้ สุ่มจากสีที่เหลือ
+    // ถ้าไม่มี สุ่มจากสีทั้งหมด
+    const colorPool = availableColors.length > 0 ? availableColors : COLORS;
+    const randomColor = colorPool[Math.floor(Math.random() * colorPool.length)];
+
+    // เก็บสีที่สุ่มได้ใน state และ localStorage
+    const updatedColors = {
+      ...assignmentColors,
+      [assignmentId]: randomColor
+    };
+    
+    setAssignmentColors(updatedColors);
+    
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedColors));
+    } catch (e) {
+      console.error('Error saving colors to localStorage:', e);
+    }
+
+    return randomColor;
+  };
+
+  // ฟังก์ชันคำนวณเวลาที่เหลือ
+  const calculateTimeRemaining = (dueDate) => {
+    if (!dueDate) return { text: 'No deadline', className: '' };
+    
+    const due = new Date(dueDate);
+    const now = currentTime;
+    
+    // คำนวณความต่างของเวลาในมิลลิวินาที
+    const diff = due - now;
+    
+    // ถ้าเลยกำหนดแล้ว
+    if (diff < 0) {
+      return { text: 'Overdue', className: 'time-overdue' };
+    }
+    
+    // คำนวณเป็นวัน ชั่วโมง นาที
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let text = '';
+    let className = '';
+    
+    // สร้างข้อความแสดงเวลาที่เหลือ
+    if (days > 0) {
+      text = `${days}d ${hours}h remaining`;
+      className = 'time-plenty';
+    } else if (hours > 0) {
+      text = `${hours}h ${minutes}m remaining`;
+      className = hours < 24 ? 'time-warning' : 'time-plenty';
+    } else {
+      text = `${minutes}m remaining`;
+      className = 'time-critical';
+    }
+    
+    return { text, className };
+  };
+  
+  // ฟังก์ชันกำหนดความยาก
+  const getDifficultyInfo = (assignment) => {
+    // สามารถใช้ข้อมูลจริงจาก API หากมี
+    // ในที่นี้ใช้การสุ่มหรือกำหนดค่าตายตัวเพื่อการทดสอบ
+    
+    const difficultyOptions = [
+      { level: 'Easy', className: 'difficulty-easy' },
+      { level: 'Medium', className: 'difficulty-medium' },
+      { level: 'Hard', className: 'difficulty-hard' }
+    ];
+    
+    // ใช้ pseudo-random แบบคงที่ตาม assignment ID เพื่อให้แต่ละ assignment มีความยากเดิมเสมอ
+    const assignmentIdSum = assignment.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const index = assignmentIdSum % difficultyOptions.length;
+    
+    return difficultyOptions[index];
+  };
 
   const fetchAssignmentsAndStudents = async () => {
     try {
@@ -133,11 +279,14 @@ const PendingAssignments = () => {
             };
           });
           
+          const assignmentId = assignment.id;
+          const badgeText = extractAssignmentId(assignment.title);
+          
           processedAssignments.push({
-            id: assignment.id,
-            title: assignment.title,
-            students: studentEntries,
-            ...assignment
+            ...assignment,
+            badgeText: badgeText,
+            color: getAssignmentColor(assignmentId),
+            students: studentEntries
           });
           
         } catch (assignmentError) {
@@ -182,6 +331,60 @@ const PendingAssignments = () => {
     }
   };
 
+  const renderAssignmentRow = (assignment, student, studentIndex) => {
+    const color = assignment.color || getAssignmentColor(assignment.id);
+    const badgeText = assignment.badgeText || extractAssignmentId(assignment.title);
+    const timeRemaining = calculateTimeRemaining(assignment.dueDate);
+    const difficulty = getDifficultyInfo(assignment);
+    
+    return (
+      <React.Fragment key={`${assignment.id}-${student.studentId}`}>
+        <tr
+          onClick={() => handleRowClick(assignment.id, student.studentId)}
+          className="clickable-row"
+        >
+          <td>{student.studentName}</td>
+          <td>
+            <div className="assignment-title">
+              <span 
+                className="assignment-badge"
+                style={{
+                  backgroundColor: color.badge,
+                  color: 'white'
+                }}
+              >
+                {badgeText}
+              </span>
+              {assignment.title}
+            </div>
+          </td>
+          <td>
+            <span className={`difficulty-badge ${difficulty.className}`}>
+              {difficulty.level}
+            </span>
+          </td>
+          <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
+          <td>
+            <div className={`time-remaining ${timeRemaining.className}`}>
+              {timeRemaining.text}
+            </div>
+          </td>
+          <td>
+            <span className={`status-badge ${student.status.toLowerCase().replace(' ', '-')}`}>
+              {student.status}
+            </span>
+          </td>
+          <td>{student.score || 'N/A'}</td>
+        </tr>
+        {studentIndex === assignment.students.length - 1 && (
+          <tr>
+            <td colSpan="7" className="assignment-separator"></td>
+          </tr>
+        )}
+      </React.Fragment>
+    );
+  };
+
   if (loading) {
     return (
       <div className="page-container">
@@ -216,7 +419,9 @@ const PendingAssignments = () => {
               <tr>
                 <th>Student Name</th>
                 <th>Assignment Title</th>
+                <th>Difficulty</th>
                 <th>Due Date</th>
+                <th>Time Remaining</th>
                 <th>Status</th>
                 <th>Score</th>
               </tr>
@@ -224,31 +429,17 @@ const PendingAssignments = () => {
             <tbody>
               {error ? (
                 <tr>
-                  <td colSpan="5" className="error-cell">{error}</td>
+                  <td colSpan="7" className="error-cell">{error}</td>
                 </tr>
               ) : assignments.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="empty-cell">No pending assignments found</td>
+                  <td colSpan="7" className="empty-cell">No pending assignments found</td>
                 </tr>
               ) : (
-                assignments.flatMap((assignment) =>
-                  assignment.students.map((student) => (
-                    <tr
-                      key={`${assignment.id}-${student.studentId}`}
-                      onClick={() => handleRowClick(assignment.id, student.studentId)}
-                      className="clickable-row"
-                    >
-                      <td>{student.studentName}</td>
-                      <td>{assignment.title}</td>
-                      <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
-                      <td>
-                        <span className={`status-badge ${student.status.toLowerCase().replace(' ', '-')}`}>
-                          {student.status}
-                        </span>
-                      </td>
-                      <td>{student.score || 'N/A'}</td>
-                    </tr>
-                  ))
+                assignments.map(assignment =>
+                  assignment.students.map((student, index) =>
+                    renderAssignmentRow(assignment, student, index)
+                  )
                 )
               )}
             </tbody>
