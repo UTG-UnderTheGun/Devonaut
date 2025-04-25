@@ -166,24 +166,6 @@ const PendingAssignments = () => {
     
     return { text, className };
   };
-  
-  // ฟังก์ชันกำหนดความยาก
-  const getDifficultyInfo = (assignment) => {
-    // สามารถใช้ข้อมูลจริงจาก API หากมี
-    // ในที่นี้ใช้การสุ่มหรือกำหนดค่าตายตัวเพื่อการทดสอบ
-    
-    const difficultyOptions = [
-      { level: 'Easy', className: 'difficulty-easy' },
-      { level: 'Medium', className: 'difficulty-medium' },
-      { level: 'Hard', className: 'difficulty-hard' }
-    ];
-    
-    // ใช้ pseudo-random แบบคงที่ตาม assignment ID เพื่อให้แต่ละ assignment มีความยากเดิมเสมอ
-    const assignmentIdSum = assignment.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    const index = assignmentIdSum % difficultyOptions.length;
-    
-    return difficultyOptions[index];
-  };
 
   const fetchAssignmentsAndStudents = async () => {
     try {
@@ -335,7 +317,6 @@ const PendingAssignments = () => {
     const color = assignment.color || getAssignmentColor(assignment.id);
     const badgeText = assignment.badgeText || extractAssignmentId(assignment.title);
     const timeRemaining = calculateTimeRemaining(assignment.dueDate);
-    const difficulty = getDifficultyInfo(assignment);
     
     return (
       <React.Fragment key={`${assignment.id}-${student.studentId}`}>
@@ -343,6 +324,7 @@ const PendingAssignments = () => {
           onClick={() => handleRowClick(assignment.id, student.studentId)}
           className="clickable-row"
         >
+          <td>{student.studentId}</td>
           <td>{student.studentName}</td>
           <td>
             <div className="assignment-title">
@@ -357,11 +339,6 @@ const PendingAssignments = () => {
               </span>
               {assignment.title}
             </div>
-          </td>
-          <td>
-            <span className={`difficulty-badge ${difficulty.className}`}>
-              {difficulty.level}
-            </span>
           </td>
           <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
           <td>
@@ -417,9 +394,9 @@ const PendingAssignments = () => {
           <table className="student-table">
             <thead>
               <tr>
+                <th>Student ID</th>
                 <th>Student Name</th>
                 <th>Assignment Title</th>
-                <th>Difficulty</th>
                 <th>Due Date</th>
                 <th>Time Remaining</th>
                 <th>Status</th>
