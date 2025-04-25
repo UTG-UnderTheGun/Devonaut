@@ -222,7 +222,7 @@ const PendingAssignments = () => {
           }
           
           // Create student entries for each student
-          const studentEntries = students.map(student => {
+          const studentEntries = await Promise.all(students.map(async (student) => {
             const studentId = student.id;
             const submission = submissionsMap[studentId];
             
@@ -248,6 +248,27 @@ const PendingAssignments = () => {
               if (submission.score !== undefined) {
                 score = `${submission.score}/${assignment.points}`;
               }
+            } else {
+              // Try to check if there's code even if no formal submission exists
+              try {
+                const codeHistoryUrl = `${API_BASE}/api/code-history/${assignment.id}?user_id=${studentId}`;
+                const codeHistoryResponse = await fetch(codeHistoryUrl, {
+                  method: 'GET',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                });
+                
+                if (codeHistoryResponse.ok) {
+                  const codeHistory = await codeHistoryResponse.json();
+                  if (codeHistory && codeHistory.length > 0) {
+                    // There's code but no formal submission - mark as "Working"
+                    status = "Working";
+                    submissionTime = new Date(codeHistory[0].created_at).toLocaleString();
+                  }
+                }
+              } catch (codeError) {
+                console.warn(`Could not fetch code history: ${codeError.message}`);
+              }
             }
             
             return {
@@ -259,7 +280,7 @@ const PendingAssignments = () => {
               score: score,
               submission: submission
             };
-          });
+          }));
           
           const assignmentId = assignment.id;
           const badgeText = extractAssignmentId(assignment.title);

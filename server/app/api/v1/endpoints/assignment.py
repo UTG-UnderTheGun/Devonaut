@@ -13,6 +13,7 @@ from app.services.assignment_service import (
 )
 from datetime import datetime
 from bson.objectid import ObjectId
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -272,19 +273,37 @@ async def get_student_submission(
         if user.get("role") != "teacher" and user_id != student_id:
             raise HTTPException(status_code=403, detail="You can only view your own submissions")
         
-        # Get the submission
-        submission = await request.app.mongodb["assignment_submissions"].find_one({
+        # Try to find submission by ID first
+        query = {
             "assignment_id": assignment_id,
             "user_id": student_id
-        })
+        }
+        
+        print(f"Searching for submission with query: {query}")
+        
+        # Get the submission
+        submission = await request.app.mongodb["assignment_submissions"].find_one(query)
         
         if not submission:
-            raise HTTPException(status_code=404, detail="Submission not found")
+            print(f"No submission found for assignment_id={assignment_id}, student_id={student_id}")
+            # Try alternative query with string IDs
+            alt_query = {
+                "assignment_id": assignment_id,
+                "user_id": student_id
+            }
+            submission = await request.app.mongodb["assignment_submissions"].find_one(alt_query)
+            
+            if not submission:
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": "Submission not found"}
+                )
         
         # Convert ObjectId to string
         if "_id" in submission:
             submission["_id"] = str(submission["_id"])
         
+        print(f"Found submission: {submission}")
         return submission
     except Exception as e:
         print(f"Error getting student submission: {str(e)}")
