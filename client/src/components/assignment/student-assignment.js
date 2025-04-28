@@ -346,80 +346,15 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
   const fetchData = async () => {
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      
-      // Fetch assignment data
-      const assignmentResponse = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
-        credentials: 'include'
-      });
-      
-      if (!assignmentResponse.ok) {
-        setAssignment(mockAssignment);
-      } else {
-        const assignmentData = await assignmentResponse.json();
-        setAssignment(assignmentData);
-      }
-
-      // Fetch submission data
-      const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${studentId}`, {
-        credentials: 'include'
-      });
-      
-      if (!submissionResponse.ok) {
-        setSubmission(mockSubmission);
-      } else {
-        const submissionData = await submissionResponse.json();
-        setSubmission(submissionData);
-        if (submissionData.score) {
-          setScore(submissionData.score.toString());
-        }
-      }
-
-      // Fetch code history
-      const historyResponse = await fetch(`${API_BASE}/api/code-history/${assignmentId}`, {
-        credentials: 'include'
-      });
-      
-      if (!historyResponse.ok) {
-        setCodeHistory(mockCodeHistory);
-      } else {
-        const historyData = await historyResponse.json();
-        setCodeHistory(historyData);
-      }
-
-      // Fetch keystroke history
-      const keystrokeResponse = await fetch(`${API_BASE}/api/code-analytics/user-journey/${studentId}?problem_index=${assignmentId}`, {
-        credentials: 'include'
-      });
-      
-      if (!keystrokeResponse.ok) {
-        setKeystrokeHistory(mockKeystrokeHistory);
-      } else {
-        const keystrokeData = await keystrokeResponse.json();
-        setKeystrokeHistory(keystrokeData);
-      }
-
-      // Fetch AI chat history
-      const aiChatResponse = await fetch(`${API_BASE}/api/chat-history/user-id=${studentId}&assignment_id=${assignmentId}`, {
-        credentials: 'include'
-      });
-      
-      if (!aiChatResponse.ok) {
-        setAiChatHistory(mockAiChatHistory);
-      } else {
-        const aiChatData = await aiChatResponse.json();
-        setAiChatHistory(aiChatData);
-      }
-
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching data:', err);
-      // Use mock data as fallback
+      // Use mock data only
       setAssignment(mockAssignment);
       setSubmission(mockSubmission);
       setCodeHistory(mockCodeHistory);
       setKeystrokeHistory(mockKeystrokeHistory);
       setAiChatHistory(mockAiChatHistory);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error setting mock data:', err);
     }
   };
 
@@ -446,60 +381,28 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
     setIsSubmitting(true);
     try {
-      const gradingData = {
+      // Simulate success for demo purposes without API call
+      // Update local submission data
+      setSubmission(prev => ({
+        ...prev,
         score: Number(score),
-        feedback: { 
-          general: feedback.trim()
-        },
+        status: 'graded',
+        graded_at: new Date().toISOString(),
+        feedback: { general: feedback.trim() },
         comments: [
-          { text: feedback.trim() }
+          ...(prev.comments || []),
+          {
+            id: Date.now().toString(),
+            user_id: "current_teacher", // This should be the actual teacher ID
+            username: "Current Teacher", // This should be the actual teacher name
+            role: "teacher",
+            text: feedback.trim(),
+            timestamp: new Date().toISOString()
+          }
         ]
-      };
+      }));
 
-      let success = false;
-      try {
-        const response = await fetch(`/api/v1/assignments/${assignmentId}/grade/${submission.id}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(gradingData),
-        });
-
-        if (response.ok) {
-          success = true;
-        }
-      } catch (err) {
-        console.log('Error submitting grade to API, simulating success');
-        // Simulate success for demo purposes
-        success = true;
-      }
-
-      if (success) {
-        // Update local submission data
-        setSubmission(prev => ({
-          ...prev,
-          score: Number(score),
-          status: 'graded',
-          graded_at: new Date().toISOString(),
-          feedback: { general: feedback.trim() },
-          comments: [
-            ...(prev.comments || []),
-            {
-              id: Date.now().toString(),
-              user_id: "current_teacher", // This should be the actual teacher ID
-              username: "Current Teacher", // This should be the actual teacher name
-              role: "teacher",
-              text: feedback.trim(),
-              timestamp: new Date().toISOString()
-            }
-          ]
-        }));
-
-        alert('Grade submitted successfully!');
-      } else {
-        throw new Error('Server responded with an error');
-      }
+      alert('Grade submitted successfully!');
     } catch (err) {
       console.error("Error submitting grade:", err);
       alert(`Failed to submit grade: ${err.message}`);
