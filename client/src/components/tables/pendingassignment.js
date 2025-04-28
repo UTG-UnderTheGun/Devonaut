@@ -224,6 +224,20 @@ const PendingAssignments = () => {
           // Create student entries for each student
           const studentEntries = await Promise.all(students.map(async (student) => {
             const studentId = student.id;
+            
+            // Skip invalid student IDs
+            if (!studentId || studentId === 'N/A') {
+              return {
+                studentId: studentId || 'N/A',
+                studentName: student.name || "Unknown",
+                section: student.section || "Unassigned",
+                submissionTime: "-",
+                status: "Not Submitted",
+                score: `0/${assignment.points}`,
+                submission: null
+              };
+            }
+            
             const submission = submissionsMap[studentId];
             
             // Default values for a student with no submission
@@ -249,26 +263,9 @@ const PendingAssignments = () => {
                 score = `${submission.score}/${assignment.points}`;
               }
             } else {
-              // Try to check if there's code even if no formal submission exists
-              try {
-                const codeHistoryUrl = `${API_BASE}/api/code-history/${assignment.id}?user_id=${studentId}`;
-                const codeHistoryResponse = await fetch(codeHistoryUrl, {
-                  method: 'GET',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
-                });
-                
-                if (codeHistoryResponse.ok) {
-                  const codeHistory = await codeHistoryResponse.json();
-                  if (codeHistory && codeHistory.length > 0) {
-                    // There's code but no formal submission - mark as "Working"
-                    status = "Working";
-                    submissionTime = new Date(codeHistory[0].created_at).toLocaleString();
-                  }
-                }
-              } catch (codeError) {
-                console.warn(`Could not fetch code history: ${codeError.message}`);
-              }
+              // Don't check for code history here - this will be done in the student-assignment component when needed
+              // This prevents unnecessary API calls for every student
+              status = "Not Submitted";
             }
             
             return {
@@ -285,11 +282,24 @@ const PendingAssignments = () => {
           const assignmentId = assignment.id;
           const badgeText = extractAssignmentId(assignment.title);
           
+          // Filter out entries with duplicate student IDs
+          const uniqueStudentEntries = studentEntries.reduce((unique, entry) => {
+            if (!entry.studentId || entry.studentId === 'N/A') return unique;
+            
+            // Check if this student ID is already in the unique array
+            const existingIndex = unique.findIndex(e => e.studentId === entry.studentId);
+            if (existingIndex === -1) {
+              // If not found, add to unique array
+              unique.push(entry);
+            }
+            return unique;
+          }, []);
+          
           processedAssignments.push({
             ...assignment,
             badgeText: badgeText,
             color: getAssignmentColor(assignmentId),
-            students: studentEntries
+            students: uniqueStudentEntries
           });
           
         } catch (assignmentError) {
@@ -340,7 +350,7 @@ const PendingAssignments = () => {
     const timeRemaining = calculateTimeRemaining(assignment.dueDate);
     
     return (
-      <React.Fragment key={`${assignment.id}-${student.studentId}`}>
+      <React.Fragment key={`${assignment.id}-${student.studentId}-${studentIndex}`}>
         <tr
           onClick={() => handleRowClick(assignment.id, student.studentId)}
           className="clickable-row"
@@ -375,7 +385,7 @@ const PendingAssignments = () => {
           <td>{student.score || 'N/A'}</td>
         </tr>
         {studentIndex === assignment.students.length - 1 && (
-          <tr>
+          <tr key={`separator-${assignment.id}`}>
             <td colSpan="7" className="assignment-separator"></td>
           </tr>
         )}
