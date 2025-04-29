@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './ai-interface.css';
+import { useSearchParams } from 'next/navigation';
 
 const SendIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -54,7 +55,9 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
   const timerRef = useRef(null);
   const previousExerciseIdRef = useRef(exercise_id);
   const initialLoadRef = useRef(true);
-  const [assignmentId, setAssignmentId] = useState(null);
+  const searchParams = useSearchParams();
+  const assignmentId = searchParams ? searchParams.get('assignment') : null;
+  const previousAssignmentIdRef = useRef(assignmentId);
 
   const suggestions = [
     "How do I solve this problem?",
@@ -62,24 +65,6 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     "What's wrong with my solution?",
     "Give me a hint"
   ];
-
-  // Get assignment ID from URL
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const assignmentParam = urlParams.get('assignment');
-      console.log('Current assignment ID from URL:', assignmentParam);
-      
-      // If assignment ID changed, clear chat
-      if (assignmentParam !== assignmentId) {
-        console.log(`Assignment changed from ${assignmentId} to ${assignmentParam}`);
-        setAssignmentId(assignmentParam);
-        setChat([]);
-        // Force fetch new questions remaining
-        fetchQuestionsRemaining(assignmentParam);
-      }
-    }
-  }, []);
 
   // Update timer display every minute
   useEffect(() => {
@@ -143,21 +128,30 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     return () => window.removeEventListener('reset-chat-history', handleResetChat);
   }, [user_id, exercise_id]);
 
-  // Track exercise_id changes and reset chat accordingly
+  // Track both exercise_id AND assignment_id changes and reset chat accordingly
   useEffect(() => {
-    if (previousExerciseIdRef.current !== exercise_id) {
-      console.log(`Exercise ID changed from ${previousExerciseIdRef.current} to ${exercise_id}`);
+    const exerciseChanged = previousExerciseIdRef.current !== exercise_id;
+    const assignmentChanged = previousAssignmentIdRef.current !== assignmentId;
+    
+    console.log(`Exercise ID changed: ${exerciseChanged} (${previousExerciseIdRef.current} -> ${exercise_id})`);
+    console.log(`Assignment ID changed: ${assignmentChanged} (${previousAssignmentIdRef.current} -> ${assignmentId})`);
+    
+    if (exerciseChanged || assignmentChanged) {
       previousExerciseIdRef.current = exercise_id;
+      previousAssignmentIdRef.current = assignmentId;
 
-      // If we're switching to a different exercise, reset the chat state
-      setChat([]);
+      // If we're switching to a different exercise or assignment, reset the chat state
+      console.log("Resetting chat state due to exercise or assignment change");
+      setChat([WELCOME_MESSAGE]);
 
       // Load chat for the new exercise
-      if (user_id && exercise_id) {
+      if (user_id) {
         loadChatForExercise();
+        // Also refresh question count
+        fetchQuestionsRemaining();
       }
     }
-  }, [exercise_id, user_id]);
+  }, [exercise_id, assignmentId, user_id]);
 
   // Load chat history from localStorage when component mounts or exercise changes
   useEffect(() => {
@@ -175,23 +169,23 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     };
   }, [user_id, exercise_id]);
 
-  // Update chat storage key to include assignment ID
   const getChatStorageKey = () => {
-    // Include both user_id and assignment ID in the storage key
+    // Include both assignment_id and exercise_id in the localStorage key
     if (assignmentId) {
-      return exercise_id 
-        ? `chat_${user_id}_assignment_${assignmentId}_exercise_${exercise_id}`
-        : `chat_${user_id}_assignment_${assignmentId}`;
+      return exercise_id ? 
+        `chat_${user_id}_${assignmentId}_${exercise_id}` : 
+        `chat_${user_id}_${assignmentId}`;
+    } else {
+      return exercise_id ? 
+        `chat_${user_id}_${exercise_id}` : 
+        `chat_${user_id}`;
     }
-    
-    // Fall back to old key format if no assignment ID
-    return exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
   };
 
   const loadChatForExercise = async () => {
     if (!user_id) return;
 
-    // Build the localStorage key with assignment ID
+    // Build the localStorage key that includes assignment context
     const chatKey = getChatStorageKey();
     console.log(`Loading chat for ${chatKey}`);
 
@@ -209,21 +203,27 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       if (response.ok) {
         const data = await response.json();
         // Transform backend messages to the frontend format
-        // Assuming each message in the backend is stored with { role, content, timestamp? }
         if (data.messages && Array.isArray(data.messages)) {
-          const backendChat = data.messages.map((msg, index) => ({
-            id: index + 1,
-            text: msg.content,
-            isUser: msg.role === "user",
-            // If timestamp is provided in your DB records, use it; otherwise, use current time
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
-          }));
-          setChat(backendChat);
-          localStorage.setItem(chatKey, JSON.stringify(backendChat));
-          console.log(`Loaded ${backendChat.length} messages from API for ${chatKey}`);
+          if (data.messages.length > 0) {
+            const backendChat = data.messages.map((msg, index) => ({
+              id: index + 1,
+              text: msg.content,
+              isUser: msg.role === "user",
+              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+            }));
+            setChat(backendChat);
+            localStorage.setItem(chatKey, JSON.stringify(backendChat));
+            console.log(`Loaded ${backendChat.length} messages from API for ${chatKey}`);
+          } else {
+            // No messages in the backend, set welcome message
+            setChat([WELCOME_MESSAGE]);
+            localStorage.setItem(chatKey, JSON.stringify([WELCOME_MESSAGE]));
+            console.log(`No messages found, setting welcome message for ${chatKey}`);
+          }
           return;
         } else {
           console.log('No messages found or invalid response structure:', data);
+          setChat([WELCOME_MESSAGE]); // Set welcome message for new conversations
         }
       } else {
         console.log(`API response not OK: ${response.status}`);
@@ -243,29 +243,26 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       } catch (error) {
         console.error("Error parsing saved chat:", error);
         localStorage.removeItem(chatKey);
-        setChat([]);
+        setChat([WELCOME_MESSAGE]);
       }
     } else {
-      console.log(`No saved chat found in localStorage for ${chatKey}`);
-      setChat([]);
+      console.log(`No saved chat found in localStorage for ${chatKey}, using welcome message`);
+      setChat([WELCOME_MESSAGE]);
     }
   };
 
-  const fetchQuestionsRemaining = async (currentAssignmentId) => {
+  const fetchQuestionsRemaining = async () => {
     if (!user_id) return;
 
     setIsLoading(true);
     try {
-      // Build the URL with exercise_id and assignment_id if available
+      // Build the URL with both exercise_id and assignment_id if available
       let url = `${API_BASE_URL}/ai/questions/remaining?user_id=${user_id}`;
       if (exercise_id) {
         url += `&exercise_id=${exercise_id}`;
       }
-      
-      // Use the parameter value if provided, otherwise use state value
-      const effectiveAssignmentId = currentAssignmentId || assignmentId;
-      if (effectiveAssignmentId) {
-        url += `&assignment_id=${effectiveAssignmentId}`;
+      if (assignmentId) {
+        url += `&assignment_id=${assignmentId}`;
       }
 
       console.log(`Fetching questions remaining from: ${url}`);
@@ -321,7 +318,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     const updatedChat = [...chat, userMessageObject];
     setChat(updatedChat);
 
-    // Save to localStorage with exercise-specific key if available
+    // Save to localStorage with assignment/exercise-specific key
     const chatKey = getChatStorageKey();
     localStorage.setItem(chatKey, JSON.stringify(updatedChat));
 
@@ -329,22 +326,28 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     setIsTyping(true); // Show typing indicator
 
     try {
-      // Set up the API request
-      const requestOptions = {
+      // Include both exercise_id and assignment_id in the request if available
+      const requestBody = {
+        user_id,
+        prompt: newMessage
+      };
+
+      if (exercise_id) {
+        requestBody.exercise_id = exercise_id;
+      }
+      
+      if (assignmentId) {
+        requestBody.assignment_id = assignmentId;
+      }
+
+      console.log(`Sending chat request with exercise_id: ${exercise_id}, assignment_id: ${assignmentId}`);
+      const response = await fetch(`${API_BASE_URL}/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_id: user_id,
-          prompt: newMessage,
-          exercise_id: exercise_id,
-          assignment_id: assignmentId, // Include assignment ID in the API request
-        }),
-      };
-
-      console.log(`Sending chat request with exercise_id: ${exercise_id}, assignment_id: ${assignmentId}`);
-      const response = await fetch(`${API_BASE_URL}/ai/chat`, requestOptions);
+        body: JSON.stringify(requestBody),
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
@@ -503,21 +506,23 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       try {
         setIsTyping(true);
 
-        // Set up the API request
-        const requestOptions = {
+        // Include exercise_id in the request if available
+        const requestBody = {
+          user_id,
+          prompt: message.text
+        };
+
+        if (exercise_id) {
+          requestBody.exercise_id = exercise_id;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ai/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            user_id: user_id,
-            prompt: message.text,
-            exercise_id: exercise_id,
-            assignment_id: assignmentId, // Include assignment ID in the API request
-          }),
-        };
-
-        const response = await fetch(`${API_BASE_URL}/ai/chat`, requestOptions);
+          body: JSON.stringify(requestBody),
+        });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
@@ -612,9 +617,11 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     <div className="chat-interface">
       <div className="chat-content">
         <div className="chat-messages">
-          <div className="message-wrapper ai">
-            {renderMessage(WELCOME_MESSAGE)}
-          </div>
+          {chat.length === 0 && (
+            <div className="message-wrapper ai">
+              {renderMessage(WELCOME_MESSAGE)}
+            </div>
+          )}
 
           {chat.map((message) => (
             <div
