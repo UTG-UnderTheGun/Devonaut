@@ -340,117 +340,21 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timelinePosition, setTimelinePosition] = useState(0);
-  const [exercises, setExercises] = useState([]);
-  const [answers, setAnswers] = useState({});
+  const [exercises] = useState(mockExercises);
+  const [answers] = useState(mockAnswers);
   const [codingActivity] = useState(mockCodingActivity);
 
   const fetchData = async () => {
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      
-      // Fetch assignment details
-      console.log(`Fetching assignment with ID: ${assignmentId}`);
-      const assignmentResponse = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-      
-      if (!assignmentResponse.ok) {
-        throw new Error(`Failed to fetch assignment: ${assignmentResponse.status}`);
-      }
-      
-      const assignmentData = await assignmentResponse.json();
-      console.log('Assignment data:', assignmentData);
-      setAssignment(assignmentData);
-      
-      // Set exercises if available in assignment data
-      if (assignmentData.exercises && assignmentData.exercises.length > 0) {
-        setExercises(assignmentData.exercises);
-      } else {
-        // Fallback to mock exercises if none in API response
-        setExercises(mockExercises);
-      }
-      
-      // Fetch student submission
-      console.log(`Fetching submission for student: ${studentId}`);
-      const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${studentId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-      
-      if (submissionResponse.ok) {
-        const submissionData = await submissionResponse.json();
-        console.log('Submission data:', submissionData);
-        setSubmission(submissionData);
-        
-        // If we have score data, set it in the UI
-        if (submissionData.score !== undefined && submissionData.score !== null) {
-          setScore(submissionData.score.toString());
-        }
-        
-        // Set exercises and answers based on real data
-        if (submissionData.answers) {
-          setAnswers(submissionData.answers);
-        }
-      } else {
-        console.error('No submission found, creating placeholder');
-        // Create a placeholder submission
-        setSubmission({
-          id: 'new',
-          assignment_id: assignmentId,
-          user_id: studentId,
-          username: 'Student',
-          section: 'N/A',
-          status: 'not_submitted',
-          submitted_at: null,
-          answers: {},
-          comments: []
-        });
-      }
-      
-      // Try to fetch code history
-      try {
-        const historyResponse = await fetch(`${API_BASE}/code/history/${studentId}/${assignmentId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-        
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          console.log('Code history:', historyData);
-          setCodeHistory(historyData);
-        } else {
-          // Use mock history data as fallback
-          setCodeHistory(mockCodeHistory);
-        }
-      } catch (histErr) {
-        console.error('Error fetching code history:', histErr);
-        setCodeHistory(mockCodeHistory);
-      }
-      
-      // Use mock data for features not yet implemented in backend
-      setKeystrokeHistory(mockKeystrokeHistory);
-      setAiChatHistory(mockAiChatHistory);
-      
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching data:', err);
-      
-      // Fallback to mock data when API fails
+      // Use mock data only
       setAssignment(mockAssignment);
       setSubmission(mockSubmission);
       setCodeHistory(mockCodeHistory);
       setKeystrokeHistory(mockKeystrokeHistory);
       setAiChatHistory(mockAiChatHistory);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error setting mock data:', err);
     }
   };
 
@@ -477,33 +381,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
     setIsSubmitting(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      
-      // Submit grade to the API
-      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/grade/${submission.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          score: Number(score),
-          feedback: { general: feedback.trim() },
-          comments: [
-            {
-              text: feedback.trim()
-            }
-          ]
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to submit grade: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('Grade submission result:', result);
-      
+      // Simulate success for demo purposes without API call
       // Update local submission data
       setSubmission(prev => ({
         ...prev,
@@ -530,52 +408,6 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       alert(`Failed to submit grade: ${err.message}`);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleAddComment = async (commentText) => {
-    if (!commentText.trim()) {
-      alert('Please enter a comment');
-      return;
-    }
-
-    try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      
-      // Submit comment to the API
-      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/comment/${submission.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          text: commentText.trim()
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to add comment: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('Comment submission result:', result);
-      
-      // Update local submission data
-      setSubmission(prev => ({
-        ...prev,
-        comments: [
-          ...(prev.comments || []),
-          result.comment
-        ]
-      }));
-
-      // Clear comment input field logic would go here
-      
-      alert('Comment added successfully!');
-    } catch (err) {
-      console.error("Error adding comment:", err);
-      alert(`Failed to add comment: ${err.message}`);
     }
   };
 
