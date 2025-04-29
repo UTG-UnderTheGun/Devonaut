@@ -927,7 +927,9 @@ const EditorSection = ({
         );
       case 'output':
         console.log("Rendering output type");
-        const outputCode = currentProblem.code || '';
+        // Try to get code from problem.code, then from currentCode if problem.code is empty
+        const outputCode = currentProblem.code || currentCode || '';
+        console.log("Output code:", outputCode ? outputCode.substring(0, 50) + "..." : "empty");
         
         return (
           <div className="output-question">
@@ -970,12 +972,16 @@ const EditorSection = ({
         );
       case 'fill':
         console.log("Rendering fill type");
-        if (!currentCode) {
+        // Try to get code from problem.code, then from currentCode if problem.code is empty
+        const fillCode = currentProblem.code || currentCode || '';
+        console.log("Fill code:", fillCode ? fillCode.substring(0, 50) + "..." : "empty");
+        
+        if (!fillCode) {
           return <div className="fill-question empty">ไม่พบข้อมูลสำหรับโจทย์นี้</div>;
         }
         let codeParts = [];
         try {
-          codeParts = currentCode.split('____');
+          codeParts = fillCode.split('____');
         } catch (error) {
           console.error("Error splitting code:", error);
           return <div className="error">เกิดข้อผิดพลาดในการแบ่งโค้ด: {error.message}</div>;
@@ -984,7 +990,7 @@ const EditorSection = ({
           <div className="fill-question">
             <div className="question-title">{currentProblem.title || ''}</div>
             <div className="question-description">{currentProblem.description || ''}</div>
-            <div className="code-display" onContextMenu={(e) => handleContextMenu(e, currentCode)}>
+            <div className="code-display" onContextMenu={(e) => handleContextMenu(e, fillCode)}>
               <pre style={{ margin: 0, background: 'transparent', userSelect: 'text' }}>
                 {codeParts.map((part, index, array) => (
                   <React.Fragment key={index}>

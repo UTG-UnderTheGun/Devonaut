@@ -167,9 +167,27 @@ def binary_search(arr, target):
     }));
   };
 
-  const handleAddExercise = () => {
-    const newId = `exercise_${Date.now()}`;
+  // Function to handle exercise type change
+  const handleExerciseTypeChange = (type) => {
+    // Make sure we preserve existing code content across different exercise types
+    const currentEx = assignment.exercises[currentExercise];
+    const updatedExercise = {
+      ...currentEx,
+      type: type,
+      // Make sure the code field is initialized properly
+      code: currentEx.code || ""
+    };
     
+    const updatedExercises = [...assignment.exercises];
+    updatedExercises[currentExercise] = updatedExercise;
+    
+    setAssignment(prev => ({
+      ...prev,
+      exercises: updatedExercises
+    }));
+  };
+
+  const handleAddExercise = () => {
     // Find the highest exercise number in the existing exercises
     let maxNumber = 0;
     assignment.exercises.forEach(ex => {
@@ -182,8 +200,9 @@ def binary_search(arr, target):
       }
     });
     
+    // Create a new exercise with an integer ID
     const newExercise = {
-      id: newId,
+      id: assignment.exercises.length + 1, // Use sequential integer ID
       title: `Exercise ${maxNumber + 1}`,
       description: "Complete the exercise",
       type: "coding",
@@ -243,13 +262,47 @@ def binary_search(arr, target):
     try {
       setLoading(true);
 
-      // Format the request body with assignment targeting info
+      // Format exercises to have integer IDs and ensure all fields are properly set
+      const formattedExercises = assignment.exercises.map((exercise, index) => {
+        // Create a properly formatted exercise with all fields
+        const formattedExercise = {
+          id: index + 1, // Ensure ID is an integer
+          title: exercise.title,
+          description: exercise.description,
+          type: exercise.type,
+          points: exercise.points || 0,
+        };
+
+        // Add type-specific fields
+        if (exercise.type === 'coding') {
+          formattedExercise.starter_code = exercise.starter_code || "";
+          formattedExercise.test_cases = exercise.test_cases || "";
+        } 
+        
+        if (exercise.type === 'explain' || exercise.type === 'fill') {
+          formattedExercise.code = exercise.code || "";
+        }
+
+        if (exercise.type === 'fill') {
+          // For fill exercises, we may need to parse blanks, but that's probably handled elsewhere
+          formattedExercise.blanks = exercise.blanks || [];
+        }
+
+        return formattedExercise;
+      });
+
+      // Format the request body with assignment targeting info and properly formatted data
       const requestBody = {
         ...assignment,
-        assignmentType: assignment.assignmentType, // Include the assignment type
+        exercises: formattedExercises,
+        // Convert string date to ISO string format if it's not already
+        dueDate: new Date(assignment.dueDate).toISOString(),
+        assignmentType: assignment.assignmentType,
         selectedStudents: assignment.assignmentType === 'specific' ? assignment.selectedStudents : [],
         selectedSections: assignment.assignmentType === 'section' ? assignment.selectedSections : []
       };
+      
+      console.log("Sending assignment data:", requestBody);
 
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await fetch(`${API_BASE}/assignments/`, {
@@ -262,7 +315,9 @@ def binary_search(arr, target):
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create assignment');
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        console.error("Server error:", errorData);
+        throw new Error(errorData.detail || 'Failed to create assignment');
       }
 
       setLoading(false);
@@ -270,6 +325,7 @@ def binary_search(arr, target):
         onSuccess();
       }
     } catch (err) {
+      console.error("Error creating assignment:", err);
       setError(err.message);
       setLoading(false);
     }
@@ -637,7 +693,7 @@ def binary_search(arr, target):
                     <button
                       key={type.id}
                       className={`code-type-button ${currentExerciseData?.type === type.id ? 'active' : ''}`}
-                      onClick={() => handleExerciseChange('type', type.id)}
+                      onClick={() => handleExerciseTypeChange(type.id)}
                     >
                       {type.label}
                     </button>
