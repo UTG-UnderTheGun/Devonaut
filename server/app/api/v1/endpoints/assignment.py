@@ -273,7 +273,7 @@ async def get_student_submission(
         if user.get("role") != "teacher" and user_id != student_id:
             raise HTTPException(status_code=403, detail="You can only view your own submissions")
         
-        # Try to find submission by ID first
+        # Try to find submission by user_id first
         query = {
             "assignment_id": assignment_id,
             "user_id": student_id
@@ -285,13 +285,18 @@ async def get_student_submission(
         submission = await request.app.mongodb["assignment_submissions"].find_one(query)
         
         if not submission:
-            print(f"No submission found for assignment_id={assignment_id}, student_id={student_id}")
-            # Try alternative query with string IDs
-            alt_query = {
-                "assignment_id": assignment_id,
-                "user_id": student_id
-            }
-            submission = await request.app.mongodb["assignment_submissions"].find_one(alt_query)
+            print(f"No submission found for assignment_id={assignment_id}, user_id={student_id}")
+            
+            # Check if student_id is actually a student ID and not a user_id
+            student = await request.app.mongodb["users"].find_one({"student_id": student_id})
+            if student:
+                # Try to find submission with the actual user_id of the student
+                alt_query = {
+                    "assignment_id": assignment_id,
+                    "user_id": str(student["_id"])
+                }
+                print(f"Trying with student's user_id: {alt_query}")
+                submission = await request.app.mongodb["assignment_submissions"].find_one(alt_query)
             
             if not submission:
                 return JSONResponse(
@@ -623,11 +628,16 @@ async def get_student_stats(
         # Get all assignments for the student
         student = await request.app.mongodb["users"].find_one({"student_id": student_id})
         if not student:
-            raise HTTPException(status_code=404, detail="Student not found")
+            # Try if student_id is actually a user_id
+            student = await request.app.mongodb["users"].find_one({"_id": ObjectId(student_id)})
+            if not student:
+                raise HTTPException(status_code=404, detail="Student not found")
 
         # Get all submissions for this student
+        user_id_for_query = str(student["_id"])
+        
         submissions = await request.app.mongodb["assignment_submissions"].find({
-            "user_id": str(student["_id"])
+            "user_id": user_id_for_query
         }).to_list(length=100)
 
         # Calculate statistics
