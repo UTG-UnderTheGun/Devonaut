@@ -84,16 +84,37 @@ export default function CodingPage() {
           };
 
           // Convert assignment exercises to problems format
-          const assignmentProblems = assignment.exercises.map(ex => ({
-            id: ex.id,
-            type: mapExerciseType(ex.type), // Map the type for editor compatibility
-            originalType: ex.type, // Store original type for reference
-            title: ex.title,
-            description: ex.description,
-            starterCode: ex.starter_code || ex.code || '',
-            testCases: ex.test_cases || '',
-            points: ex.points
-          }));
+          const assignmentProblems = assignment.exercises.map(ex => {
+            // Map the type for editor compatibility
+            const type = mapExerciseType(ex.type);
+            
+            console.log(`Mapping exercise ${ex.id}:`, ex);
+            console.log(`Exercise type: ${ex.type} -> ${type}`);
+            
+            // Determine the correct code property based on exercise type
+            let codeContent = "";
+            if (ex.type === 'coding' || ex.type === 'code') {
+              codeContent = ex.starter_code || "";
+              console.log(`Using starter_code for ${ex.id}:`, codeContent);
+            } else if (ex.type === 'explain' || ex.type === 'fill') {
+              codeContent = ex.code || "";
+              console.log(`Using code for ${ex.id}:`, codeContent);
+            }
+            
+            return {
+              id: ex.id,
+              type: type,
+              originalType: ex.type,
+              title: ex.title,
+              description: ex.description,
+              starterCode: ex.type === 'coding' ? ex.starter_code || "" : "",
+              code: codeContent, // Use the determined code content
+              testCases: ex.test_cases || '',
+              points: ex.points
+            };
+          });
+
+          console.log("Mapped assignment problems:", assignmentProblems);
 
           // Import the problems
           await handleImport(assignmentProblems, true);

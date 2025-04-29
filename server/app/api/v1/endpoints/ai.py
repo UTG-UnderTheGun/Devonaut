@@ -54,13 +54,13 @@ class ChatRequest(BaseModel):
     user_id: str
     prompt: str
     exercise_id: str = None  # Exercise ID to track quotas per exercise
+    assignment_id: str = None  # New field for assignment ID
 
 
 class QuestionsRequest(BaseModel):
     user_id: str
-    exercise_id: str = (
-        None  # Optional exercise ID to reset questions for a specific exercise
-    )
+    exercise_id: str = None
+    assignment_id: str = None  # New field for assignment ID
 
 
 class SkillLevelRequest(BaseModel):
@@ -118,11 +118,16 @@ async def get_reset_dependency():
     return True
 
 
-async def get_conversation_history(user_id, exercise_id=None):
+async def get_conversation_history(user_id, exercise_id=None, assignment_id=None):
     """Retrieve conversation history for a user and specific exercise from database"""
     try:
         query = {"user_id": user_id}
-        if exercise_id:
+        
+        # Add assignment_id to query if provided
+        if assignment_id:
+            query["assignment_id"] = assignment_id
+        # Only use exercise_id if assignment_id is not provided
+        elif exercise_id:
             query["exercise_id"] = exercise_id
 
         conversation = conversation_collection.find_one(query)
@@ -138,6 +143,8 @@ async def get_conversation_history(user_id, exercise_id=None):
             }
             if exercise_id:
                 new_record["exercise_id"] = exercise_id
+            if assignment_id:
+                new_record["assignment_id"] = assignment_id
 
             conversation_collection.insert_one(new_record)
             return []
@@ -146,12 +153,17 @@ async def get_conversation_history(user_id, exercise_id=None):
         return []  # Return empty history on error
 
 
-async def update_conversation_history(user_id, prompt, response, exercise_id=None):
+async def update_conversation_history(user_id, prompt, response, exercise_id=None, assignment_id=None):
     """Update conversation history in database and trim if needed"""
     try:
         # Build the query
         query = {"user_id": user_id}
-        if exercise_id:
+        
+        # Add assignment_id to query if provided
+        if assignment_id:
+            query["assignment_id"] = assignment_id
+        # Only use exercise_id if assignment_id is not provided  
+        elif exercise_id:
             query["exercise_id"] = exercise_id
 
         # Add new messages to history
@@ -245,6 +257,7 @@ async def ai_chat(
     user_id = request.user_id
     prompt = request.prompt
     exercise_id = request.exercise_id
+    assignment_id = request.assignment_id  # Get assignment_id
 
     if not user_id or not prompt:
         raise HTTPException(status_code=400, detail="User ID and prompt are required.")
@@ -256,8 +269,43 @@ async def ai_chat(
             logger.warning(f"User not found: {user_id}")
             raise HTTPException(status_code=404, detail="User not found.")
 
-        # If exercise_id is provided, check if the user has questions left for this exercise
-        if exercise_id:
+        # Check for assignment-specific quota
+        if assignment_id:
+            # Look for an existing record for this assignment
+            assignment_record = exercises_collection.find_one(
+                {"user_id": user_id, "assignment_id": assignment_id}
+            )
+
+            if not assignment_record:
+                # Create a new assignment record with default quota
+                assignment_record = {
+                    "user_id": user_id,
+                    "assignment_id": assignment_id,
+                    "questions_used": 0,
+                    "max_questions": DEFAULT_MAX_QUESTIONS,
+                    "created_at": datetime.utcnow(),
+                }
+                exercises_collection.insert_one(assignment_record)
+
+            questions_used = assignment_record.get("questions_used", 0)
+            max_questions = assignment_record.get("max_questions", DEFAULT_MAX_QUESTIONS)
+
+            if questions_used >= max_questions:
+                logger.info(
+                    f"Assignment question limit reached for user: {user_id}, assignment: {assignment_id}"
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Question limit reached for assignment {assignment_id}.",
+                )
+
+            # Increment the questions_used counter for this assignment
+            exercises_collection.update_one(
+                {"user_id": user_id, "assignment_id": assignment_id},
+                {"$inc": {"questions_used": 1}},
+            )
+        # Use exercise-specific quota if no assignment_id but exercise_id provided
+        elif exercise_id:
             exercise_record = exercises_collection.find_one(
                 {"user_id": user_id, "exercise_id": exercise_id}
             )
@@ -290,8 +338,7 @@ async def ai_chat(
                 {"user_id": user_id, "exercise_id": exercise_id},
                 {"$inc": {"questions_used": 1}},
             )
-
-        # If no exercise_id, use the global question limit
+        # If no assignment_id or exercise_id, use the global question limit
         else:
             questions_used = user.get("questions_used", 0)
             max_questions = DEFAULT_MAX_QUESTIONS
@@ -305,8 +352,8 @@ async def ai_chat(
                 {"_id": ObjectId(user_id)}, {"$inc": {"questions_used": 1}}
             )
 
-        # Get conversation history from database (exercise-specific if provided)
-        conversation_history = await get_conversation_history(user_id, exercise_id)
+        # Get conversation history from database (assignment or exercise-specific)
+        conversation_history = await get_conversation_history(user_id, exercise_id, assignment_id)
 
         # Capture response for storage
         response_content = []
@@ -319,7 +366,7 @@ async def ai_chat(
             # After generating the full response, store it in conversation history
             full_response = "".join(response_content)
             background_tasks.add_task(
-                update_conversation_history, user_id, prompt, full_response, exercise_id
+                update_conversation_history, user_id, prompt, full_response, exercise_id, assignment_id
             )
 
         return StreamingResponse(response_generator(), media_type="text/plain")
@@ -338,6 +385,7 @@ async def ai_chat(
 async def get_remaining_questions(
     user_id: str,
     exercise_id: str = None,
+    assignment_id: str = None,
     reset_checked: bool = Depends(get_reset_dependency),
 ):
     try:
@@ -351,8 +399,35 @@ async def get_remaining_questions(
         else:
             hours_until_reset = RESET_INTERVAL
 
+        # If assignment_id is provided, get assignment-specific questions
+        if assignment_id:
+            assignment_record = exercises_collection.find_one(
+                {"user_id": user_id, "assignment_id": assignment_id}
+            )
+
+            if not assignment_record:
+                # Create a new record with default quota
+                assignment_record = {
+                    "user_id": user_id,
+                    "assignment_id": assignment_id,
+                    "questions_used": 0,
+                    "max_questions": DEFAULT_MAX_QUESTIONS,
+                    "created_at": datetime.utcnow(),
+                }
+                exercises_collection.insert_one(assignment_record)
+
+            questions_used = assignment_record.get("questions_used", 0)
+            max_questions = assignment_record.get("max_questions", DEFAULT_MAX_QUESTIONS)
+
+            return {
+                "questions_remaining": max(0, max_questions - questions_used),
+                "max_questions": max_questions,
+                "hours_until_reset": round(hours_until_reset, 1),
+                "assignment_id": assignment_id,
+            }
+
         # If exercise_id is provided, get exercise-specific questions
-        if exercise_id:
+        elif exercise_id:
             exercise_record = exercises_collection.find_one(
                 {"user_id": user_id, "exercise_id": exercise_id}
             )
@@ -406,6 +481,7 @@ async def get_remaining_questions(
 async def reset_questions(request: QuestionsRequest):
     user_id = request.user_id
     exercise_id = request.exercise_id
+    assignment_id = request.assignment_id  # Get assignment_id
 
     try:
         # If exercise_id is provided, reset only that exercise's counter
@@ -548,12 +624,12 @@ async def clear_conversation_history(user_id: str, exercise_id: str = None):
 
 
 @router.get("/conversations")
-async def get_conversations(user_id: str, exercise_id: str = None):
+async def get_conversations(user_id: str, exercise_id: str = None, assignment_id: str = None):
     """
-    Retrieve conversation history for a user (and optionally for a specific exercise).
+    Retrieve conversation history for a user (and optionally for a specific exercise or assignment).
     """
     try:
-        messages = await get_conversation_history(user_id, exercise_id)
+        messages = await get_conversation_history(user_id, exercise_id, assignment_id)
         return {"messages": messages}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

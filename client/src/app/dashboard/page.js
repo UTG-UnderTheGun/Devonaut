@@ -260,11 +260,11 @@ export default function Dashboard() {
                           <div className="progress-bar">
                             <div 
                               className="progress-fill"
-                              style={{ width: `${chapter.progress}%` }}
+                              style={{ width: `${chapter.status === 'COMPLETED' ? 100 : chapter.progress}%` }}
                             />
                           </div>
                           <span className="progress-text">
-                            {chapter.progress}% Complete
+                            {chapter.status === 'COMPLETED' ? 100 : chapter.progress}% Complete
                           </span>
                         </div>
                       </div>
@@ -297,13 +297,13 @@ export default function Dashboard() {
             {performance.chapters.map((chapter) => (
               <div key={chapter.id} className="progress-row">
                 <div className="progress-info">
-                  <span className="progress-label">{chapter.id}</span>
                   <span className="progress-title">{chapter.title}</span>
+                  <span className="progress-chapter">{chapter.chapter}</span>
                 </div>
                 <div className="progress-bar">
                   <div 
                     className={`progress-fill ${chapter.completed ? 'complete' : 'partial'}`}
-                    style={{ width: `${(chapter.score / chapter.total) * 100}%` }}
+                    style={{ width: `${chapter.completed ? 100 : (chapter.score / chapter.total) * 100}%` }}
                   />
                 </div>
                 <span className="progress-score">

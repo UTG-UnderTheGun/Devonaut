@@ -392,35 +392,44 @@ async def get_user_dashboard(
             assignment = next((a for a in assignments if a["id"] == submission["assignment_id"]), None)
             if assignment:
                 chapter = assignment.get("chapter", "Uncategorized")
-                if chapter not in chapter_performances:
-                    chapter_performances[chapter] = {
-                        "id": chapter,
-                        "title": chapter,
+                assignment_id = assignment.get("id", "")
+                assignment_title = assignment.get("title", "")
+                
+                # Use assignment ID as key (more unique than chapter)
+                if assignment_id not in chapter_performances:
+                    chapter_performances[assignment_id] = {
+                        "id": assignment_id,
+                        "title": assignment_title,
+                        "chapter": chapter,
                         "score": 0,
                         "total": 0,
                         "completed": False
                     }
                 
-                chapter_performances[chapter]["score"] += submission.get("score", 0)
-                chapter_performances[chapter]["total"] += assignment.get("points", 0)
-                chapter_performances[chapter]["completed"] = True
+                chapter_performances[assignment_id]["score"] += submission.get("score", 0)
+                chapter_performances[assignment_id]["total"] += assignment.get("points", 0)
+                chapter_performances[assignment_id]["completed"] = True
                 
                 total_score += submission.get("score", 0)
                 total_possible += assignment.get("points", 0)
         
         # Add chapters without submissions
         for assignment in assignments:
+            assignment_id = assignment.get("id", "")
             chapter = assignment.get("chapter", "Uncategorized")
-            if chapter not in chapter_performances:
-                chapter_performances[chapter] = {
-                    "id": chapter,
-                    "title": chapter,
+            assignment_title = assignment.get("title", "")
+            
+            if assignment_id not in chapter_performances:
+                chapter_performances[assignment_id] = {
+                    "id": assignment_id,
+                    "title": assignment_title,
+                    "chapter": chapter,
                     "score": 0,
                     "total": assignment.get("points", 0),
                     "completed": False
                 }
-            elif not chapter_performances[chapter]["completed"]:
-                chapter_performances[chapter]["total"] += assignment.get("points", 0)
+            elif not chapter_performances[assignment_id]["completed"]:
+                chapter_performances[assignment_id]["total"] += assignment.get("points", 0)
         
         return {
             "user": {
