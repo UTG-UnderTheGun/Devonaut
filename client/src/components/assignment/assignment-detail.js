@@ -8,6 +8,7 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   const [currentExercise, setCurrentExercise] = useState(0);
   const [showStatus, setShowStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [sections, setSections] = useState([]);
   const [students, setStudents] = useState([]);
@@ -341,6 +342,40 @@ def binary_search(arr, target):
     { id: 'fill', label: 'Fill in' }
   ];
 
+  const handleDelete = async () => {
+    try {
+      setLoading(true);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete assignment');
+      }
+
+      setStatusMessage('Assignment deleted successfully!');
+      setShowStatus(true);
+      setTimeout(() => {
+        setShowStatus(false);
+        onBack(); // Navigate back to assignments list
+      }, 2000);
+    } catch (err) {
+      setError(err.message);
+      setStatusMessage('Error deleting assignment: ' + err.message);
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 3000);
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   if (loading && !assignment) {
     return (
       <div className="loading-container">
@@ -408,8 +443,29 @@ def binary_search(arr, target):
           <button onClick={handleSave} className="save-button" disabled={loading}>
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
+          <button onClick={() => setShowDeleteConfirm(true)} className="delete-button" disabled={loading}>
+            Delete
+          </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="confirm-modal">
+          <div className="confirm-dialog">
+            <h3>Delete Assignment</h3>
+            <p>Are you sure you want to delete this assignment? This action cannot be undone.</p>
+            <div className="confirm-actions">
+              <button onClick={() => setShowDeleteConfirm(false)} className="cancel-button">
+                Cancel
+              </button>
+              <button onClick={handleDelete} className="confirm-delete-button">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="main-content-detail">
         {/* Left Panel */}
