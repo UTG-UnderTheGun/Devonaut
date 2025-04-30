@@ -346,15 +346,93 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
   const fetchData = async () => {
     try {
-      // Use mock data only
-      setAssignment(mockAssignment);
-      setSubmission(mockSubmission);
+      // Define API base URL
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      // Fetch assignment details
+      const assignmentResponse = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      
+      if (!assignmentResponse.ok) {
+        throw new Error(`Failed to fetch assignment: ${assignmentResponse.status}`);
+      }
+      
+      const assignmentData = await assignmentResponse.json();
+      setAssignment(assignmentData);
+      
+      // First, look up the user by student_id to get the MongoDB user_id
+      let mongoUserId = studentId; // Default to using the provided ID
+      
+      try {
+        const userLookupResponse = await fetch(`${API_BASE}/users/student-lookup/${studentId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (userLookupResponse.ok) {
+          const userData = await userLookupResponse.json();
+          mongoUserId = userData.user_id; // Use the MongoDB user_id for submission lookup
+          console.log(`Mapped student_id ${studentId} to MongoDB user_id ${mongoUserId}`);
+        } else {
+          // If lookup fails, continue with the original studentId
+          console.warn(`Could not find user with student_id ${studentId}, using ID as-is`);
+        }
+      } catch (userLookupError) {
+        console.error("Error looking up user:", userLookupError);
+        // Continue with original ID
+      }
+      
+      // Fetch student submission using the MongoDB user_id
+      try {
+        const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${mongoUserId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (submissionResponse.ok) {
+          const submissionData = await submissionResponse.json();
+          setSubmission(submissionData);
+          console.log("Submission loaded successfully:", submissionData);
+        } else {
+          // If submission not found, create a placeholder
+          console.log("No submission found, creating placeholder");
+          setSubmission({
+            id: null,
+            assignment_id: assignmentId,
+            user_id: mongoUserId,
+            username: "Unknown Student",
+            section: "Unknown",
+            status: "pending",
+            submitted_at: null,
+            answers: {},
+            comments: []
+          });
+        }
+      } catch (submissionError) {
+        console.error("Error fetching submission:", submissionError);
+        // Use mock data as fallback
+        setSubmission(mockSubmission);
+      }
+      
+      // Use mock data for these for now
       setCodeHistory(mockCodeHistory);
       setKeystrokeHistory(mockKeystrokeHistory);
       setAiChatHistory(mockAiChatHistory);
     } catch (err) {
       setError(err.message);
-      console.error('Error setting mock data:', err);
+      console.error('Error fetching assignment data:', err);
+      
+      // Fallback to mock data
+      setAssignment(mockAssignment);
+      setSubmission(mockSubmission);
+      setCodeHistory(mockCodeHistory);
+      setKeystrokeHistory(mockKeystrokeHistory);
+      setAiChatHistory(mockAiChatHistory);
     }
   };
 

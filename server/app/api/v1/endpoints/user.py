@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from bson import ObjectId
 from app.db.schemas import UserProfile
-from app.services.user_service import update_user_profile
+from app.services.user_service import update_user_profile, get_user_by_student_id
 from app.services.assignment_service import get_assignments_for_student
 
 router = APIRouter()
@@ -506,4 +506,45 @@ async def get_students_by_section(current_user: dict = Depends(get_current_user)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch students by section: {str(e)}"
+        )
+
+@router.get("/student-lookup/{student_id}", response_model=UserResponse)
+async def get_user_by_student_id_endpoint(
+    student_id: str,
+    current_user=Depends(get_current_user)
+):
+    """
+    Get a user by their student ID (institutional ID)
+    """
+    try:
+        # Check authorization
+        auth_user, auth_user_id = current_user
+        
+        print(f"Looking up user with student_id: {student_id}")
+        
+        # Use the service function to get the user
+        user = await get_user_by_student_id(student_id)
+        
+        print(f"Found user: {user.get('username')} with MongoDB ID: {user['_id']}")
+        
+        # Format response
+        return {
+            "username": user.get("username", ""),
+            "user_id": user["_id"],  # Already a string from the service
+            "name": user.get("name"),
+            "student_id": user.get("student_id"),
+            "section": user.get("section"),
+            "skill_level": user.get("skill_level"),
+            "email": user.get("email")
+        }
+        
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        print(f"HTTP error in student lookup: {e.detail}")
+        raise
+    except Exception as e:
+        print(f"Error in student lookup: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve user: {str(e)}"
         )
