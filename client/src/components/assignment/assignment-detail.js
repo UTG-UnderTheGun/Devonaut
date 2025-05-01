@@ -136,6 +136,26 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     }));
   };
 
+  // Function to handle exercise type change
+  const handleExerciseTypeChange = (type) => {
+    // Make sure we preserve existing code content across different exercise types
+    const currentEx = assignment.exercises[currentExercise];
+    const updatedExercise = {
+      ...currentEx,
+      type: type,
+      // Make sure the code field is initialized properly
+      code: currentEx.code || ""
+    };
+    
+    const updatedExercises = [...assignment.exercises];
+    updatedExercises[currentExercise] = updatedExercise;
+    
+    setAssignment(prev => ({
+      ...prev,
+      exercises: updatedExercises
+    }));
+  };
+
   const handleAddExercise = () => {
     const newId = `exercise_${Date.now()}`;
     
@@ -623,32 +643,6 @@ def binary_search(arr, target):
                         />
                       </div>
                     )}
-
-                    {currentExerciseData.type === "explain" && (
-                      <div className="form-group">
-                        <label>Code to Explain</label>
-                        <textarea
-                          value={currentExerciseData.code || ""}
-                          onChange={(e) => handleExerciseChange('code', e.target.value)}
-                          className="form-textarea"
-                          rows="3"
-                          placeholder="Enter code for students to explain"
-                        />
-                      </div>
-                    )}
-
-                    {currentExerciseData.type === "fill" && (
-                      <div className="form-group">
-                        <label>Code Template (use ___ for blanks)</label>
-                        <textarea
-                          value={currentExerciseData.code || ""}
-                          onChange={(e) => handleExerciseChange('code', e.target.value)}
-                          className="form-textarea"
-                          rows="3"
-                          placeholder="def function(x):\n    return x + ___"
-                        />
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -769,7 +763,7 @@ def binary_search(arr, target):
                     <button
                       key={type.id}
                       className={`code-type-button ${currentExerciseData?.type === type.id ? 'active' : ''}`}
-                      onClick={() => handleExerciseChange('type', type.id)}
+                      onClick={() => handleExerciseTypeChange(type.id)}
                     >
                       {type.label}
                     </button>
@@ -779,8 +773,16 @@ def binary_search(arr, target):
             </div>
             <div className="code-area-wrapper">
               <textarea
-                value={currentExerciseData?.starter_code || ""}
-                onChange={(e) => handleExerciseChange('starter_code', e.target.value)}
+                value={
+                  currentExerciseData?.type === 'coding'
+                    ? currentExerciseData?.starter_code || ""
+                    : currentExerciseData?.code || ""
+                }
+                onChange={(e) => 
+                  currentExerciseData?.type === 'coding'
+                    ? handleExerciseChange('starter_code', e.target.value)
+                    : handleExerciseChange('code', e.target.value)
+                }
                 className="code-area"
                 spellCheck="false"
                 placeholder={getPlaceholderForType(currentExerciseData?.type)}
