@@ -29,7 +29,7 @@ export default function CodingPage() {
   const router = useRouter();
 
   const [user_id, setUser_id] = useState(null);
-  const [code, setCode] = useState("# write code here");
+  const [code, setCode] = useState("");
   const [title, setTitle] = useState("solution.py");
   const [description, setDescription] = useState("");
   const [isConsoleFolded, setIsConsoleFolded] = useState(false);

@@ -547,32 +547,6 @@ def binary_search(arr, target):
                         />
                       </div>
                     )}
-
-                    {currentExerciseData.type === "explain" && (
-                      <div className="form-group">
-                        <label>Code to Explain</label>
-                        <textarea
-                          value={currentExerciseData.code || ""}
-                          onChange={(e) => handleExerciseChange('code', e.target.value)}
-                          className="form-textarea"
-                          rows="3"
-                          placeholder="Enter code for students to explain"
-                        />
-                      </div>
-                    )}
-
-                    {currentExerciseData.type === "fill" && (
-                      <div className="form-group">
-                        <label>Code Template (use ___ for blanks)</label>
-                        <textarea
-                          value={currentExerciseData.code || ""}
-                          onChange={(e) => handleExerciseChange('code', e.target.value)}
-                          className="form-textarea"
-                          rows="3"
-                          placeholder="def function(x):\n    return x + ___"
-                        />
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -703,8 +677,16 @@ def binary_search(arr, target):
             </div>
             <div className="code-area-wrapper">
               <textarea
-                value={currentExerciseData?.starter_code || ""}
-                onChange={(e) => handleExerciseChange('starter_code', e.target.value)}
+                value={
+                  currentExerciseData?.type === 'coding'
+                    ? currentExerciseData?.starter_code || ""
+                    : currentExerciseData?.code || ""
+                }
+                onChange={(e) => 
+                  currentExerciseData?.type === 'coding'
+                    ? handleExerciseChange('starter_code', e.target.value)
+                    : handleExerciseChange('code', e.target.value)
+                }
                 className="code-area"
                 spellCheck="false"
                 placeholder={getPlaceholderForType(currentExerciseData?.type)}

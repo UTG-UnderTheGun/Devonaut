@@ -5,7 +5,7 @@ const CodeContext = createContext();
 
 // เพิ่ม code ใน initialState
 const initialState = {
-  code: '# write code here', // เพิ่มบรรทัดนี้
+  code: '', // เปลี่ยนจาก '# write code here' เป็น string ว่าง
   output: '',
   error: null,
   openTerm: false,

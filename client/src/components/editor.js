@@ -62,7 +62,6 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
   // Save code changes to localStorage - only store in ONE location to prevent duplicates
   useEffect(() => {
     if (code === undefined || code === null) return;
-    if (code === '# write code here') return;
     
     // Check if we're in a reset state
     const wasReset = localStorage.getItem('editor_reset_timestamp');
