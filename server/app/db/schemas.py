@@ -327,6 +327,8 @@ class CodeHistory(BaseModel):
     user_id: Optional[str] = None  # Will be set by the server
     username: Optional[str] = None  # Store the username for easier identification
     problem_index: Optional[int] = None
+    exercise_id: Optional[str] = None  # Added to track specific exercise
+    assignment_id: Optional[str] = None  # Added to track specific assignment
     test_type: Optional[str] = None
     code: str  # Only required field from client
     output: Optional[str] = None
@@ -342,6 +344,8 @@ class CodeHistory(BaseModel):
                 "user_id": "user123",
                 "username": "johndoe",
                 "problem_index": 1,
+                "exercise_id": "exercise123",
+                "assignment_id": "assignment456",
                 "test_type": "code",
                 "code": "print('Hello, world!')",
                 "output": "Hello, world!",
@@ -361,6 +365,8 @@ class SkillLevel(BaseModel):
 class KeystrokeData(BaseModel):
     code: str
     problem_index: int
+    exercise_id: Optional[str] = None  # Added to track specific exercise
+    assignment_id: Optional[str] = None  # Added to track specific assignment
     test_type: str
     cursor_position: Optional[dict] = None
     timestamp: Optional[datetime] = None

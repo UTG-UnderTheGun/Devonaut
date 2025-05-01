@@ -38,6 +38,9 @@ const Header = () => {
   const menuRef = useRef(null)
   const profileRef = useRef(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importedCode, setImportedCode] = useState('');
+  const [assignmentId, setAssignmentId] = useState('');
   const [userData, setUserData] = useState({
     username: '',
     fullName: '',
@@ -61,91 +64,174 @@ const Header = () => {
 
   const handleSubmitCode = async () => {
     try {
-      // Confirm submission
-      if (!confirm("Are you sure you want to submit this assignment? You won't be able to make changes after submission.")) {
-        return;
-      }
-
-      console.log('Submitting assignment...');
+      setIsSubmitting(true);
       
-      // Get assignment ID from URL if available
-      const urlParams = new URLSearchParams(window.location.search);
-      const assignmentId = urlParams.get('assignment');
+      // Make sure we have the assignment ID
+      const currentAssignmentId = assignmentId || localStorage.getItem('current-assignment-id');
       
-      if (!assignmentId) {
-        console.error('No assignment ID found in URL');
+      // Check if we have an assignment ID
+      if (!currentAssignmentId) {
+        console.error('No assignment ID found');
         alert('Cannot submit: No assignment ID found. Make sure you are working on an assigned task.');
+        setIsSubmitting(false);
         return;
       }
+      
+      console.log(`Preparing to submit assignment ID: ${currentAssignmentId}`);
+      
+      // Get current code from the editor
+      const currentCode = await importedCode || 
+                           localStorage.getItem(`code-${currentAssignmentId}`) || 
+                           '';
+      
+      // Get answers from localStorage
+      const answersString = localStorage.getItem('problem-answers');
+      let answers = {};
+      
+      try {
+        if (answersString) {
+          answers = JSON.parse(answersString);
+        }
+      } catch (e) {
+        console.warn('Could not parse answers from localStorage', e);
+      }
+      
+      // Get outputs from localStorage
+      const outputsString = localStorage.getItem('problem-outputs');
+      let outputs = {};
+      
+      try {
+        if (outputsString) {
+          outputs = JSON.parse(outputsString);
+        }
+      } catch (e) {
+        console.warn('Could not parse outputs from localStorage', e);
+      }
+      
+      // Get current exercise from localStorage
+      const currentExerciseString = localStorage.getItem('current-exercise-id');
+      let currentExerciseId = null;
+      
+      try {
+        if (currentExerciseString) {
+          currentExerciseId = JSON.parse(currentExerciseString);
+        }
+      } catch (e) {
+        console.warn('Could not parse current exercise ID from localStorage', e);
+      }
+      
+      // Organize the answers as per the required schema (Dict[int, Any])
+      const formattedAnswers = {};
+      
+      // Process all answers and organize by exercise ID as the key
+      // First handle any direct exercises stored with numeric keys
+      Object.keys(answers).forEach(key => {
+        if (!isNaN(Number(key))) {
+          formattedAnswers[key] = answers[key];
+        }
+      });
 
-      // Collect all answers from localStorage
-      let submissionData = {
-        // Code and output from context
-        code: code || '',
-        output: output || '',
-        error: error || '',
-        
-        // Problem-specific answers
-        answers: {},
-        
-        // Additional metadata
+      // Handle blank answers (format: blank-exerciseId-index)
+      Object.keys(answers).forEach(key => {
+        if (key.startsWith('blank-')) {
+          const parts = key.split('-');
+          if (parts.length >= 2) {
+            const exerciseId = parts[1];
+            if (!formattedAnswers[exerciseId]) {
+              formattedAnswers[exerciseId] = {};
+            }
+            if (typeof formattedAnswers[exerciseId] === 'object') {
+              formattedAnswers[exerciseId][key] = answers[key];
+            }
+          }
+        }
+      });
+      
+      // Handle coding answers - store them directly with the exercise ID
+      Object.keys(answers).forEach(key => {
+        if (key.startsWith('coding-')) {
+          const parts = key.split('-');
+          if (parts.length >= 2) {
+            const exerciseId = parts[1];
+            formattedAnswers[exerciseId] = answers[key];
+          }
+        }
+      });
+      
+      // Process output answers
+      Object.keys(outputs).forEach(key => {
+        formattedAnswers[key] = outputs[key];
+      });
+      
+      // If we have current code and current exercise, store it directly
+      // This is critical for coding exercises
+      if (currentCode && currentExerciseId) {
+        // Get the current exercise to check its type
+        try {
+          // Try to get saved problems to find the current exercise
+          const savedProblemsJson = localStorage.getItem('saved-problems');
+          if (savedProblemsJson) {
+            const savedProblems = JSON.parse(savedProblemsJson);
+            // Find the current exercise
+            const currentExercise = savedProblems.find(ex => 
+              ex.id === currentExerciseId || 
+              String(ex.id) === String(currentExerciseId)
+            );
+            
+            // If this is a coding exercise, store the current code as the answer
+            if (currentExercise && (currentExercise.type === 'coding' || currentExercise.type === 'code')) {
+              console.log(`Storing coding answer for exercise ${currentExerciseId}: ${currentCode.substring(0, 30)}...`);
+              formattedAnswers[currentExerciseId] = currentCode;
+            }
+          }
+        } catch (e) {
+          console.warn('Error checking current exercise type:', e);
+          // As a fallback, assume this might be a coding exercise and store the code
+          formattedAnswers[currentExerciseId] = currentCode;
+        }
+      }
+      
+      // Also check for any editor code that might be stored for a coding exercise
+      try {
+        const editorCode = localStorage.getItem('editorCode');
+        if (editorCode && currentExerciseId) {
+          // If we haven't already stored code for this exercise, store it now
+          if (!formattedAnswers[currentExerciseId] || formattedAnswers[currentExerciseId] === '') {
+            formattedAnswers[currentExerciseId] = editorCode;
+            console.log(`Storing editor code for exercise ${currentExerciseId}`);
+          }
+        }
+      } catch (e) {
+        console.warn('Error getting editor code:', e);
+      }
+
+      // Get user details from localStorage or session
+      const username = userData.username || localStorage.getItem('username') || sessionStorage.getItem('username') || '';
+      const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id') || '';
+
+      // Prepare submission data according to the schema
+      const submissionData = {
+        id: String(Date.now()), // Generate a timestamp-based ID as per schema
+        assignment_id: currentAssignmentId,
+        user_id: userId,
+        username: username,
+        answers: formattedAnswers, // Using the Dict[int, Any] format required
+        status: "pending",
         submitted_at: new Date().toISOString(),
-        action_type: 'submit'
       };
 
-      // Get code answers
-      try {
-        const savedCode = localStorage.getItem(`code-${assignmentId}`);
-        if (savedCode) {
-          submissionData.code = savedCode;
-        }
-      } catch (e) {
-        console.warn('Could not get saved code', e);
+      // Confirm submission
+      if (!confirm("Are you sure you want to submit this assignment? You won't be able to make changes after submission.")) {
+        setIsSubmitting(false);
+        return;
       }
 
-      // Get output/explain answers
-      try {
-        const savedOutputs = localStorage.getItem('problem-outputs');
-        if (savedOutputs) {
-          submissionData.answers.outputs = JSON.parse(savedOutputs);
-        }
-      } catch (e) {
-        console.warn('Could not parse saved outputs', e);
-      }
-
-      // Get fill-in-blank answers
-      try {
-        const savedAnswers = localStorage.getItem('problem-answers');
-        if (savedAnswers) {
-          submissionData.answers.blanks = JSON.parse(savedAnswers);
-        }
-      } catch (e) {
-        console.warn('Could not parse saved answers', e);
-      }
-
-      // Get any keystrokes history from localStorage
-      try {
-        const keystrokeHistory = localStorage.getItem(`keystrokes-${assignmentId}`);
-        if (keystrokeHistory) {
-          submissionData.keystroke_history = JSON.parse(keystrokeHistory);
-        }
-      } catch (e) {
-        console.warn('Could not parse keystroke history', e);
-      }
-
-      // Get code run history from localStorage
-      try {
-        const codeHistory = localStorage.getItem(`code-history-${assignmentId}`);
-        if (codeHistory) {
-          submissionData.code_history = JSON.parse(codeHistory);
-        }
-      } catch (e) {
-        console.warn('Could not parse code history', e);
-      }
+      console.log('Submitting assignment with data:', submissionData);
       
       // Submit to the backend
+      console.log(`Submitting to: ${API_BASE}/assignments/${currentAssignmentId}/submit`);
       const response = await axios.post(
-        `${API_BASE}/assignments/${assignmentId}/submit`, 
+        `${API_BASE}/assignments/${currentAssignmentId}/submit`, 
         submissionData,
         { withCredentials: true }
       );
@@ -156,15 +242,17 @@ const Header = () => {
         
         // Clear localStorage of all data related to this assignment
         const keysToRemove = [
-          `code-${assignmentId}`,
+          `code-${currentAssignmentId}`,
           'problem-outputs',
           'problem-answers',
-          `keystrokes-${assignmentId}`,
-          `code-history-${assignmentId}`,
+          `keystrokes-${currentAssignmentId}`,
+          `code-history-${currentAssignmentId}`,
           'saved-problems',
           'problem-code',
           'editor-code',
-          'is-imported'
+          'is-imported',
+          'current-assignment-id',
+          'current-exercise-id'
         ];
 
         keysToRemove.forEach(key => {
@@ -183,6 +271,8 @@ const Header = () => {
     } catch (err) {
       console.error('Error submitting assignment:', err);
       alert('Failed to submit assignment: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -319,6 +409,57 @@ const Header = () => {
     return 'U'; // Ultimate fallback is "U" for User
   };
 
+  // Extract assignment ID from the URL when component mounts
+  useEffect(() => {
+    const getAssignmentId = () => {
+      // Check multiple potential sources for assignment ID
+      let id = null;
+      
+      // Check URL parameters (priority source)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        id = urlParams.get('assignment');
+        
+        // If not in query params, check path for pattern like /assignment/1234
+        if (!id && pathname) {
+          const pathMatches = pathname.match(/\/assignment\/([^\/]+)/);
+          if (pathMatches && pathMatches.length > 1) {
+            id = pathMatches[1];
+          }
+        }
+        
+        // Check URL for pattern like /coding?id=1234
+        if (!id) {
+          const urlParams = new URLSearchParams(window.location.search);
+          id = urlParams.get('id');
+        }
+      }
+      
+      // Check localStorage as fallback
+      if (!id) {
+        id = localStorage.getItem('current-assignment-id');
+      }
+      
+      if (id) {
+        // Save to state and localStorage for persistence
+        setAssignmentId(id);
+        localStorage.setItem('current-assignment-id', id);
+        console.log(`Assignment ID found: ${id}`);
+      } else {
+        console.warn('No assignment ID found in URL or localStorage');
+      }
+      
+      return id;
+    };
+    
+    const id = getAssignmentId();
+    
+    // If we're on a coding page but don't have an ID, log a warning
+    if (isCodingPage && !id) {
+      console.warn('On coding page but no assignment ID found');
+    }
+  }, [pathname, isCodingPage]);
+
   // Show loading screen ONLY when logging out
   if (isLoggingOut) {
     return <Loading />;
@@ -348,9 +489,9 @@ const Header = () => {
                 <span className="action-icon">▶</span>
                 Run
               </button> */}
-              <button onClick={handleSubmitCode} className="action-button submit">
+              <button onClick={handleSubmitCode} className="action-button submit" disabled={isSubmitting}>
                 <span className="action-icon">⬆</span>
-                Submit
+                {isSubmitting ? 'Submitting...' : 'Submit'}
               </button>
             </div>
           )}

@@ -134,8 +134,20 @@ export default function CodingPage() {
       };
 
       fetchAssignment();
+      
+      // Add window focus listener to refresh assignment data when user returns to the page
+      const handleFocus = () => {
+        console.log('Window focused, refreshing assignment data');
+        fetchAssignment();
+      };
+      
+      window.addEventListener('focus', handleFocus);
+      
+      return () => {
+        window.removeEventListener('focus', handleFocus);
+      };
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Complete clearing of conversation history and interface state
   const handleClearImport = async () => {

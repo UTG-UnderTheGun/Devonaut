@@ -301,9 +301,26 @@ async def get_user_dashboard(
             student_section=user.get("section")
         )
         
+        # Always fetch fresh data for each assignment
+        fresh_assignments = []
+        for assignment in assignments:
+            # Get the latest version of each assignment
+            try:
+                latest_assignment = await request.app.mongodb["assignments"].find_one({"_id": ObjectId(assignment["id"])})
+                if latest_assignment:
+                    # Convert ObjectId to string
+                    latest_assignment["id"] = str(latest_assignment["_id"])
+                    del latest_assignment["_id"]
+                    fresh_assignments.append(latest_assignment)
+                else:
+                    fresh_assignments.append(assignment)
+            except Exception as e:
+                print(f"Error refreshing assignment {assignment.get('id')}: {str(e)}")
+                fresh_assignments.append(assignment)
+        
         # Format the data for the dashboard
         formatted_assignments = []
-        for assignment in assignments:
+        for assignment in fresh_assignments:
             try:
                 # Calculate progress based on submission status
                 progress = 0  # Default to 0
@@ -362,7 +379,7 @@ async def get_user_dashboard(
                     formatted_assignment["link"] = f"/feedback?assignment={assignment['id']}"
                 
                 # Add score and feedback info for graded assignments
-                if submission and submission["status"] == "graded" and "score" in submission:
+                if submission and submission["status"] == "graded":
                     formatted_assignment["score"] = submission["score"]
                     formatted_assignment["feedback"] = submission.get("feedback", {})
                     formatted_assignment["graded_at"] = submission.get("graded_at")

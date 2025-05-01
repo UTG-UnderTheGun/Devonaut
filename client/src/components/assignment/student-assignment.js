@@ -362,10 +362,17 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       
       const assignmentData = await assignmentResponse.json();
       setAssignment(assignmentData);
+      console.log("Assignment loaded successfully:", assignmentData);
       
       // Set exercises from assignment data
       if (assignmentData.exercises && assignmentData.exercises.length > 0) {
         setExercises(assignmentData.exercises);
+        
+        // เพิ่ม log เพื่อตรวจสอบประเภทของแต่ละข้อ
+        console.log("EXERCISE TYPES:");
+        assignmentData.exercises.forEach((ex, idx) => {
+          console.log(`Exercise ${idx+1} (ID: ${ex.id}) - Type: ${ex.type}`);
+        });
       } else {
         setExercises(mockExercises); // Fallback to mock if no exercises
         console.warn("No exercises found in assignment data, using mock data");
@@ -407,9 +414,13 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           setSubmission(submissionData);
           console.log("Submission loaded successfully:", submissionData);
           
-          // Set answers from submission data
+          // ดึงคำตอบจาก submission โดยตรง ง่ายๆ
           if (submissionData.answers) {
+            console.log("RAW SUBMISSION ANSWERS:", submissionData.answers);
             setAnswers(submissionData.answers);
+          } else {
+            console.warn("No answers found in submission data");
+            setAnswers({});
           }
         } else {
           // If submission not found, create a placeholder
@@ -448,11 +459,15 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           
           // Organize code history into coding activity structure
           const activity = {};
-          if (exercises.length > 0) {
-            exercises.forEach(exercise => {
+          if (assignmentData.exercises && assignmentData.exercises.length > 0) {
+            assignmentData.exercises.forEach(exercise => {
               // Filter history for this exercise and sort by timestamp
               const exerciseHistory = historyData
-                .filter(item => item.problem_index === exercise.id)
+                .filter(item => {
+                  // Match by exercise_id if available, otherwise by problem_index
+                  return (item.exercise_id && item.exercise_id === exercise.id) || 
+                         (item.problem_index === exercise.id);
+                })
                 .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
                 
               // Map to the format expected by the UI
@@ -469,7 +484,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         } else {
           // Fallback to mock data
           console.warn("Failed to fetch code history, using mock data");
-          setCodeHistory(mockCodeHistory);
+      setCodeHistory(mockCodeHistory);
           setCodingActivity(mockCodingActivity);
         }
       } catch (historyError) {
@@ -491,17 +506,18 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           
           // Transform the data into the format expected by the UI
           const formattedKeystrokeData = keystrokeData.map(item => ({
-            day: item._id.day,
+            day: item.day,
             count: item.count,
-            action_type: item._id.action_type,
-            problem_index: item._id.problem_index
+            action_type: item.action_type,
+            problem_index: item.problem_index,
+            exercise_id: item.exercise_id
           }));
           
           setKeystrokeHistory(formattedKeystrokeData);
           console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
         } else {
           console.warn("Failed to fetch keystroke history, using mock data");
-          setKeystrokeHistory(mockKeystrokeHistory);
+      setKeystrokeHistory(mockKeystrokeHistory);
         }
       } catch (keystrokeError) {
         console.error("Error fetching keystroke history:", keystrokeError);
@@ -543,7 +559,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           console.log("AI chat history loaded successfully:", chatHistories);
         } else {
           console.warn("No exercises found, using mock AI chat history");
-          setAiChatHistory(mockAiChatHistory);
+      setAiChatHistory(mockAiChatHistory);
         }
       } catch (chatError) {
         console.error("Error fetching AI chat history:", chatError);
@@ -568,7 +584,27 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
   useEffect(() => {
     fetchData();
+    
+    // Initialize current exercise ID in localStorage
+    if (exercises.length > 0) {
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[0].id));
+      } catch (e) {
+        console.warn('Could not initialize current exercise ID in localStorage', e);
+      }
+    }
   }, [studentId, assignmentId]);
+  
+  // Update localStorage when exercises change
+  useEffect(() => {
+    if (exercises.length > 0 && currentExerciseIndex < exercises.length) {
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[currentExerciseIndex].id));
+      } catch (e) {
+        console.warn('Could not update current exercise ID in localStorage', e);
+      }
+    }
+  }, [exercises, currentExerciseIndex]);
 
   const handleBack = () => {
     router.push('/teacher/dashboard');
@@ -651,8 +687,8 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleString();
+    const date = new Date(dateString);
+    return date.toLocaleString();
     } catch (e) {
       console.error("Error formatting date:", e);
       return String(dateString);
@@ -703,15 +739,29 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
   const handleNextExercise = () => {
     if (currentExerciseIndex < exercises.length - 1) {
-      setCurrentExerciseIndex(prev => prev + 1);
+      setCurrentExerciseIndex(currentExerciseIndex + 1);
       setTimelinePosition(0);
+      
+      // Save current exercise ID to localStorage for submission tracking
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[currentExerciseIndex + 1].id));
+      } catch (e) {
+        console.warn('Could not save current exercise ID to localStorage', e);
+      }
     }
   };
 
   const handlePrevExercise = () => {
     if (currentExerciseIndex > 0) {
-      setCurrentExerciseIndex(prev => prev - 1);
+      setCurrentExerciseIndex(currentExerciseIndex - 1);
       setTimelinePosition(0);
+      
+      // Save current exercise ID to localStorage for submission tracking
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[currentExerciseIndex - 1].id));
+      } catch (e) {
+        console.warn('Could not save current exercise ID to localStorage', e);
+      }
     }
   };
 
@@ -838,19 +888,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   {exercises[currentExerciseIndex].description}
                 </p>
 
-                {exercises[currentExerciseIndex].type === 'output' && (
+                {(exercises[currentExerciseIndex].type === 'output' || 
+                  exercises[currentExerciseIndex].type === 'explain' || 
+                  exercises[currentExerciseIndex].type === 'Output' || 
+                  exercises[currentExerciseIndex].type === 'Explain') && (
                   <div className="exercise-output">
-                    <h4>Code:</h4>
-                    <pre className="code-display">
-                      <code>{exercises[currentExerciseIndex].code}</code>
-                    </pre>
                     <h4>Student's Answer:</h4>
                     <div className="answer-display">
-                      {typeof answers[exercises[currentExerciseIndex].id] === 'object' 
-                        ? (answers[exercises[currentExerciseIndex].id].code 
-                          ? answers[exercises[currentExerciseIndex].id].code 
-                          : JSON.stringify(answers[exercises[currentExerciseIndex].id], null, 2))
-                        : answers[exercises[currentExerciseIndex].id]}
+                      {(() => {
+                        const exerciseId = exercises[currentExerciseIndex].id;
+                        const exerciseNumber = currentExerciseIndex + 1;
+                        const exerciseType = exercises[currentExerciseIndex].type;
+                        console.log(`Looking for OUTPUT/EXPLAIN answer for exercise ${exerciseNumber} (ID: ${exerciseId}, Type: ${exerciseType})`, answers);
+                        
+                        // ใช้เลขข้อโดยตรง - ดูจากรูปแล้วใช้ตัวเลขเป็นคีย์
+                        const answer = answers[exerciseNumber] || answers[String(exerciseNumber)];
+                        
+                        if (answer) {
+                          console.log(`Found answer for exercise ${exerciseNumber}:`, answer);
+                          if (typeof answer === 'string') {
+                            return answer;
+                          } else if (typeof answer === 'object') {
+                            return JSON.stringify(answer);
+                          }
+                        }
+                        
+                        console.log(`No answer found for exercise ${exerciseNumber}`);
+                        return "No answer submitted";
+                      })()}
                     </div>
                   </div>
                 )}
@@ -863,11 +928,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                     </pre>
                     <h4>Student's Answer:</h4>
                     <div className="answer-display">
-                      {typeof answers[exercises[currentExerciseIndex].id] === 'object' 
-                        ? (answers[exercises[currentExerciseIndex].id].code 
-                          ? answers[exercises[currentExerciseIndex].id].code 
-                          : JSON.stringify(answers[exercises[currentExerciseIndex].id], null, 2))
-                        : answers[exercises[currentExerciseIndex].id]}
+                      {(() => {
+                        const exerciseNumber = currentExerciseIndex + 1;
+                        console.log(`Looking for fill answer for exercise ${exerciseNumber}`, answers);
+                        
+                        // ใช้เลขข้อโดยตรง
+                        const answer = answers[exerciseNumber] || answers[exerciseNumber.toString()];
+                        
+                        if (answer) {
+                          if (typeof answer === 'object') {
+                            return (
+                              <div>
+                                {Object.entries(answer).map(([key, value], i) => {
+                                  const blankIndex = key.split('-').pop();
+                                  return (
+                                    <div key={i} className="blank-answer">
+                                      <strong>Blank {blankIndex}:</strong> {value}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else if (typeof answer === 'string') {
+                            return answer;
+                          }
+                        }
+                        
+                        return "No answer submitted";
+                      })()}
                     </div>
                   </div>
                 )}
@@ -876,11 +964,76 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   <div className="exercise-coding">
                     <h4>Student's Code:</h4>
                     <pre className="code-display">
-                      <code>{typeof answers[exercises[currentExerciseIndex].id] === 'object' 
-                        ? (answers[exercises[currentExerciseIndex].id].code 
-                          ? answers[exercises[currentExerciseIndex].id].code 
-                          : JSON.stringify(answers[exercises[currentExerciseIndex].id], null, 2))
-                        : answers[exercises[currentExerciseIndex].id]}</code>
+                      <code>{(() => {
+                        const exerciseId = exercises[currentExerciseIndex].id;
+                        const exerciseNumber = currentExerciseIndex + 1;
+                        console.log(`Looking for coding answer for exercise ${exerciseNumber} (ID: ${exerciseId})`, answers);
+                        
+                        // ดึงข้อมูลจากทุกรูปแบบที่เป็นไปได้และแสดงเพื่อตรวจสอบ
+                        const answerById = answers[exerciseId];
+                        const answerByStringId = answers[String(exerciseId)];
+                        const answerByNumber = answers[exerciseNumber]; 
+                        const answerByStringNumber = answers[String(exerciseNumber)];
+                        
+                        console.log(`Answer by ID (${exerciseId}):`, answerById);
+                        console.log(`Answer by String ID (${String(exerciseId)}):`, answerByStringId);
+                        console.log(`Answer by Number (${exerciseNumber}):`, answerByNumber);
+                        console.log(`Answer by String Number (${String(exerciseNumber)}):`, answerByStringNumber);
+                        
+                        // ใช้เงื่อนไขที่เฉพาะเจาะจงสำหรับข้อ 5 และข้อ 6 เพื่อแก้ปัญหาข้อมูลซ้ำกัน
+                        // ในกรณีพิเศษสำหรับข้อ 5 และ 6 ที่เกิดปัญหา
+                        if (exerciseNumber === 5) {
+                          // พยายามค้นหาคำตอบสำหรับข้อ 5 โดยเฉพาะ
+                          const answer5 = answers["5"];
+                          if (answer5) {
+                            console.log("Found specific answer for exercise 5:", answer5);
+                            return answer5;
+                          }
+                        } else if (exerciseNumber === 6) {
+                          // พยายามค้นหาคำตอบสำหรับข้อ 6 โดยเฉพาะ
+                          const answer6 = answers["6"];
+                          if (answer6) {
+                            console.log("Found specific answer for exercise 6:", answer6);
+                            return answer6;
+                          }
+                        }
+                        
+                        // ใช้เลขข้อโดยตรง - ซึ่งควรจะแตกต่างกันแม้มีข้อมูลเดียวกัน
+                        const answer = answers[exerciseNumber] || answers[String(exerciseNumber)];
+                        
+                        if (answer) {
+                          console.log(`Found standard answer for exercise ${exerciseNumber}:`, answer);
+                          if (typeof answer === 'string') {
+                            return answer;
+                          } else if (typeof answer === 'object') {
+                            return JSON.stringify(answer, null, 2);
+                          }
+                        }
+                        
+                        // ถ้าไม่พบคำตอบที่เฉพาะเจาะจง ให้ใช้ fallback จากส่วนอื่น
+                        if (submission) {
+                          // ถ้ามีข้อมูลใน submission.code
+                          if (submission.code && submission.code.length > 0) {
+                            console.log(`Using global code from submission for exercise ${exerciseNumber}`);
+                            return submission.code;
+                          }
+                          
+                          // ถ้ามีข้อมูลใน submission.answers ที่เป็น object แต่ไม่ใช่ object ของ fill
+                          if (submission.answers && submission.answers[exerciseNumber] && 
+                              typeof submission.answers[exerciseNumber] === 'string') {
+                            console.log(`Using code from submission.answers for exercise ${exerciseNumber}`);
+                            return submission.answers[exerciseNumber];
+                          }
+                        }
+                        
+                        // ถ้าไม่มีคำตอบที่เหมาะสม ให้ใช้ starter code
+                        if (exercises[currentExerciseIndex].starter_code) {
+                          console.log(`Using starter code for exercise ${exerciseNumber}`);
+                          return exercises[currentExerciseIndex].starter_code;
+                        }
+                        
+                        return "No code submitted";
+                      })()}</code>
                     </pre>
                   </div>
                 )}
@@ -917,31 +1070,31 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                  codingActivity[exercises[currentExerciseIndex].id] &&
                  codingActivity[exercises[currentExerciseIndex].id].length > 0 ? (
                   <>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max={codingActivity[exercises[currentExerciseIndex].id].length - 1} 
-                      value={timelinePosition} 
-                      onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
-                      className="timeline-slider"
-                    />
-                    <div className="timeline-markers">
-                      {codingActivity[exercises[currentExerciseIndex].id].map((activity, idx) => (
-                        <div 
-                          key={activity.id}
-                          className={`timeline-marker ${activity.action} ${idx === timelinePosition ? 'active' : ''}`}
-                          style={{left: `${(idx / (codingActivity[exercises[currentExerciseIndex].id].length - 1)) * 100}%`}}
-                          onClick={() => setTimelinePosition(idx)}
-                          title={`${new Date(activity.timestamp).toLocaleTimeString()} - ${activity.action}`}
-                        >
-                          <span className="marker-tooltip">
-                            {new Date(activity.timestamp).toLocaleTimeString()}
-                            <br/>
-                            {activity.action}
-                          </span>
-                        </div>
-                      ))}
+                <input 
+                  type="range" 
+                  min="0" 
+                  max={codingActivity[exercises[currentExerciseIndex].id].length - 1} 
+                  value={timelinePosition} 
+                  onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
+                  className="timeline-slider"
+                />
+                <div className="timeline-markers">
+                  {codingActivity[exercises[currentExerciseIndex].id].map((activity, idx) => (
+                    <div 
+                      key={activity.id}
+                      className={`timeline-marker ${activity.action} ${idx === timelinePosition ? 'active' : ''}`}
+                      style={{left: `${(idx / (codingActivity[exercises[currentExerciseIndex].id].length - 1)) * 100}%`}}
+                      onClick={() => setTimelinePosition(idx)}
+                      title={`${new Date(activity.timestamp).toLocaleTimeString()} - ${activity.action}`}
+                    >
+                      <span className="marker-tooltip">
+                        {new Date(activity.timestamp).toLocaleTimeString()}
+                        <br/>
+                        {activity.action}
+                      </span>
                     </div>
+                  ))}
+                </div>
                   </>
                 ) : (
                   <div className="empty-state">No timeline data available for this exercise</div>
@@ -953,21 +1106,21 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                codingActivity[exercises[currentExerciseIndex].id].length > 0 &&
                timelinePosition < codingActivity[exercises[currentExerciseIndex].id].length ? (
                 <>
-                  <div className="timeline-info">
-                    <div className="current-position-info">
-                      <span>Time: {new Date(codingActivity[exercises[currentExerciseIndex].id][timelinePosition].timestamp).toLocaleTimeString()}</span>
-                      <span>Action: {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].action}</span>
-                    </div>
-                  </div>
+              <div className="timeline-info">
+                <div className="current-position-info">
+                  <span>Time: {new Date(codingActivity[exercises[currentExerciseIndex].id][timelinePosition].timestamp).toLocaleTimeString()}</span>
+                  <span>Action: {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].action}</span>
+                </div>
+              </div>
 
-                  <div className="code-display">
-                    <pre>
-                      <code>
-                        {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].code || 
-                         exercises[currentExerciseIndex].code}
-                      </code>
-                    </pre>
-                  </div>
+              <div className="code-display">
+                <pre>
+                  <code>
+                    {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].code || 
+                     exercises[currentExerciseIndex].code}
+                  </code>
+                </pre>
+              </div>
                 </>
               ) : null}
             </div>
@@ -1001,19 +1154,19 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 {exercises[currentExerciseIndex] && 
                  aiChatHistory[exercises[currentExerciseIndex].id] ? (
                   aiChatHistory[exercises[currentExerciseIndex].id].map((message) => (
-                    <div key={message.id} className={`chat-message ${message.role}`}>
-                      <div className="message-header">
-                        <span className="message-sender">
-                          {message.role === 'student' ? 'Student' : 'AI Assistant'}
-                        </span>
-                        <span className="message-time">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="message-content">
-                        {message.content}
-                      </div>
+                  <div key={message.id} className={`chat-message ${message.role}`}>
+                    <div className="message-header">
+                      <span className="message-sender">
+                        {message.role === 'student' ? 'Student' : 'AI Assistant'}
+                      </span>
+                      <span className="message-time">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </span>
                     </div>
+                    <div className="message-content">
+                      {message.content}
+                    </div>
+                  </div>
                   ))
                 ) : (
                   <div className="empty-state">No AI chat history available for this exercise</div>

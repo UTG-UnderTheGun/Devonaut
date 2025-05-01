@@ -220,6 +220,30 @@ async def update_assignment(db, assignment_id: str, assignment_data: AssignmentU
         update_data = {k: v for k, v in assignment_data.dict().items() if v is not None}
         update_data["updated_at"] = datetime.now()
         
+        # Handle assignment targeting if provided in the update
+        if "assignmentType" in update_data:
+            assignment_type = update_data.get("assignmentType", "all")
+            
+            if assignment_type == "all":
+                update_data["target"] = "all"
+                if "selectedStudents" in update_data:
+                    del update_data["selectedStudents"]
+                if "selectedSections" in update_data:
+                    del update_data["selectedSections"]
+            elif assignment_type == "section":
+                update_data["target"] = "section"
+                update_data["targetSections"] = update_data.get("selectedSections", [])
+                if "selectedStudents" in update_data:
+                    del update_data["selectedStudents"]
+            elif assignment_type == "specific":
+                update_data["target"] = "specific"
+                update_data["targetStudents"] = update_data.get("selectedStudents", [])
+                if "selectedSections" in update_data:
+                    del update_data["selectedSections"]
+            
+            # Remove the original assignment type field
+            del update_data["assignmentType"]
+        
         # Update in MongoDB
         result = await db["assignments"].update_one(
             {"_id": ObjectId(assignment_id)},
@@ -228,6 +252,17 @@ async def update_assignment(db, assignment_id: str, assignment_data: AssignmentU
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        # Update all related student submissions to make them see the updated assignment info
+        # Find all submissions for this assignment
+        submissions = await db["assignment_submissions"].find({"assignment_id": assignment_id}).to_list(length=100)
+        
+        # Mark each submission as having updates by adding a refresh flag
+        for submission in submissions:
+            await db["assignment_submissions"].update_one(
+                {"_id": submission["_id"]},
+                {"$set": {"last_assignment_update": datetime.now()}}
+            )
         
         # Return the updated assignment
         updated_assignment = await get_assignment_by_id(db, assignment_id)
@@ -407,6 +442,8 @@ async def submit_assignment(db, assignment_id: str, user_id: str, username: str,
             "is_submission": True,
             "action_type": "submission",
             "assignment_id": assignment_id,
+            "exercise_id": submission_data.get("exercise_id"),
+            "problem_index": submission_data.get("problem_index", 0),
             "created_at": datetime.now()
         })
         

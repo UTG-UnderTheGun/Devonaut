@@ -66,7 +66,8 @@ const EditorSection = ({
   setSelectedDescriptionTab,
   handleClearImport,
   isConsoleFolded,
-  setIsConsoleFolded
+  setIsConsoleFolded,
+  assignmentId
 }) => {
   const [showEmptyState, setShowEmptyState] = useState(true);
   const [outputAnswers, setOutputAnswers] = useState({});
@@ -237,12 +238,36 @@ const EditorSection = ({
       
       const currentProblem = problems[currentProblemIndex];
       const effectiveType = mapExerciseType(currentProblem.type || testType);
+      const questionNumber = currentProblemIndex + 1;
+      
+      console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType} (question #${questionNumber})`);
+      
+      // Try to load from problem-answers first for coding exercises (new format)
+      if (effectiveType === 'code' || effectiveType === 'coding') {
+        try {
+          const answersString = localStorage.getItem('problem-answers');
+          if (answersString) {
+            const answers = JSON.parse(answersString);
+            const codingKey = `coding-${questionNumber}`;
+            
+            if (answers[codingKey]) {
+              console.log(`Found saved coding answer for question #${questionNumber}`);
+              handleCodeChange(answers[codingKey]);
+              if (editorRef.current) {
+                editorRef.current.setValue(answers[codingKey]);
+              }
+              return; // Found code, return early
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load coding answer from problem-answers:', e);
+        }
+      }
       
       // Try to load saved code specifically for this problem
       const key = `code-${effectiveType}-${currentProblemIndex}`;
       const savedCode = localStorage.getItem(key);
       
-      console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType}`);
       console.log(`Looking for key: ${key}`);
       
       if (savedCode) {
@@ -279,25 +304,100 @@ const EditorSection = ({
   const debouncedSaveKeystrokes = useCallback(
     _.debounce(async (code, cursorPosition) => {
       try {
+        // Get user ID from localStorage or sessionStorage
+        const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
+        
         const keystrokeData = {
           code: code,
           problem_index: currentProblemIndex,
+          exercise_id: problems[currentProblemIndex]?.id,
+          assignment_id: assignmentId,
           test_type: testType,
           cursor_position: cursorPosition,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          user_id: userId // Add user_id to the request
         };
 
-        await axios.post(
+        const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,
           keystrokeData,
           { withCredentials: true }
         );
-        console.log('Keystrokes tracked successfully');
+        
+        // Check if response was successful
+        if (response.data && response.data.success) {
+          console.log('Keystrokes tracked successfully');
+          
+          // Store keystroke data locally for submission
+          try {
+            const key = `keystrokes-${assignmentId}`;
+            const existingData = localStorage.getItem(key);
+            let keystrokeHistory = [];
+            
+            if (existingData) {
+              keystrokeHistory = JSON.parse(existingData);
+            }
+            
+            // Add new keystroke data with timestamp
+            keystrokeHistory.push({
+              ...keystrokeData,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Limit history size (optional, to prevent localStorage from getting too large)
+            if (keystrokeHistory.length > 500) {
+              keystrokeHistory = keystrokeHistory.slice(-500);
+            }
+            
+            localStorage.setItem(key, JSON.stringify(keystrokeHistory));
+          } catch (storageErr) {
+            console.warn('Error storing keystroke data locally:', storageErr);
+          }
+        } else {
+          console.warn('Keystroke tracking returned unsuccessful status');
+        }
       } catch (err) {
+        // Detailed error logging
         console.error('Error tracking keystrokes:', err);
+        if (err.response) {
+          console.error('Response status:', err.response.status);
+          console.error('Response data:', err.response.data);
+        }
+        
+        // Still store keystroke data locally even if API fails
+        try {
+          if (assignmentId) {
+            const key = `keystrokes-${assignmentId}`;
+            const existingData = localStorage.getItem(key);
+            let keystrokeHistory = [];
+            
+            if (existingData) {
+              keystrokeHistory = JSON.parse(existingData);
+            }
+            
+            // Get user ID from localStorage or sessionStorage
+            const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
+            
+            // Add new keystroke data with timestamp
+            keystrokeHistory.push({
+              code,
+              problem_index: currentProblemIndex,
+              exercise_id: problems[currentProblemIndex]?.id,
+              assignment_id: assignmentId,
+              test_type: testType,
+              cursor_position: cursorPosition,
+              timestamp: new Date().toISOString(),
+              user_id: userId
+            });
+            
+            localStorage.setItem(key, JSON.stringify(keystrokeHistory));
+          }
+        } catch (storageErr) {
+          console.warn('Error storing keystroke data locally:', storageErr);
+        }
       }
     }, KEYSTROKE_DEBOUNCE_TIME),
-    [currentProblemIndex, testType]
+    [currentProblemIndex, testType, assignmentId]
   );
 
   // Update the handleEditorChange function
@@ -315,6 +415,33 @@ const EditorSection = ({
     const key = `code-${currentType}-${currentProblemIndex}`;
     localStorage.setItem(key, value);
     console.log(`Saving code for problem ${currentProblemIndex} with key ${key}`);
+
+    // For coding exercises, store in answers as well with proper index (index+1)
+    if (currentType === 'code' || currentType === 'coding') {
+      try {
+        // Get existing answers
+        const answersString = localStorage.getItem('problem-answers');
+        let answers = {};
+        
+        if (answersString) {
+          answers = JSON.parse(answersString);
+        }
+        
+        // Store code with both formats
+        // Format 1: coding-{questionNumber} for our internal use
+        const questionNumber = currentProblemIndex + 1;
+        answers[`coding-${questionNumber}`] = value;
+        
+        // Format 2: question number directly as key for backend compatibility
+        answers[questionNumber] = value;
+        
+        // Save back to localStorage
+        localStorage.setItem('problem-answers', JSON.stringify(answers));
+        console.log(`Saving coding answer for question ${questionNumber} in both formats`);
+      } catch (e) {
+        console.warn('Could not save coding answer to problem-answers:', e);
+      }
+    }
 
     if (typeof handleCodeChange === 'function') {
       handleCodeChange(value);
@@ -537,12 +664,13 @@ const EditorSection = ({
     if (problems && problems.length > 0 && problems[currentProblemIndex] && testType === 'output') {
       const currentProblem = problems[currentProblemIndex];
       if (currentProblem.expectedOutput && currentProblem.expectedOutput.trim() !== '') {
+        const questionNumber = currentProblemIndex + 1;
         setOutputAnswers(prev => {
           const newOutputAnswers = { ...prev };
-          if (!newOutputAnswers[currentProblemIndex]) {
-            newOutputAnswers[currentProblemIndex] = currentProblem.expectedOutput;
+          if (!newOutputAnswers[questionNumber]) {
+            newOutputAnswers[questionNumber] = currentProblem.expectedOutput;
             localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
-            console.log(`Set output answer for problem ${currentProblemIndex} to: ${currentProblem.expectedOutput}`);
+            console.log(`Set output answer for problem ${questionNumber} to: ${currentProblem.expectedOutput}`);
           }
           return newOutputAnswers;
         });
@@ -558,9 +686,10 @@ const EditorSection = ({
       if (currentProblem.userAnswers && currentProblem.userAnswers.outputAnswer) {
         const savedOutputAnswer = currentProblem.userAnswers.outputAnswer;
         console.log(`Loading saved output answer for problem ${currentProblemIndex}:`, savedOutputAnswer);
-        // Update outputAnswers state and localStorage
+        // Update outputAnswers state and localStorage with index+1
+        const questionNumber = currentProblemIndex + 1;
         setOutputAnswers(prev => {
-          const newOutputAnswers = { ...prev, [currentProblemIndex]: savedOutputAnswer };
+          const newOutputAnswers = { ...prev, [questionNumber]: savedOutputAnswer };
           localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
           return newOutputAnswers;
         });
@@ -599,6 +728,8 @@ const EditorSection = ({
         const historyData = {
           code: currentCode,
           problem_index: currentProblemIndex,
+          exercise_id: problems[currentProblemIndex]?.id,
+          assignment_id: assignmentId,
           test_type: testType,
           output: response.data.output || '',
           error: response.data.error || '',
@@ -650,10 +781,14 @@ const EditorSection = ({
         { withCredentials: true }
       );
 
+      // Get the question number (index+1) for consistency
+      const questionNumber = currentProblemIndex + 1;
+
       // Then save the submission history with the special is_submission flag
       const historyData = {
         code: code,
         problem_index: currentProblemIndex,
+        question_number: questionNumber, // Add question number for clarity
         test_type: testType,
         output: runResponse.data.output || '',
         error: runResponse.data.error || '',
@@ -669,6 +804,32 @@ const EditorSection = ({
         { withCredentials: true }
       );
       console.log('Code submission history saved successfully');
+
+      // Also save to the problem-answers with proper indexing
+      if (testType === 'code' || testType === 'coding') {
+        try {
+          // Get existing answers
+          const answersString = localStorage.getItem('problem-answers');
+          let answers = {};
+          
+          if (answersString) {
+            answers = JSON.parse(answersString);
+          }
+          
+          // Store code in both formats for compatibility
+          // Format 1: coding-{questionNumber} for our new system
+          answers[`coding-${questionNumber}`] = code;
+          
+          // Format 2: direct question number as key for backend compatibility
+          answers[questionNumber] = code;
+          
+          // Save back to localStorage
+          localStorage.setItem('problem-answers', JSON.stringify(answers));
+          console.log(`Saved final coding answer for question ${questionNumber} in both formats`);
+        } catch (e) {
+          console.warn('Could not save final coding answer:', e);
+        }
+      }
     } catch (err) {
       console.error('Error saving code submission history:', err);
     }
@@ -772,6 +933,14 @@ const EditorSection = ({
       handleCloseContextMenu();
     }
   };
+
+  // Store assignment ID in localStorage as soon as it's available
+  useEffect(() => {
+    if (assignmentId) {
+      localStorage.setItem('current-assignment-id', assignmentId);
+      console.log(`EditorSection: Assignment ID stored in localStorage: ${assignmentId}`);
+    }
+  }, [assignmentId]);
 
   return (
     <div className="code-editor">
@@ -955,9 +1124,10 @@ const EditorSection = ({
               <textarea
                 placeholder="ใส่คำตอบของคุณ..."
                 className="output-input"
-                value={outputAnswers[currentProblemIndex] || ''}
+                value={outputAnswers[currentProblemIndex + 1] || ''}
                 onChange={(e) => {
-                  const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: e.target.value };
+                  const questionNumber = currentProblemIndex + 1;
+                  const newOutputAnswers = { ...outputAnswers, [questionNumber]: e.target.value };
                   setOutputAnswers(newOutputAnswers);
                   localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
                 }}
@@ -1017,7 +1187,11 @@ const EditorSection = ({
                         placeholder="เติมคำตอบ..."
                         value={answers[`blank-${currentProblemIndex + 1}-${index}`] || ''}
                         onChange={(e) => {
-                          const newAnswers = { ...answers, [`blank-${currentProblemIndex + 1}-${index}`]: e.target.value };
+                          const questionNumber = currentProblemIndex + 1;
+                          const newAnswers = { 
+                            ...answers, 
+                            [`blank-${questionNumber}-${index}`]: e.target.value 
+                          };
                           setAnswers(newAnswers);
                           localStorage.setItem('problem-answers', JSON.stringify(newAnswers));
                         }}
