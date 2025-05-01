@@ -87,63 +87,159 @@ async def get_keystroke_timeline(
     Get a timeline of code changes for visualization
     """
     try:
-        # Get all keystrokes for the specified criteria
-        keystrokes = await get_keystrokes(
-            db=db,
-            user_id=user_id,
-            assignment_id=assignment_id,
-            exercise_id=exercise_id,
-            problem_index=problem_index,
-            limit=1000  # Set a reasonable limit
-        )
+        print(f"DEBUG TIMELINE: Getting timeline for user={user_id}, assignment={assignment_id}, exercise={exercise_id}, problem_index={problem_index}")
         
-        if not keystrokes:
-            return []
-            
-        # Process keystrokes into timeline
+        # Build a more flexible query
+        query = {"user_id": user_id}
+        
+        if assignment_id:
+            query["assignment_id"] = assignment_id
+            print(f"DEBUG TIMELINE: Filtering by assignment_id={assignment_id}")
+        
+        # First check if the code_keystrokes collection exists and has data
+        keystrokes_count = await db["code_keystrokes"].count_documents(query)
+        print(f"DEBUG TIMELINE: Found {keystrokes_count} keystrokes in code_keystrokes collection")
+        
+        # Initialize empty timeline
         timeline = []
-        previous_code = None
         
-        for i, keystroke in enumerate(keystrokes):
-            # Skip entries without code
-            if "code" not in keystroke:
-                continue
+        # Get all keystrokes for this user and assignment
+        if keystrokes_count > 0:
+            cursor = db["code_keystrokes"].find(query).sort("timestamp", 1)
+            keystrokes = await cursor.to_list(length=1000)  # Set a reasonable limit
+            
+            print(f"DEBUG TIMELINE: Found {len(keystrokes)} total keystrokes for this user/assignment")
+            
+            # Filter by exercise_id or problem_index after fetching
+            if exercise_id:
+                print(f"DEBUG TIMELINE: Filtering by exercise_id={exercise_id}")
+                # Convert exercise_id to string for comparison
+                str_exercise_id = str(exercise_id)
+                keystrokes = [k for k in keystrokes if 
+                             (k.get("exercise_id") and str(k.get("exercise_id")) == str_exercise_id)]
+                print(f"DEBUG TIMELINE: After exercise_id filtering: {len(keystrokes)} keystrokes")
+            
+            if problem_index is not None:
+                print(f"DEBUG TIMELINE: Filtering by problem_index={problem_index}")
+                # Handle both string and int for problem_index
+                keystrokes = [k for k in keystrokes if 
+                             (k.get("problem_index") == problem_index or 
+                              str(k.get("problem_index")) == str(problem_index))]
+                print(f"DEBUG TIMELINE: After problem_index filtering: {len(keystrokes)} keystrokes")
+            
+            if keystrokes:
+                # Show the first few keystrokes for debugging
+                sample_keystrokes = keystrokes[:3]
+                print(f"DEBUG TIMELINE: Sample keystroke data: {str([{k.get('_id'): {'problem_index': k.get('problem_index'), 'exercise_id': k.get('exercise_id')}} for k in sample_keystrokes])}")
                 
-            current_code = keystroke["code"]
-            
-            # For the first entry, just add it directly
-            if i == 0 or previous_code is None:
-                timeline.append({
-                    "code": current_code,
-                    "timestamp": keystroke["timestamp"],
-                    "action_type": keystroke.get("action_type", "keystroke"),
-                    "cursor_position": keystroke.get("cursor_position"),
-                    "problem_index": keystroke.get("problem_index"),
-                    "exercise_id": keystroke.get("exercise_id"),
-                    "changes": None  # No changes for first entry
-                })
-            else:
-                # Calculate diff between previous and current code
-                diff = list(difflib.ndiff(previous_code.splitlines(keepends=True), 
-                                         current_code.splitlines(keepends=True)))
+                # Process keystrokes into timeline
+                previous_code = None
                 
-                # Only add to timeline if code actually changed
-                if any(line.startswith('+ ') or line.startswith('- ') for line in diff):
-                    timeline.append({
-                        "code": current_code,
-                        "timestamp": keystroke["timestamp"],
-                        "action_type": keystroke.get("action_type", "keystroke"),
-                        "cursor_position": keystroke.get("cursor_position"),
-                        "problem_index": keystroke.get("problem_index"),
-                        "exercise_id": keystroke.get("exercise_id"),
-                        "changes": diff
-                    })
+                for i, keystroke in enumerate(keystrokes):
+                    # Skip entries without code
+                    if "code" not in keystroke:
+                        continue
+                        
+                    current_code = keystroke["code"]
+                    
+                    # For the first entry, just add it directly
+                    if i == 0 or previous_code is None:
+                        timeline_entry = {
+                            "code": current_code,
+                            "timestamp": keystroke.get("timestamp", datetime.utcnow()),
+                            "action_type": keystroke.get("action_type", "keystroke"),
+                            "problem_index": keystroke.get("problem_index"),
+                            "exercise_id": keystroke.get("exercise_id"),
+                            "changes": None  # No changes for first entry
+                        }
+                        timeline.append(timeline_entry)
+                    else:
+                        # Calculate diff between previous and current code
+                        diff = list(difflib.ndiff(previous_code.splitlines(keepends=True), 
+                                                 current_code.splitlines(keepends=True)))
+                        
+                        # Only add to timeline if code actually changed
+                        if any(line.startswith('+ ') or line.startswith('- ') for line in diff):
+                            timeline_entry = {
+                                "code": current_code,
+                                "timestamp": keystroke.get("timestamp", datetime.utcnow()),
+                                "action_type": keystroke.get("action_type", "keystroke"),
+                                "problem_index": keystroke.get("problem_index"),
+                                "exercise_id": keystroke.get("exercise_id"),
+                                "changes": diff
+                            }
+                            timeline.append(timeline_entry)
+                    
+                    previous_code = current_code
+        
+        # If no results from keystrokes, try code_history as fallback
+        if not timeline:
+            print("DEBUG TIMELINE: No keystroke data found, trying code_history as fallback")
             
-            previous_code = current_code
+            # Query the code_history collection
+            history_query = {"user_id": user_id}
             
+            if assignment_id:
+                history_query["assignment_id"] = assignment_id
+                
+            # Get code history entries
+            history_cursor = db["code_history"].find(history_query).sort("created_at", 1)
+            history_entries = await history_cursor.to_list(length=1000)
+            
+            print(f"DEBUG TIMELINE: Found {len(history_entries)} entries in code_history")
+            
+            # Filter by exercise_id or problem_index
+            if exercise_id:
+                str_exercise_id = str(exercise_id)
+                history_entries = [h for h in history_entries if 
+                                  (h.get("exercise_id") and str(h.get("exercise_id")) == str_exercise_id)]
+                
+            if problem_index is not None:
+                history_entries = [h for h in history_entries if 
+                                  (h.get("problem_index") == problem_index or 
+                                   str(h.get("problem_index")) == str(problem_index))]
+            
+            # Convert code history to timeline format
+            for entry in history_entries:
+                if "code" in entry:
+                    timeline_entry = {
+                        "code": entry["code"],
+                        "timestamp": entry.get("created_at", datetime.utcnow()),
+                        "action_type": entry.get("action_type", "access"),
+                        "problem_index": entry.get("problem_index"),
+                        "exercise_id": entry.get("exercise_id"),
+                        "changes": None
+                    }
+                    timeline.append(timeline_entry)
+        
+        # If still no timeline, add a placeholder entry to avoid empty response
+        if not timeline and (exercise_id or problem_index is not None):
+            print("DEBUG TIMELINE: No data found in any collection, adding placeholder")
+            
+            # Create a placeholder entry so the frontend knows we tried
+            placeholder = {
+                "code": "",
+                "timestamp": datetime.utcnow(),
+                "action_type": "placeholder",
+                "problem_index": problem_index,
+                "exercise_id": exercise_id,
+                "changes": None,
+                "message": "No code history found for this exercise"
+            }
+            timeline.append(placeholder)
+        
+        # Convert ObjectId to string and format timestamps
+        for entry in timeline:
+            # Convert datetime objects to ISO strings
+            if "timestamp" in entry and isinstance(entry["timestamp"], datetime):
+                entry["timestamp"] = entry["timestamp"].isoformat()
+                
+        print(f"DEBUG TIMELINE: Processed timeline with {len(timeline)} entries")
+        
         return timeline
     except Exception as e:
-        print(f"Error getting keystroke timeline: {str(e)}")
+        print(f"ERROR getting keystroke timeline: {str(e)}")
+        print(f"Full exception details: {repr(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 

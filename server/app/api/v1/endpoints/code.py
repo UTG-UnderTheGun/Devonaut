@@ -466,26 +466,82 @@ async def track_keystrokes(
         # Get user info
         user, user_id = current_user
         
+        # Print detailed logs for debugging
+        print(f"DEBUG KEYSTROKE: Received data: {keystroke_data.dict(exclude={'code'})}")
+        
         # Prepare data for MongoDB
         data = {
             "user_id": user_id,
             "username": user.get("username", ""),
             "code": keystroke_data.code,
             "problem_index": keystroke_data.problem_index,
-            "exercise_id": keystroke_data.exercise_id,
-            "assignment_id": keystroke_data.assignment_id,
-            "test_type": keystroke_data.test_type,
-            "cursor_position": keystroke_data.cursor_position,
             "timestamp": datetime.utcnow(),
             "action_type": "keystroke"
         }
         
+        # Add optional fields only if they exist and are not None or empty strings
+        if keystroke_data.exercise_id and str(keystroke_data.exercise_id).strip():
+            data["exercise_id"] = str(keystroke_data.exercise_id)
+            
+        if keystroke_data.assignment_id and str(keystroke_data.assignment_id).strip():
+            data["assignment_id"] = str(keystroke_data.assignment_id)
+            
+        if keystroke_data.test_type:
+            data["test_type"] = keystroke_data.test_type
+            
+        if keystroke_data.cursor_position:
+            data["cursor_position"] = keystroke_data.cursor_position
+            
+        if keystroke_data.changes:
+            data["changes"] = keystroke_data.changes
+            
+        # Print detailed logs about what we're about to save
+        print(f"DEBUG KEYSTROKE: Preparing to save keystroke data for user {user_id}:")
+        print(f"DEBUG KEYSTROKE: Collection target: code_keystrokes")
+        print(f"DEBUG KEYSTROKE: Data: {data}")
+        
+        # Check if the collection exists, create it if not
+        collections = await request.app.mongodb.list_collection_names()
+        if "code_keystrokes" not in collections:
+            print(f"DEBUG KEYSTROKE: Collection 'code_keystrokes' does not exist, creating it now")
+            await request.app.mongodb.create_collection("code_keystrokes")
+        
         # Store in MongoDB collection named 'code_keystrokes'
-        await request.app.mongodb["code_keystrokes"].insert_one(data)
+        result = await request.app.mongodb["code_keystrokes"].insert_one(data)
+        print(f"DEBUG KEYSTROKE: Data saved successfully with ID: {result.inserted_id}")
+        
+        # Also add a record to code_history for backward compatibility
+        try:
+            history_data = {
+                "user_id": user_id,
+                "username": user.get("username", ""),
+                "code": keystroke_data.code,
+                "problem_index": keystroke_data.problem_index,
+                "created_at": datetime.utcnow(),
+                "action_type": "keystroke"  # Override to ensure correct action type
+            }
+            
+            # Add optional fields only if they exist in the keystroke data
+            if keystroke_data.exercise_id and str(keystroke_data.exercise_id).strip():
+                history_data["exercise_id"] = str(keystroke_data.exercise_id)
+                
+            if keystroke_data.assignment_id and str(keystroke_data.assignment_id).strip():
+                history_data["assignment_id"] = str(keystroke_data.assignment_id)
+                
+            if keystroke_data.test_type:
+                history_data["test_type"] = keystroke_data.test_type
+                
+            # Insert into MongoDB
+            await request.app.mongodb["code_history"].insert_one(history_data)
+            print(f"DEBUG KEYSTROKE: Also saved to code_history for backward compatibility")
+        except Exception as historyErr:
+            print(f"Warning: Failed to save to code_history: {str(historyErr)}")
+            # Continue even if this fails - we don't want to fail the main operation
         
         return {"success": True}
     except Exception as e:
-        print(f"Error tracking keystrokes: {str(e)}")
+        print(f"ERROR KEYSTROKE: Error tracking keystrokes: {str(e)}")
+        print(f"ERROR KEYSTROKE: Full exception details: {repr(e)}")
         return {"success": False, "error": str(e)}
 
 @router.get("/keystrokes/{user_id}/{assignment_id}")

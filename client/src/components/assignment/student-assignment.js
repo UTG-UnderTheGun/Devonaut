@@ -461,35 +461,139 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           const activity = {};
           
           if (assignmentData.exercises && assignmentData.exercises.length > 0) {
+            // Create empty arrays for each exercise to ensure we always have some structure
             assignmentData.exercises.forEach(exercise => {
-              // Filter timeline entries for this exercise
-              const exerciseTimeline = timelineData.filter(item => 
-                (item.exercise_id && item.exercise_id === exercise.id) || 
-                (item.problem_index === exercise.id)
-              );
+              activity[exercise.id] = [];
+            });
+            
+            // Then process and fill with actual data
+            assignmentData.exercises.forEach(exercise => {
+              // Add better debug output
+              console.log(`Processing timeline data for exercise ${exercise.id} (${typeof exercise.id})`);
+              
+              // Filter timeline entries for this exercise - handle various formats of IDs
+              const exerciseTimeline = timelineData.filter(item => {
+                // Check problem_index match first
+                const problemIndexMatch = 
+                  (item.problem_index === exercise.id) || 
+                  (item.problem_index !== null && parseInt(item.problem_index) === parseInt(exercise.id)) ||
+                  (String(item.problem_index) === String(exercise.id));
+                
+                // Check exercise_id match as fallback
+                const exerciseIdMatch = item.exercise_id && 
+                  (item.exercise_id === exercise.id || 
+                   String(item.exercise_id) === String(exercise.id));
+                   
+                return problemIndexMatch || exerciseIdMatch;
+              });
+              
+              console.log(`Found ${exerciseTimeline.length} timeline entries for exercise ${exercise.id}`);
               
               if (exerciseTimeline.length > 0) {
+                // Log some sample data
+                console.log("Sample timeline entry:", exerciseTimeline[0]);
+                
                 // Map to the format expected by the UI
                 activity[exercise.id] = exerciseTimeline.map((item, index) => ({
                   id: index + 1,
-                  timestamp: item.timestamp,
+                  timestamp: item.timestamp || new Date().toISOString(),
                   action: item.action_type || 'keystroke',
                   exerciseId: exercise.id,
                   code: item.code || '',
                   changes: item.changes || null // Include changes for diff visualization
                 }));
-              } else {
-                activity[exercise.id] = [];
+                console.log(`Processed ${exerciseTimeline.length} timeline entries for exercise ${exercise.id}`);
               }
             });
             
             setCodingActivity(activity);
             console.log("Processed keystroke timeline into coding activity:", activity);
+            
+            // Check if we have at least some data
+            const hasData = Object.values(activity).some(arr => arr.length > 0);
+            if (!hasData) {
+              console.log("No keystroke timeline data found for any exercise, falling back to code history");
+              await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
+            }
           }
         } else {
-          // If timeline API fails, fall back to code history
-          console.log("Keystroke timeline not available, falling back to code history");
-          await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
+          // If timeline API fails, try to fetch individual keystroke data
+          console.log("Keystroke timeline API failed, trying to fetch raw keystroke data");
+          try {
+            const rawKeystrokesResponse = await fetch(
+              `${API_BASE}/code/keystrokes/${mongoUserId}/${assignmentId}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            });
+            
+            if (rawKeystrokesResponse.ok) {
+              const keystrokesData = await rawKeystrokesResponse.json();
+              console.log("Raw keystrokes loaded successfully:", keystrokesData);
+              
+              // Process raw keystrokes into coding activity format
+              const activity = {};
+              
+              if (assignmentData.exercises && assignmentData.exercises.length > 0) {
+                assignmentData.exercises.forEach(exercise => {
+                  // Filter keystrokes for this exercise - with better matching
+                  const exerciseKeystrokes = keystrokesData.filter(item => {
+                    // Check problem_index match
+                    const problemIndexMatch = 
+                      (item.problem_index === exercise.id) || 
+                      (item.problem_index !== null && parseInt(item.problem_index) === parseInt(exercise.id)) ||
+                      (String(item.problem_index) === String(exercise.id));
+                    
+                    // Check exercise_id match as fallback
+                    const exerciseIdMatch = item.exercise_id && 
+                      (item.exercise_id === exercise.id || 
+                       String(item.exercise_id) === String(exercise.id));
+                       
+                    return problemIndexMatch || exerciseIdMatch;
+                  });
+                  
+                  console.log(`Found ${exerciseKeystrokes.length} keystrokes for exercise ${exercise.id}`);
+                  
+                  if (exerciseKeystrokes.length > 0) {
+                    // Sort by timestamp
+                    exerciseKeystrokes.sort((a, b) => {
+                      return new Date(a.timestamp) - new Date(b.timestamp);
+                    });
+                    
+                    // Map to the format expected by the UI
+                    activity[exercise.id] = exerciseKeystrokes.map((item, index) => ({
+                      id: index + 1,
+                      timestamp: item.timestamp,
+                      action: item.action_type || 'keystroke',
+                      exerciseId: exercise.id,
+                      code: item.code || ''
+                    }));
+                    console.log(`Processed ${exerciseKeystrokes.length} keystrokes for exercise ${exercise.id}`);
+                  } else {
+                    console.log(`No keystrokes found for exercise ${exercise.id}`);
+                    activity[exercise.id] = [];
+                  }
+                });
+                
+                setCodingActivity(activity);
+                console.log("Processed raw keystrokes into coding activity:", activity);
+                
+                // Check if we have at least some data
+                const hasData = Object.values(activity).some(arr => arr.length > 0);
+                if (!hasData) {
+                  console.log("No keystroke data found for any exercise, falling back to code history");
+                  await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
+                }
+              }
+            } else {
+              // If raw keystrokes API fails too, fall back to code history
+              console.log("Raw keystrokes API failed, falling back to code history");
+              await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
+            }
+          } catch (rawKeystrokeError) {
+            console.error("Error fetching raw keystrokes:", rawKeystrokeError);
+            await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
+          }
         }
       } catch (keystrokeTimelineError) {
         console.error("Error fetching keystroke timeline:", keystrokeTimelineError);
@@ -497,19 +601,21 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
       }
       
-      // Fetch keystroke history
+      // Get keystroke analytics using the new API
       try {
-        const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
+        const keystrokeAnalyticsResponse = await fetch(
+          `${API_BASE}/code/keystrokes/${mongoUserId}/aggregate?assignment_id=${assignmentId}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
         });
         
-        if (keystrokeResponse.ok) {
-          const keystrokeData = await keystrokeResponse.json();
+        if (keystrokeAnalyticsResponse.ok) {
+          const analyticsData = await keystrokeAnalyticsResponse.json();
+          console.log("Keystroke analytics loaded successfully:", analyticsData);
           
           // Transform the data into the format expected by the UI
-          const formattedKeystrokeData = keystrokeData.map(item => ({
+          const formattedKeystrokeData = analyticsData.map(item => ({
             day: item.day,
             count: item.count,
             action_type: item.action_type,
@@ -518,14 +624,73 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           }));
           
           setKeystrokeHistory(formattedKeystrokeData);
-          console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
+          console.log("Keystroke analytics transformed successfully:", formattedKeystrokeData);
         } else {
-          console.warn("Failed to fetch keystroke history, using mock data");
+          // Fallback to old API
+          console.log("New keystroke analytics API failed, falling back to old API");
+          try {
+            const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            });
+            
+            if (keystrokeResponse.ok) {
+              const keystrokeData = await keystrokeResponse.json();
+              
+              // Transform the data into the format expected by the UI
+              const formattedKeystrokeData = keystrokeData.map(item => ({
+                day: item.day,
+                count: item.count,
+                action_type: item.action_type,
+                problem_index: item.problem_index,
+                exercise_id: item.exercise_id
+              }));
+              
+              setKeystrokeHistory(formattedKeystrokeData);
+              console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
+            } else {
+              console.warn("Failed to fetch keystroke history, using mock data");
+              setKeystrokeHistory(mockKeystrokeHistory);
+            }
+          } catch (oldKeystrokeError) {
+            console.error("Error fetching old keystroke history:", oldKeystrokeError);
+            setKeystrokeHistory(mockKeystrokeHistory);
+          }
+        }
+      } catch (keystrokeAnalyticsError) {
+        console.error("Error fetching keystroke analytics:", keystrokeAnalyticsError);
+        
+        // Fallback to old analytics API
+        try {
+          const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          });
+          
+          if (keystrokeResponse.ok) {
+            const keystrokeData = await keystrokeResponse.json();
+            
+            // Transform the data into the format expected by the UI
+            const formattedKeystrokeData = keystrokeData.map(item => ({
+              day: item.day,
+              count: item.count,
+              action_type: item.action_type,
+              problem_index: item.problem_index,
+              exercise_id: item.exercise_id
+            }));
+            
+            setKeystrokeHistory(formattedKeystrokeData);
+            console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
+          } else {
+            console.warn("Failed to fetch keystroke history, using mock data");
+            setKeystrokeHistory(mockKeystrokeHistory);
+          }
+        } catch (keystrokeError) {
+          console.error("Error fetching keystroke history:", keystrokeError);
           setKeystrokeHistory(mockKeystrokeHistory);
         }
-      } catch (keystrokeError) {
-        console.error("Error fetching keystroke history:", keystrokeError);
-        setKeystrokeHistory(mockKeystrokeHistory);
       }
       
       // Fetch AI chat history
@@ -588,53 +753,72 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   
   // Helper function to fetch code history as fallback
   const fetchCodeHistory = async (apiBase, userId, assignmentId, exercisesList) => {
+    console.log("Fetching code history as fallback");
+    
     try {
-      const codeHistoryResponse = await fetch(`${apiBase}/code/code-history?user_id=${userId}&assignment_id=${assignmentId}&limit=100`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
+      const historyResponse = await fetch(
+        `${apiBase}/code/code-history?user_id=${userId}&limit=1000`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        }
+      );
       
-      if (codeHistoryResponse.ok) {
-        const historyData = await codeHistoryResponse.json();
-        setCodeHistory(historyData);
-        console.log("Code history loaded successfully:", historyData);
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        console.log(`Found ${historyData.length} code history entries`);
         
-        // Organize code history into coding activity structure
+        // Process code history into coding activity format
         const activity = {};
+        
         if (exercisesList && exercisesList.length > 0) {
           exercisesList.forEach(exercise => {
-            // Filter history for this exercise and sort by timestamp
-            const exerciseHistory = historyData
-              .filter(item => {
-                // Match by exercise_id if available, otherwise by problem_index
-                return (item.exercise_id && item.exercise_id === exercise.id) || 
-                       (item.problem_index === exercise.id);
-              })
-              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            // Filter history entries for this exercise - with better matching
+            const exerciseHistory = historyData.filter(item => {
+              // First check for a direct problem_index match
+              const problemIndexMatch = 
+                (item.problem_index === exercise.id) || 
+                (item.problem_index !== null && parseInt(item.problem_index) === parseInt(exercise.id)) ||
+                (String(item.problem_index) === String(exercise.id));
+                
+              // Then check for exercise_id
+              const exerciseIdMatch = item.exercise_id && 
+                (item.exercise_id === exercise.id || 
+                String(item.exercise_id) === String(exercise.id));
+                
+              return problemIndexMatch || exerciseIdMatch;
+            });
+            
+            if (exerciseHistory.length > 0) {
+              // Sort by timestamp
+              exerciseHistory.sort((a, b) => {
+                return new Date(a.created_at) - new Date(b.created_at);
+              });
               
-            // Map to the format expected by the UI
-            activity[exercise.id] = exerciseHistory.map((item, index) => ({
-              id: index + 1,
-              timestamp: item.created_at,
-              action: item.action_type || 'run',
-              exerciseId: exercise.id,
-              code: item.code || ''
-            }));
+              // Map to the format expected by the UI
+              activity[exercise.id] = exerciseHistory.map((item, index) => ({
+                id: index + 1,
+                timestamp: item.created_at,
+                action: item.action_type || 'access',
+                exerciseId: exercise.id,
+                code: item.code || ''
+              }));
+              console.log(`Found ${exerciseHistory.length} history entries for exercise ${exercise.id}`);
+            } else {
+              console.log(`No history entries found for exercise ${exercise.id}`);
+              activity[exercise.id] = [];
+            }
           });
+          
           setCodingActivity(activity);
           console.log("Processed code history into coding activity:", activity);
         }
       } else {
-        // Fallback to mock data
-        console.warn("Failed to fetch code history, using mock data");
-        setCodeHistory(mockCodeHistory);
-        setCodingActivity(mockCodingActivity);
+        console.error("Failed to fetch code history");
       }
     } catch (historyError) {
       console.error("Error fetching code history:", historyError);
-      setCodeHistory(mockCodeHistory);
-      setCodingActivity(mockCodingActivity);
     }
   };
 
@@ -661,6 +845,28 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       }
     }
   }, [exercises, currentExerciseIndex]);
+
+  // Add useEffect to verify data is loaded correctly
+  useEffect(() => {
+    if (exercises && exercises.length > 0 && Object.keys(codingActivity).length > 0) {
+      console.log("Timeline data verification:");
+      exercises.forEach((exercise, idx) => {
+        const activityForExercise = codingActivity[exercise.id];
+        console.log(`Exercise ${idx+1}: ID=${exercise.id} (${typeof exercise.id}), Timeline entries: ${activityForExercise ? activityForExercise.length : 0}`);
+        
+        // Check if we can find this exercise in a different way
+        const matchingKeys = Object.keys(codingActivity).filter(key => 
+          String(key) === String(exercise.id)
+        );
+        
+        if (matchingKeys.length > 0 && !activityForExercise) {
+          console.log(`Exercise ${exercise.id} found with different key format: ${matchingKeys[0]}`);
+          // Copy data to make it accessible with the proper key
+          codingActivity[exercise.id] = codingActivity[matchingKeys[0]];
+        }
+      });
+    }
+  }, [exercises, codingActivity]);
 
   const handleBack = () => {
     router.push('/teacher/dashboard');
@@ -819,6 +1025,37 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         console.warn('Could not save current exercise ID to localStorage', e);
       }
     }
+  };
+
+  // Add a utility function to normalize ID lookups
+  const getActivityForExercise = (exerciseId) => {
+    if (!exerciseId || !codingActivity) return [];
+    
+    // Direct lookup first
+    if (codingActivity[exerciseId] && codingActivity[exerciseId].length > 0) {
+      return codingActivity[exerciseId];
+    }
+    
+    // Try string conversion
+    const strId = String(exerciseId);
+    if (codingActivity[strId] && codingActivity[strId].length > 0) {
+      return codingActivity[strId];
+    }
+    
+    // Try numeric conversion if possible
+    const numId = parseInt(exerciseId);
+    if (!isNaN(numId) && codingActivity[numId] && codingActivity[numId].length > 0) {
+      return codingActivity[numId];
+    }
+    
+    // Look through all keys for a string match
+    const matchingKey = Object.keys(codingActivity).find(key => String(key) === strId);
+    if (matchingKey && codingActivity[matchingKey].length > 0) {
+      return codingActivity[matchingKey];
+    }
+    
+    console.log(`No activity found for exercise ${exerciseId}`);
+    return [];
   };
 
   const timelineMarkers = generateTimelineMarkers();
@@ -1064,7 +1301,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                           }
                         }
                         
-                        // ถ้าไม่เจอคำตอบจากข้างบน ลองดูใน submission
+                        // ถ้าไม่เจอคำตอบจากข้างบน ลองดึงคำตอบจาก submission
                         if (submission) {
                           // ถ้ามี code ใน submission โดยตรง
                           if (submission.code) {
@@ -1125,125 +1362,176 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
               <h3>Code Evolution Timeline - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
               
               <div className="timeline-slider-container">
-                {exercises[currentExerciseIndex] && 
-                 codingActivity[exercises[currentExerciseIndex].id] &&
-                 codingActivity[exercises[currentExerciseIndex].id].length > 0 ? (
-                  <>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max={codingActivity[exercises[currentExerciseIndex].id].length - 1} 
-                  value={timelinePosition} 
-                  onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
-                  className="timeline-slider"
-                />
-                <div className="timeline-markers">
-                  {codingActivity[exercises[currentExerciseIndex].id].map((activity, idx) => (
-                    <div 
-                      key={activity.id}
-                      className={`timeline-marker ${activity.action} ${idx === timelinePosition ? 'active' : ''}`}
-                      style={{left: `${(idx / (codingActivity[exercises[currentExerciseIndex].id].length - 1)) * 100}%`}}
-                      onClick={() => setTimelinePosition(idx)}
-                      title={`${new Date(activity.timestamp).toLocaleTimeString()} - ${activity.action}`}
-                    >
-                      <span className="marker-tooltip">
-                        {new Date(activity.timestamp).toLocaleTimeString()}
-                        <br/>
-                        {activity.action}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                  </>
-                ) : (
-                  <div className="empty-state">No timeline data available for this exercise</div>
-                )}
-              </div>
-
-              {exercises[currentExerciseIndex] && 
-               codingActivity[exercises[currentExerciseIndex].id] &&
-               codingActivity[exercises[currentExerciseIndex].id].length > 0 &&
-               timelinePosition < codingActivity[exercises[currentExerciseIndex].id].length ? (
-                <>
-              <div className="timeline-info">
-                <div className="current-position-info">
-                  <span>Time: {new Date(codingActivity[exercises[currentExerciseIndex].id][timelinePosition].timestamp).toLocaleTimeString()}</span>
-                  <span>Action: {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].action}</span>
-                </div>
+                {/* Add debugging info */}
+                {console.log(`Current exercise ID: ${exercises[currentExerciseIndex]?.id} (${typeof exercises[currentExerciseIndex]?.id})`)}
+                {console.log(`Available activity keys: ${Object.keys(codingActivity).join(', ')}`)}
+                {exercises[currentExerciseIndex] && console.log(`Activity for current exercise: ${getActivityForExercise(exercises[currentExerciseIndex].id).length} entries`)}
                 
-                {/* Add previous/next buttons for timeline navigation */}
-                <div className="timeline-navigation">
-                  <button 
-                    onClick={() => setTimelinePosition(Math.max(0, timelinePosition - 1))}
-                    disabled={timelinePosition === 0}
-                    className="timeline-nav-button"
-                  >
-                    Previous Change
-                  </button>
-                  <button 
-                    onClick={() => setTimelinePosition(Math.min(codingActivity[exercises[currentExerciseIndex].id].length - 1, timelinePosition + 1))}
-                    disabled={timelinePosition === codingActivity[exercises[currentExerciseIndex].id].length - 1}
-                    className="timeline-nav-button"
-                  >
-                    Next Change
-                  </button>
-                </div>
+                {exercises[currentExerciseIndex] && (() => {
+                  const currentExerciseId = exercises[currentExerciseIndex].id;
+                  const activity = getActivityForExercise(currentExerciseId);
+                  
+                  if (activity && activity.length > 0) {
+                    return (
+                      <>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max={activity.length - 1} 
+                          value={timelinePosition >= activity.length ? activity.length - 1 : timelinePosition} 
+                          onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
+                          className="timeline-slider"
+                        />
+                        <div className="timeline-markers">
+                          {activity.map((item, idx) => (
+                            <div 
+                              key={idx}
+                              className={`timeline-marker ${item.action} ${idx === timelinePosition ? 'active' : ''}`}
+                              style={{left: `${(idx / (activity.length - 1)) * 100}%`}}
+                              onClick={() => setTimelinePosition(idx)}
+                              title={`${new Date(item.timestamp).toLocaleTimeString()} - ${item.action}`}
+                            >
+                              <span className="marker-tooltip">
+                                {new Date(item.timestamp).toLocaleTimeString()}
+                                <br/>
+                                {item.action}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  } else {
+                    return (
+                      <div className="empty-state">
+                        <p>No timeline data available for this exercise</p>
+                        <p className="debug-info">Exercise ID: {currentExerciseId}</p>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
 
-              <div className="code-display">
-                <pre>
-                  <code>
-                    {codingActivity[exercises[currentExerciseIndex].id][timelinePosition].code || 
-                     exercises[currentExerciseIndex].code}
-                  </code>
-                </pre>
-              </div>
-              
-              {/* Display code changes if available */}
-              {timelinePosition > 0 && (
-                <div className="code-diff-display">
-                  <h4>Changes from Previous Version</h4>
-                  <div className="diff-container">
-                    {(() => {
-                      const currentCode = codingActivity[exercises[currentExerciseIndex].id][timelinePosition].code || '';
-                      const prevCode = codingActivity[exercises[currentExerciseIndex].id][timelinePosition - 1].code || '';
-                      
-                      // Simple diff visualization (can be enhanced with a proper diff library)
-                      const currentLines = currentCode.split('\n');
-                      const prevLines = prevCode.split('\n');
-                      
-                      return (
-                        <pre className="diff-content">
-                          {currentLines.map((line, i) => {
-                            if (i >= prevLines.length) {
-                              // Line was added
-                              return <div key={i} className="diff-line diff-added">+ {line}</div>;
-                            } else if (line !== prevLines[i]) {
-                              // Line was changed
-                              return (
-                                <div key={i}>
-                                  <div className="diff-line diff-removed">- {prevLines[i]}</div>
-                                  <div className="diff-line diff-added">+ {line}</div>
-                                </div>
-                              );
-                            } else {
-                              // Line is unchanged
-                              return <div key={i} className="diff-line diff-unchanged"> {line}</div>;
-                            }
-                          })}
-                          
-                          {/* Check for removed lines at the end */}
-                          {prevLines.slice(currentLines.length).map((line, i) => (
-                            <div key={`removed-${i}`} className="diff-line diff-removed">- {line}</div>
-                          ))}
+              {exercises[currentExerciseIndex] && (() => {
+                const currentExerciseId = exercises[currentExerciseIndex].id;
+                const activity = getActivityForExercise(currentExerciseId);
+                
+                if (activity && activity.length > 0 && timelinePosition < activity.length) {
+                  const currentItem = activity[timelinePosition];
+                  return (
+                    <>
+                      <div className="timeline-info">
+                        <div className="current-position-info">
+                          <span>Time: {new Date(currentItem.timestamp).toLocaleTimeString()}</span>
+                          <span>Action: {currentItem.action}</span>
+                        </div>
+                        
+                        <div className="timeline-navigation">
+                          <button 
+                            onClick={() => setTimelinePosition(Math.max(0, timelinePosition - 1))}
+                            disabled={timelinePosition === 0}
+                            className="timeline-nav-button"
+                          >
+                            Previous Change
+                          </button>
+                          <button 
+                            onClick={() => setTimelinePosition(Math.min(activity.length - 1, timelinePosition + 1))}
+                            disabled={timelinePosition === activity.length - 1}
+                            className="timeline-nav-button"
+                          >
+                            Next Change
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="code-display">
+                        <pre>
+                          <code>
+                            {currentItem.code || exercises[currentExerciseIndex].code || "// No code available"}
+                          </code>
                         </pre>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-                </>
-              ) : null}
+                      </div>
+                      
+                      {/* Display code changes if available */}
+                      {timelinePosition > 0 && (
+                        <div className="code-diff-display">
+                          <h4>Changes from Previous Version</h4>
+                          <div className="diff-container">
+                            {(() => {
+                              const currentCode = currentItem.code || '';
+                              const prevCode = activity[timelinePosition - 1].code || '';
+                              
+                              // Check if we have changes from the API
+                              const changes = currentItem.changes;
+                              
+                              if (changes && Array.isArray(changes)) {
+                                // If we have changes from the API, use them
+                                return (
+                                  <pre className="diff-content">
+                                    {changes.map((line, i) => {
+                                      if (line.startsWith('+ ')) {
+                                        return <div key={i} className="diff-line diff-added">{line}</div>;
+                                      } else if (line.startsWith('- ')) {
+                                        return <div key={i} className="diff-line diff-removed">{line}</div>;
+                                      } else {
+                                        return <div key={i} className="diff-line diff-unchanged">{line}</div>;
+                                      }
+                                    })}
+                                  </pre>
+                                );
+                              } else {
+                                // Otherwise calculate diff on client side
+                                // Simple diff visualization (can be enhanced with a proper diff library)
+                                const currentLines = currentCode.split('\n');
+                                const prevLines = prevCode.split('\n');
+                                
+                                return (
+                                  <pre className="diff-content">
+                                    {currentLines.map((line, i) => {
+                                      if (i >= prevLines.length) {
+                                        // Line was added
+                                        return <div key={i} className="diff-line diff-added">+ {line}</div>;
+                                      } else if (line !== prevLines[i]) {
+                                        // Line was changed
+                                        return (
+                                          <div key={i}>
+                                            <div className="diff-line diff-removed">- {prevLines[i]}</div>
+                                            <div className="diff-line diff-added">+ {line}</div>
+                                          </div>
+                                        );
+                                      } else {
+                                        // Line is unchanged
+                                        return <div key={i} className="diff-line diff-unchanged"> {line}</div>;
+                                      }
+                                    })}
+                                    
+                                    {/* Check for removed lines at the end */}
+                                    {prevLines.slice(currentLines.length).map((line, i) => (
+                                      <div key={`removed-${i}`} className="diff-line diff-removed">- {line}</div>
+                                    ))}
+                                  </pre>
+                                );
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                } else {
+                  return (
+                    <div className="empty-state">
+                      <p>No timestamped code changes available for this exercise.</p>
+                      <p>Please ensure there are keystroke entries recorded for this exercise.</p>
+                      <div className="debug-info">
+                        <p>Current Exercise ID: {currentExerciseId}</p>
+                        <p>Available data: {activity ? activity.length : 0} entries</p>
+                        <p>If this continues, try making some code changes in the editor first.</p>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
             </div>
           )}
 
