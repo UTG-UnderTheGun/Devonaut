@@ -354,71 +354,130 @@ const EditorSection = ({
   const debouncedSaveKeystrokes = useCallback(
     _.debounce(async (code, cursorPosition) => {
       try {
+        // Debug logs to verify function is called
+        console.log('DEBUG KEYSTROKE CLIENT: debouncedSaveKeystrokes triggered');
+        
         // Get user ID from localStorage or sessionStorage
         const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
+        console.log('DEBUG KEYSTROKE CLIENT: User ID:', userId);
+        
+        // Make sure problem index is a number to avoid validation errors
+        const problemIndex = Number(currentProblemIndex);
+        
+        // Get assignment ID - check both props and localStorage
+        const effectiveAssignmentId = assignmentId || localStorage.getItem('current-assignment-id') || '';
+        console.log('DEBUG KEYSTROKE CLIENT: Assignment ID:', effectiveAssignmentId);
+
+        // Check for previous code to calculate changes
+        const previousCode = localStorage.getItem(`keystrokes-last-${problemIndex}-${effectiveAssignmentId || 'local'}`);
+        
+        // Get exercise ID from the current problem
+        let exerciseId = '';
+        if (problems && problems[currentProblemIndex]) {
+          exerciseId = String(problems[currentProblemIndex].id || '');
+          console.log('DEBUG KEYSTROKE CLIENT: Exercise ID:', exerciseId);
+        }
         
         const keystrokeData = {
           code: code,
-          problem_index: currentProblemIndex,
-          exercise_id: problems[currentProblemIndex]?.id,
-          assignment_id: assignmentId,
-          test_type: testType,
-          cursor_position: cursorPosition,
-          timestamp: new Date().toISOString(),
-          user_id: userId // Add user_id to the request
+          problem_index: problemIndex,
+          exercise_id: exerciseId,
+          assignment_id: effectiveAssignmentId,
+          test_type: testType || 'code',
+          cursor_position: cursorPosition || {}
         };
-
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,
-          keystrokeData,
-          { withCredentials: true }
-        );
         
-        // Check if response was successful
-        if (response.data && response.data.success) {
-          console.log('Keystrokes tracked successfully');
+        console.log('DEBUG KEYSTROKE CLIENT: Data being sent:', {
+          problem_index: keystrokeData.problem_index,
+          exercise_id: keystrokeData.exercise_id,
+          assignment_id: keystrokeData.assignment_id,
+          test_type: keystrokeData.test_type,
+          cursor_position: keystrokeData.cursor_position,
+          code_length: keystrokeData.code?.length || 0
+        });
+        
+        // Track what was changed (for better visualizing code evolution)
+        if (previousCode && previousCode !== code) {
+          // Find line numbers that changed
+          const prevLines = previousCode.split('\n');
+          const currLines = code.split('\n');
           
-          // Store keystroke data locally for submission
-          try {
-            // Use problem index in the key to track keystrokes separately for each problem
-            const key = `keystrokes-${currentProblemIndex}-${assignmentId || 'local'}`;
-            const existingData = localStorage.getItem(key);
-            let keystrokeHistory = [];
+          // Simple approach to track changes
+          const changedLines = [];
+          const maxLines = Math.max(prevLines.length, currLines.length);
+          
+          for (let i = 0; i < maxLines; i++) {
+            const prevLine = i < prevLines.length ? prevLines[i] : null;
+            const currLine = i < currLines.length ? currLines[i] : null;
             
-            if (existingData) {
-              keystrokeHistory = JSON.parse(existingData);
+            if (prevLine !== currLine) {
+              changedLines.push({
+                line: i + 1,
+                previous: prevLine,
+                current: currLine
+              });
             }
-            
-            // Add new keystroke data with timestamp
-            keystrokeHistory.push({
-              ...keystrokeData,
-              timestamp: new Date().toISOString()
-            });
-            
-            // Limit history size (optional, to prevent localStorage from getting too large)
-            if (keystrokeHistory.length > 500) {
-              keystrokeHistory = keystrokeHistory.slice(-500);
-            }
-            
-            localStorage.setItem(key, JSON.stringify(keystrokeHistory));
-          } catch (storageErr) {
-            console.warn('Error storing keystroke data locally:', storageErr);
           }
-        } else {
-          console.warn('Keystroke tracking returned unsuccessful status');
-        }
-      } catch (err) {
-        // Detailed error logging
-        console.error('Error tracking keystrokes:', err);
-        if (err.response) {
-          console.error('Response status:', err.response.status);
-          console.error('Response data:', err.response.data);
+          
+          // Add changed lines to keystroke data
+          keystrokeData.changes = changedLines;
         }
         
-        // Still store keystroke data locally even if API fails
+        // Save current code as previous for next comparison
+        localStorage.setItem(`keystrokes-last-${problemIndex}-${effectiveAssignmentId || 'local'}`, code);
+
+        console.log('DEBUG KEYSTROKE CLIENT: Sending API request to track-keystrokes');
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`;
+        console.log('DEBUG KEYSTROKE CLIENT: API URL:', apiUrl);
+        
         try {
-          // Include problem index in the key to track keystrokes separately for each problem
-          const key = `keystrokes-${currentProblemIndex}-${assignmentId || 'local'}`;
+          // First try the dedicated keystroke API
+          const response = await axios.post(
+            apiUrl,
+            keystrokeData,
+            { withCredentials: true }
+          );
+          
+          // Check if response was successful
+          if (response.data && response.data.success) {
+            console.log('DEBUG KEYSTROKE CLIENT: Keystrokes tracked successfully', response.data);
+          } else {
+            console.warn('Keystroke tracking returned unsuccessful status');
+          }
+        } catch (keystrokeErr) {
+          console.error('Error using keystroke API, falling back to code_history API:', keystrokeErr);
+          
+          // Fall back to code_history API for keystroke tracking
+          try {
+            const historyData = {
+              code: code,
+              problem_index: problemIndex,
+              exercise_id: keystrokeData.exercise_id,
+              assignment_id: keystrokeData.assignment_id,
+              test_type: keystrokeData.test_type,
+              action_type: 'keystroke'
+            };
+            
+            const fallbackResponse = await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/save-code-history`,
+              historyData,
+              { withCredentials: true }
+            );
+            
+            if (fallbackResponse.data && fallbackResponse.data.success) {
+              console.log('DEBUG KEYSTROKE CLIENT: Used code_history API as fallback for keystroke tracking');
+            } else {
+              console.warn('Fallback keystroke tracking failed');
+            }
+          } catch (fallbackErr) {
+            console.error('Both keystroke APIs failed:', fallbackErr);
+          }
+        }
+        
+        // Store keystroke data locally regardless of API success/failure
+        try {
+          // Use problem index in the key to track keystrokes separately for each problem
+          const key = `keystrokes-${problemIndex}-${effectiveAssignmentId || 'local'}`;
           const existingData = localStorage.getItem(key);
           let keystrokeHistory = [];
           
@@ -426,25 +485,23 @@ const EditorSection = ({
             keystrokeHistory = JSON.parse(existingData);
           }
           
-          // Get user ID from localStorage or sessionStorage
-          const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
-          
           // Add new keystroke data with timestamp
           keystrokeHistory.push({
-            code,
-            problem_index: currentProblemIndex,
-            exercise_id: problems[currentProblemIndex]?.id,
-            assignment_id: assignmentId,
-            test_type: testType,
-            cursor_position: cursorPosition,
-            timestamp: new Date().toISOString(),
-            user_id: userId
+            ...keystrokeData,
+            timestamp: new Date().toISOString()
           });
+          
+          // Limit history size (optional, to prevent localStorage from getting too large)
+          if (keystrokeHistory.length > 500) {
+            keystrokeHistory = keystrokeHistory.slice(-500);
+          }
           
           localStorage.setItem(key, JSON.stringify(keystrokeHistory));
         } catch (storageErr) {
           console.warn('Error storing keystroke data locally:', storageErr);
         }
+      } catch (err) {
+        console.error('Unexpected error in keystroke tracking:', err);
       }
     }, KEYSTROKE_DEBOUNCE_TIME),
     [currentProblemIndex, testType, assignmentId, problems]
