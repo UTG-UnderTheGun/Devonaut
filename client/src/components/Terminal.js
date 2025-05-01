@@ -1,28 +1,65 @@
 import { useCodeContext } from '@/app/context/CodeContext';
 import './Terminal.css';
 import { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 
 const Terminal = () => {
-  const { output, error, setOpenTerm } = useCodeContext();
+  const { output, error, setOpenTerm, setOutput, setError } = useCodeContext();
   const [isClosing, setIsClosing] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, text: '' });
   const [displayedOutput, setDisplayedOutput] = useState('');
+  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
+  const [userInput, setUserInput] = useState('');
   const terminalRef = useRef(null);
+  const inputRef = useRef(null);
 
   const hasError = Boolean(error);
 
   // Update displayed output when output or error changes
   useEffect(() => {
     const newOutput = error || output || '';
+    
+    // Always set the displayed output directly - no need to clean
     setDisplayedOutput(newOutput);
+    
+    // Check if we need input based on context data
+    const contextData = window.lastResponseContext || {};
+    if (!error && (contextData.needs_input || contextData.input_marker === "__INPUT_REQUIRED__")) {
+      setIsWaitingForInput(true);
+      if (inputRef.current) {
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 50);
+      }
+    } else {
+      setIsWaitingForInput(false);
+    }
   }, [output, error]);
 
   // Listen for console output updates
   useEffect(() => {
     const handleOutputUpdate = (event) => {
-      const { output: newOutput } = event.detail;
+      const { output: newOutput, context } = event.detail;
+      
+      // Set output without any cleaning needed
       setDisplayedOutput(newOutput);
+      
+      // Check if we need input based on context
+      if (context && (context.needs_input || context.input_marker === "__INPUT_REQUIRED__")) {
+        setIsWaitingForInput(true);
+        if (inputRef.current) {
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }, 50);
+        }
+      } else {
+        setIsWaitingForInput(false);
+      }
     };
 
     window.addEventListener('console-output-updated', handleOutputUpdate);
@@ -110,6 +147,63 @@ const Terminal = () => {
     };
   }, []);
 
+  // Handle form submission for input
+  const handleInputSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      // Store current input and clear the field
+      const input = userInput;
+      setUserInput('');
+      
+      // Update the displayed output to include the user's input
+      setDisplayedOutput(prevOutput => prevOutput + input);
+      
+      // Send the input to the server
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/send-input`,
+        { input },
+        { withCredentials: true }
+      );
+      
+      // Store response context for later use
+      window.lastResponseContext = {
+        needs_input: response.data.needs_input || false,
+        input_marker: response.data.input_marker || null
+      };
+      
+      // Process the response
+      if (response.data.error) {
+        setError(response.data.error);
+        setIsWaitingForInput(false);
+      } else if (response.data.output) {
+        // Check if there's an input marker or needs_input flag
+        if (response.data.needs_input || response.data.input_marker === "__INPUT_REQUIRED__") {
+          // Still waiting for more input
+          setOutput(response.data.output);
+          setDisplayedOutput(response.data.output);
+          setIsWaitingForInput(true);
+          if (inputRef.current) {
+            setTimeout(() => {
+              if (inputRef.current) {
+                inputRef.current.focus();
+              }
+            }, 50);
+          }
+        } else {
+          // Processing complete
+          setOutput(response.data.output);
+          setDisplayedOutput(response.data.output);
+          setIsWaitingForInput(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error sending input:', err);
+      setError('Error connecting to the server');
+      setIsWaitingForInput(false);
+    }
+  };
+
   // Format error message for better display
   const formatErrorMessage = (message) => {
     if (!hasError) return message;
@@ -126,6 +220,13 @@ const Terminal = () => {
     });
   };
 
+  // Clean output by removing any unwanted markers
+  const cleanOutput = (output) => {
+    if (!output) return '';
+    // Remove any __INPUT_REQUIRED__ markers that might have slipped through
+    return output.replace(/__INPUT_REQUIRED__/g, '');
+  };
+
   return (
     <div 
       ref={terminalRef}
@@ -139,8 +240,27 @@ const Terminal = () => {
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word'
       }}>
-        {formatErrorMessage(displayedOutput)}
+        {formatErrorMessage(cleanOutput(displayedOutput))}
       </pre>
+      
+      {/* Input area that appears when waiting for input */}
+      {isWaitingForInput && (
+        <form onSubmit={handleInputSubmit} className="terminal-input-container">
+          <input
+            type="text"
+            ref={inputRef}
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            className="terminal-input"
+            placeholder="Type here..."
+            autoFocus
+          />
+          <button type="submit" className="terminal-input-submit">
+            Enter
+          </button>
+        </form>
+      )}
+      
       {contextMenu.visible && contextMenu.text && (
         <div
           className="context-menu"

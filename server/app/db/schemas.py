@@ -323,6 +323,11 @@ class Code(BaseModel):
     code: str
 
 
+class InputData(BaseModel):
+    input: str
+    user_id: Optional[str] = None
+
+
 class CodeHistory(BaseModel):
     user_id: Optional[str] = None  # Will be set by the server
     username: Optional[str] = None  # Store the username for easier identification

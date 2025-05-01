@@ -483,7 +483,7 @@ const Header = () => {
           <Link href="#" onClick={handleLogoClick} className="logo">
             <Image
               className="logo-img"
-              src="https://res.cloudinary.com/dstl8qazf/image/upload/v1738323587/poker-chip_1_1_rxwagd.png"
+              src="https://res.cloudinary.com/dotqm6po2/image/upload/v1745851267/logo-removebg-preview_sum0s8.png"
               alt="Devonaut Logo"
               width={35}
               height={35}

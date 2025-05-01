@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 from fastapi_limiter.depends import RateLimiter
-from app.db.schemas import Code, CodeHistory, KeystrokeData
-from app.services.run_code_service import run_code as run_code_service
+from app.db.schemas import Code, CodeHistory, KeystrokeData, InputData
+from app.services.run_code_service import run_code as run_code_service, send_input
 from app.services.export_code import export_code
 from typing import Dict, Any, Tuple, List
 from app.core.security import get_current_user
@@ -53,6 +53,30 @@ async def run_code(
         return {"error": str(e)}
 
 
+@router.post("/send-input", response_model=Dict[str, Any])
+async def handle_input(
+    request: Request,
+    input_data: InputData,
+    current_user=Depends(get_current_user),
+):
+    """
+    Handle user input for interactive code execution
+    """
+    try:
+        # Get user info
+        user, user_id = current_user
+        
+        # Get the input value from the request body
+        user_input = input_data.input
+        
+        # Send the input to the running process
+        result = await send_input(user_input, user_id)
+        
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.post("/save-code-history")
 async def save_code_history(
     request: Request,
@@ -65,9 +89,6 @@ async def save_code_history(
     try:
         # Get user info
         user, user_id = current_user
-        
-        # Print received data for debugging
-        print(f"Received history data: {history.dict()}")
         
         # Create a new dict with only the data we need
         history_data = {
@@ -100,15 +121,12 @@ async def save_code_history(
             history_data["action_type"] = history.action_type
         else:
             history_data["action_type"] = "run"  # Default
-            
-        print(f"Processed history data: {history_data}")
         
         # Insert into MongoDB
         result = await request.app.mongodb["code_history"].insert_one(history_data)
         
         return {"success": True, "id": str(result.inserted_id)}
     except Exception as e:
-        print(f"Error saving code history: {str(e)}")
         # Return error as 200 response to avoid breaking client
         return {"success": False, "error": str(e)}
 

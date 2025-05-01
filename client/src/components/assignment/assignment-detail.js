@@ -14,9 +14,6 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   const [students, setStudents] = useState([]);
   const [showAssignmentSettings, setShowAssignmentSettings] = useState(false);
   
-
-
-
   // Fetch assignment data
   useEffect(() => {
     const fetchAssignment = async () => {
@@ -549,7 +546,7 @@ def binary_search(arr, target):
                   <label>Due Date <span className="required">*</span></label>
                   <input
                     type="datetime-local"
-                    value={assignment.dueDate}
+                    value={assignment.dueDate ? new Date(assignment.dueDate).toISOString().slice(0, 16) : ''}
                     onChange={(e) => handleInputChange('dueDate', e.target.value)}
                     className="form-input"
                     required
@@ -557,16 +554,33 @@ def binary_search(arr, target):
                 </div>
 
                 <div className="form-group">
-                  <label>Total Points</label>
-                  <input
-                    type="number"
-                    value={assignment.points}
-                    onChange={(e) => handleInputChange('points', parseInt(e.target.value) || 0)}
-                    className="form-input"
-                    min="0"
-                    placeholder="Enter total points"
+                  <label>Test Cases</label>
+                  <textarea
+                    value={assignment.exercises && assignment.exercises.length > 0
+                      ? assignment.exercises[0].test_cases || ''
+                      : ''}
+                    onChange={(e) => {
+                      const updatedExercises = [...(assignment.exercises || [])];
+                      if (updatedExercises.length > 0) {
+                        updatedExercises[0].test_cases = e.target.value;
+                      } else {
+                        updatedExercises.push({
+                          id: 1,
+                          title: "Exercise 1",
+                          description: "Complete the exercise",
+                          type: "coding",
+                          points: assignment.points || 10,
+                          test_cases: e.target.value
+                        });
+                      }
+                      handleInputChange('exercises', updatedExercises);
+                    }}
+                    className="form-textarea"
+                    rows="6"
+                    placeholder="Enter test cases"
                   />
                 </div>
+
 
                 <div className="form-group">
                   <div className="exercise-list-header">
@@ -645,8 +659,10 @@ def binary_search(arr, target):
                     )}
                   </>
                 )}
+
               </div>
             ) : (
+              /* This is the settings view that appears when "Assign To" is clicked */
               <div className="assignment-settings">
                 <div className="form-group">
                   <label>Assign to</label>
