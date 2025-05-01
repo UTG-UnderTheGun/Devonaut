@@ -1,14 +1,18 @@
 import { useCodeContext } from '@/app/context/CodeContext';
 import './Terminal.css';
 import { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 
 const Terminal = () => {
-  const { output, error, setOpenTerm } = useCodeContext();
+  const { output, error, setOpenTerm, setOutput, setError } = useCodeContext();
   const [isClosing, setIsClosing] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, text: '' });
   const [displayedOutput, setDisplayedOutput] = useState('');
+  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
+  const [userInput, setUserInput] = useState('');
   const terminalRef = useRef(null);
+  const inputRef = useRef(null);
 
   const hasError = Boolean(error);
 
@@ -16,6 +20,18 @@ const Terminal = () => {
   useEffect(() => {
     const newOutput = error || output || '';
     setDisplayedOutput(newOutput);
+    
+    // Check if output ends with input prompt
+    if (!error && newOutput.endsWith('__INPUT_REQUIRED__')) {
+      setIsWaitingForInput(true);
+      setDisplayedOutput(newOutput.replace('__INPUT_REQUIRED__', ''));
+      // Focus the input field
+      if (inputRef.current) {
+        setTimeout(() => inputRef.current.focus(), 50);
+      }
+    } else {
+      setIsWaitingForInput(false);
+    }
   }, [output, error]);
 
   // Listen for console output updates
@@ -23,6 +39,18 @@ const Terminal = () => {
     const handleOutputUpdate = (event) => {
       const { output: newOutput } = event.detail;
       setDisplayedOutput(newOutput);
+      
+      // Check if output ends with input prompt
+      if (newOutput.endsWith('__INPUT_REQUIRED__')) {
+        setIsWaitingForInput(true);
+        setDisplayedOutput(newOutput.replace('__INPUT_REQUIRED__', ''));
+        // Focus the input field
+        if (inputRef.current) {
+          setTimeout(() => inputRef.current.focus(), 50);
+        }
+      } else {
+        setIsWaitingForInput(false);
+      }
     };
 
     window.addEventListener('console-output-updated', handleOutputUpdate);
@@ -110,6 +138,53 @@ const Terminal = () => {
     };
   }, []);
 
+  // Handle form submission for input
+  const handleInputSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      // Store current input and clear the field
+      const input = userInput;
+      setUserInput('');
+      
+      // Update the displayed output to include the user's input
+      setDisplayedOutput(prevOutput => prevOutput + input);
+      
+      // Send the input to the server
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/send-input`,
+        { input },
+        { withCredentials: true }
+      );
+      
+      // Process the response
+      if (response.data.error) {
+        setError(response.data.error);
+        setIsWaitingForInput(false);
+      } else if (response.data.output) {
+        if (response.data.output.endsWith('__INPUT_REQUIRED__')) {
+          // Still waiting for more input
+          const newOutput = response.data.output.replace('__INPUT_REQUIRED__', '');
+          setOutput(newOutput);
+          setDisplayedOutput(newOutput);
+          setIsWaitingForInput(true);
+          if (inputRef.current) {
+            setTimeout(() => inputRef.current.focus(), 50);
+          }
+        } else {
+          // Processing complete
+          setOutput(response.data.output);
+          setDisplayedOutput(response.data.output);
+          setIsWaitingForInput(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error sending input:', err);
+      setError('Error connecting to the server');
+      setIsWaitingForInput(false);
+    }
+  };
+
   // Format error message for better display
   const formatErrorMessage = (message) => {
     if (!hasError) return message;
@@ -141,6 +216,25 @@ const Terminal = () => {
       }}>
         {formatErrorMessage(displayedOutput)}
       </pre>
+      
+      {/* Input area that appears when waiting for input */}
+      {isWaitingForInput && (
+        <form onSubmit={handleInputSubmit} className="terminal-input-container">
+          <input
+            type="text"
+            ref={inputRef}
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            className="terminal-input"
+            placeholder="Type here..."
+            autoFocus
+          />
+          <button type="submit" className="terminal-input-submit">
+            Enter
+          </button>
+        </form>
+      )}
+      
       {contextMenu.visible && contextMenu.text && (
         <div
           className="context-menu"
