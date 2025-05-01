@@ -19,15 +19,20 @@ const Terminal = () => {
   // Update displayed output when output or error changes
   useEffect(() => {
     const newOutput = error || output || '';
+    
+    // Always set the displayed output directly - no need to clean
     setDisplayedOutput(newOutput);
     
-    // Check if output ends with input prompt
-    if (!error && newOutput.endsWith('__INPUT_REQUIRED__')) {
+    // Check if we need input based on context data
+    const contextData = window.lastResponseContext || {};
+    if (!error && (contextData.needs_input || contextData.input_marker === "__INPUT_REQUIRED__")) {
       setIsWaitingForInput(true);
-      setDisplayedOutput(newOutput.replace('__INPUT_REQUIRED__', ''));
-      // Focus the input field
       if (inputRef.current) {
-        setTimeout(() => inputRef.current.focus(), 50);
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 50);
       }
     } else {
       setIsWaitingForInput(false);
@@ -37,16 +42,20 @@ const Terminal = () => {
   // Listen for console output updates
   useEffect(() => {
     const handleOutputUpdate = (event) => {
-      const { output: newOutput } = event.detail;
+      const { output: newOutput, context } = event.detail;
+      
+      // Set output without any cleaning needed
       setDisplayedOutput(newOutput);
       
-      // Check if output ends with input prompt
-      if (newOutput.endsWith('__INPUT_REQUIRED__')) {
+      // Check if we need input based on context
+      if (context && (context.needs_input || context.input_marker === "__INPUT_REQUIRED__")) {
         setIsWaitingForInput(true);
-        setDisplayedOutput(newOutput.replace('__INPUT_REQUIRED__', ''));
-        // Focus the input field
         if (inputRef.current) {
-          setTimeout(() => inputRef.current.focus(), 50);
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }, 50);
         }
       } else {
         setIsWaitingForInput(false);
@@ -157,19 +166,29 @@ const Terminal = () => {
         { withCredentials: true }
       );
       
+      // Store response context for later use
+      window.lastResponseContext = {
+        needs_input: response.data.needs_input || false,
+        input_marker: response.data.input_marker || null
+      };
+      
       // Process the response
       if (response.data.error) {
         setError(response.data.error);
         setIsWaitingForInput(false);
       } else if (response.data.output) {
-        if (response.data.output.endsWith('__INPUT_REQUIRED__')) {
+        // Check if there's an input marker or needs_input flag
+        if (response.data.needs_input || response.data.input_marker === "__INPUT_REQUIRED__") {
           // Still waiting for more input
-          const newOutput = response.data.output.replace('__INPUT_REQUIRED__', '');
-          setOutput(newOutput);
-          setDisplayedOutput(newOutput);
+          setOutput(response.data.output);
+          setDisplayedOutput(response.data.output);
           setIsWaitingForInput(true);
           if (inputRef.current) {
-            setTimeout(() => inputRef.current.focus(), 50);
+            setTimeout(() => {
+              if (inputRef.current) {
+                inputRef.current.focus();
+              }
+            }, 50);
           }
         } else {
           // Processing complete
@@ -201,6 +220,13 @@ const Terminal = () => {
     });
   };
 
+  // Clean output by removing any unwanted markers
+  const cleanOutput = (output) => {
+    if (!output) return '';
+    // Remove any __INPUT_REQUIRED__ markers that might have slipped through
+    return output.replace(/__INPUT_REQUIRED__/g, '');
+  };
+
   return (
     <div 
       ref={terminalRef}
@@ -214,7 +240,7 @@ const Terminal = () => {
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word'
       }}>
-        {formatErrorMessage(displayedOutput)}
+        {formatErrorMessage(cleanOutput(displayedOutput))}
       </pre>
       
       {/* Input area that appears when waiting for input */}

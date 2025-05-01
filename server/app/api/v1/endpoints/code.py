@@ -90,9 +90,6 @@ async def save_code_history(
         # Get user info
         user, user_id = current_user
         
-        # Print received data for debugging
-        print(f"Received history data: {history.dict()}")
-        
         # Create a new dict with only the data we need
         history_data = {
             "user_id": user_id,
@@ -124,15 +121,12 @@ async def save_code_history(
             history_data["action_type"] = history.action_type
         else:
             history_data["action_type"] = "run"  # Default
-            
-        print(f"Processed history data: {history_data}")
         
         # Insert into MongoDB
         result = await request.app.mongodb["code_history"].insert_one(history_data)
         
         return {"success": True, "id": str(result.inserted_id)}
     except Exception as e:
-        print(f"Error saving code history: {str(e)}")
         # Return error as 200 response to avoid breaking client
         return {"success": False, "error": str(e)}
 

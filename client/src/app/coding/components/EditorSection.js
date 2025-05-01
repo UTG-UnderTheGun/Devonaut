@@ -584,14 +584,37 @@ const EditorSection = ({
         { withCredentials: true }
       );
       
+      // Store context data to handle input requirements
+      window.lastResponseContext = {
+        needs_input: response.data.needs_input || false,
+        input_marker: response.data.input_marker || null
+      };
+      
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
         setConsoleOutput('');
       } else {
-        setOutput(response.data.output);
+        // Clean the output if needed before setting it
+        const cleanOutput = response.data.output;
+        setOutput(cleanOutput);
         setError('');
-        setConsoleOutput(response.data.output);
+        setConsoleOutput(cleanOutput);
+        
+        // Emit an event to update the terminal state directly
+        // This is useful for cases where the terminal is already open
+        if (response.data.needs_input || response.data.input_marker === "__INPUT_REQUIRED__") {
+          const outputEvent = new CustomEvent('console-output-updated', {
+            detail: {
+              output: cleanOutput,
+              context: {
+                needs_input: response.data.needs_input,
+                input_marker: response.data.input_marker
+              }
+            }
+          });
+          window.dispatchEvent(outputEvent);
+        }
       }
 
       // Save code history with problem index

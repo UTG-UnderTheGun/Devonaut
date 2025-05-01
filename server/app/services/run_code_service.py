@@ -118,7 +118,9 @@ def sandbox_setup(uid: int, gid: int) -> None:
     resource.setrlimit(resource.RLIMIT_CPU, (5, 5))  # 5 seconds CPU time
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))  # Max 64 open files
     resource.setrlimit(resource.RLIMIT_NPROC, (10, 10))  # Max 10 processes/threads
-    resource.setrlimit(resource.RLIMIT_FSIZE, (1024 * 1024, 1024 * 1024))  # 1MB file size
+    resource.setrlimit(
+        resource.RLIMIT_FSIZE, (1024 * 1024, 1024 * 1024)
+    )  # 1MB file size
 
     # Drop privileges by changing to nobody user
     os.setgroups([])
@@ -128,6 +130,7 @@ def sandbox_setup(uid: int, gid: int) -> None:
 
 class InputWrapper:
     """Custom wrapper for redirecting sys.stdin to handle input."""
+
     def __init__(self, process_id):
         self.process_id = process_id
         self.buffer = queue.Queue()
@@ -135,16 +138,26 @@ class InputWrapper:
 
     def readline(self):
         self.waiting = True
-        # Signal to the frontend that we need input
-        PROCESS_OUTPUTS[self.process_id] += "__INPUT_REQUIRED__"
+        # Signal to the frontend that we need input via a separate channel
+        # Don't modify the actual output text
+        self._signal_input_required()
         # Wait for input
         result = self.buffer.get()
         self.waiting = False
         return result + "\n"  # Add newline to simulate pressing Enter
+        
+    def _signal_input_required(self):
+        # Store the marker in a way that won't be displayed in the output
+        # Using a special object property instead of appending to output
+        PROCESS_INPUTS[self.process_id] = "__INPUT_REQUIRED__"
+        # Add a hidden field to the process output object
+        if hasattr(PROCESS_OUTPUTS, "needs_input"):
+            PROCESS_OUTPUTS.needs_input = True
 
 
 class OutputWrapper:
     """Custom wrapper for capturing stdout and stderr."""
+
     def __init__(self, process_id):
         self.process_id = process_id
         self.buffer = []
@@ -162,6 +175,7 @@ class OutputWrapper:
 
 class InteractiveCodeRunner:
     """Class to handle interactive code execution with support for input."""
+
     def __init__(self, code_str, process_id):
         self.code_str = code_str
         self.process_id = process_id
@@ -202,7 +216,7 @@ class InteractiveCodeRunner:
 
             # Execute the code
             exec(self.code_str, self.namespace)
-            
+
         except Exception as e:
             self.error = str(e)
             PROCESS_OUTPUTS[self.process_id] += f"Runtime error: {str(e)}"
@@ -239,7 +253,7 @@ async def execute_in_sandbox(
     # For interactive input, we use a different approach
     if "input(" in code_str:
         return await execute_interactive(code_str, user_id)
-    
+
     try:
         sandbox_user = pwd.getpwnam("nobody")
         sandbox_gid = sandbox_user.pw_gid
@@ -275,11 +289,11 @@ async def execute_in_sandbox(
 async def execute_interactive(code_str: str, user_id: str) -> Dict[str, Any]:
     """
     Execute code in interactive mode with input support.
-    
+
     Args:
         code_str: String containing Python code
         user_id: User ID for tracking the process
-        
+
     Returns:
         Dict containing execution results or error message
     """
@@ -287,28 +301,34 @@ async def execute_interactive(code_str: str, user_id: str) -> Dict[str, Any]:
         # Clean up any previous process for this user
         if user_id in ACTIVE_PROCESSES:
             del ACTIVE_PROCESSES[user_id]
-        
+
         # Generate a unique process ID
         process_id = f"{user_id}_{uuid.uuid4().hex}"
-        
+
         # Initialize output buffer for this process
         PROCESS_OUTPUTS[process_id] = ""
-        
+        # Initialize input tracking
+        PROCESS_INPUTS[process_id] = ""
+
         # Create and run the interactive code runner
         runner = InteractiveCodeRunner(code_str, process_id)
         ACTIVE_PROCESSES[user_id] = {"runner": runner, "process_id": process_id}
-        
+
         # Start execution
         runner.run()
-        
+
         # Wait a short time for initial output or prompt
         await asyncio.sleep(0.1)
+
+        # Check if we need to signal that input is required
+        result = {"output": PROCESS_OUTPUTS[process_id], "user_id": user_id}
         
+        if process_id in PROCESS_INPUTS and PROCESS_INPUTS[process_id] == "__INPUT_REQUIRED__":
+            result["needs_input"] = True
+            result["input_marker"] = "__INPUT_REQUIRED__"
+
         # Return the initial output
-        return {
-            "output": PROCESS_OUTPUTS[process_id],
-            "user_id": user_id
-        }
+        return result
     except Exception as e:
         logger.error(f"Interactive execution error: {str(e)}")
         return {"error": f"Server error: {str(e)}"}
@@ -317,11 +337,11 @@ async def execute_interactive(code_str: str, user_id: str) -> Dict[str, Any]:
 async def send_input(input_str: str, user_id: str) -> Dict[str, Any]:
     """
     Send input to a running interactive process.
-    
+
     Args:
         input_str: Input string from the user
         user_id: User ID for identifying the process
-        
+
     Returns:
         Dict containing updated execution results
     """
@@ -329,33 +349,46 @@ async def send_input(input_str: str, user_id: str) -> Dict[str, Any]:
         # Check if there's an active process for this user
         if user_id not in ACTIVE_PROCESSES:
             return {"error": "No active process found. Please run your code first."}
-        
+
         process_info = ACTIVE_PROCESSES[user_id]
         runner = process_info["runner"]
         process_id = process_info["process_id"]
-        
+
         # Update the output with the user's input (to display it)
         PROCESS_OUTPUTS[process_id] += input_str + "\n"
-        
+
         # Send the input to the process
         success = runner.send_input(input_str)
-        
+
         if not success:
             return {"error": "Process is not waiting for input"}
-            
+
         # Wait a short time for processing
         await asyncio.sleep(0.1)
-        
+
         # Check if process is still running
         if not runner.is_running:
             # Process finished, clean up
             result = {"output": PROCESS_OUTPUTS[process_id]}
             del ACTIVE_PROCESSES[user_id]
             del PROCESS_OUTPUTS[process_id]
+            # Clean up input flag if it exists
+            if process_id in PROCESS_INPUTS:
+                del PROCESS_INPUTS[process_id]
         else:
             # Process still running, return current output
-            result = {"output": PROCESS_OUTPUTS[process_id]}
+            output = PROCESS_OUTPUTS[process_id]
+            result = {"output": output}
             
+            # Check if we need to signal that input is still required
+            if runner.stdin_wrapper.waiting:
+                # Add a header that signals input is required without showing it in the output
+                result["needs_input"] = True
+                
+                # Instead of appending to the actual output, add a flag
+                if process_id in PROCESS_INPUTS and PROCESS_INPUTS[process_id] == "__INPUT_REQUIRED__":
+                    result["input_marker"] = "__INPUT_REQUIRED__"
+
         return result
     except Exception as e:
         logger.error(f"Input handling error: {str(e)}")
@@ -379,7 +412,7 @@ async def run_code(code: Code, user_id: str) -> Dict[str, Any]:
             # Check if code contains input() function
             if "input(" in code.code:
                 return await execute_interactive(code.code, user_id)
-            
+
             async with TEMP_DIRS_SEMAPHORE:
                 try:
                     with tempfile.TemporaryDirectory() as temp_dir:
