@@ -10,6 +10,8 @@ import './EditorSection.css';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
 import _ from 'lodash';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -1202,7 +1204,11 @@ const EditorSection = ({
             {showDescription && (
               <>
                 <div className="question-title">{currentProblem.title || ''}</div>
-                <div className="question-description">{currentProblem.description || ''}</div>
+                <div className="question-description">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentProblem.description || ''}
+                  </ReactMarkdown>
+                </div>
               </>
             )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, outputCode)}>
@@ -1269,7 +1275,11 @@ const EditorSection = ({
             {showDescription && (
               <>
                 <div className="question-title">{currentProblem.title || ''}</div>
-                <div className="question-description">{currentProblem.description || ''}</div>
+                <div className="question-description">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentProblem.description || ''}
+                  </ReactMarkdown>
+                </div>
               </>
             )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, fillCode)}>
