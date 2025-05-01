@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from bson import ObjectId
 from app.db.schemas import UserProfile
-from app.services.user_service import update_user_profile
+from app.services.user_service import update_user_profile, get_user_by_student_id
 from app.services.assignment_service import get_assignments_for_student
 
 router = APIRouter()
@@ -301,9 +301,26 @@ async def get_user_dashboard(
             student_section=user.get("section")
         )
         
+        # Always fetch fresh data for each assignment
+        fresh_assignments = []
+        for assignment in assignments:
+            # Get the latest version of each assignment
+            try:
+                latest_assignment = await request.app.mongodb["assignments"].find_one({"_id": ObjectId(assignment["id"])})
+                if latest_assignment:
+                    # Convert ObjectId to string
+                    latest_assignment["id"] = str(latest_assignment["_id"])
+                    del latest_assignment["_id"]
+                    fresh_assignments.append(latest_assignment)
+                else:
+                    fresh_assignments.append(assignment)
+            except Exception as e:
+                print(f"Error refreshing assignment {assignment.get('id')}: {str(e)}")
+                fresh_assignments.append(assignment)
+        
         # Format the data for the dashboard
         formatted_assignments = []
-        for assignment in assignments:
+        for assignment in fresh_assignments:
             try:
                 # Calculate progress based on submission status
                 progress = 0  # Default to 0
@@ -362,7 +379,7 @@ async def get_user_dashboard(
                     formatted_assignment["link"] = f"/feedback?assignment={assignment['id']}"
                 
                 # Add score and feedback info for graded assignments
-                if submission and submission["status"] == "graded" and "score" in submission:
+                if submission and submission["status"] == "graded":
                     formatted_assignment["score"] = submission["score"]
                     formatted_assignment["feedback"] = submission.get("feedback", {})
                     formatted_assignment["graded_at"] = submission.get("graded_at")
@@ -506,4 +523,45 @@ async def get_students_by_section(current_user: dict = Depends(get_current_user)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch students by section: {str(e)}"
+        )
+
+@router.get("/student-lookup/{student_id}", response_model=UserResponse)
+async def get_user_by_student_id_endpoint(
+    student_id: str,
+    current_user=Depends(get_current_user)
+):
+    """
+    Get a user by their student ID (institutional ID)
+    """
+    try:
+        # Check authorization
+        auth_user, auth_user_id = current_user
+        
+        print(f"Looking up user with student_id: {student_id}")
+        
+        # Use the service function to get the user
+        user = await get_user_by_student_id(student_id)
+        
+        print(f"Found user: {user.get('username')} with MongoDB ID: {user['_id']}")
+        
+        # Format response
+        return {
+            "username": user.get("username", ""),
+            "user_id": user["_id"],  # Already a string from the service
+            "name": user.get("name"),
+            "student_id": user.get("student_id"),
+            "section": user.get("section"),
+            "skill_level": user.get("skill_level"),
+            "email": user.get("email")
+        }
+        
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        print(f"HTTP error in student lookup: {e.detail}")
+        raise
+    except Exception as e:
+        print(f"Error in student lookup: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve user: {str(e)}"
         )

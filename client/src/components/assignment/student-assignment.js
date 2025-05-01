@@ -332,7 +332,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [submission, setSubmission] = useState(null);
   const [codeHistory, setCodeHistory] = useState([]);
   const [keystrokeHistory, setKeystrokeHistory] = useState([]);
-  const [aiChatHistory, setAiChatHistory] = useState([]);
+  const [aiChatHistory, setAiChatHistory] = useState({});
   const [activeTab, setActiveTab] = useState('exercises');
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [error, setError] = useState(null);
@@ -340,27 +340,271 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timelinePosition, setTimelinePosition] = useState(0);
-  const [exercises] = useState(mockExercises);
-  const [answers] = useState(mockAnswers);
-  const [codingActivity] = useState(mockCodingActivity);
+  const [exercises, setExercises] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [codingActivity, setCodingActivity] = useState({});
 
   const fetchData = async () => {
     try {
-      // Use mock data only
+      // Define API base URL
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      // Fetch assignment details
+      const assignmentResponse = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      
+      if (!assignmentResponse.ok) {
+        throw new Error(`Failed to fetch assignment: ${assignmentResponse.status}`);
+      }
+      
+      const assignmentData = await assignmentResponse.json();
+      setAssignment(assignmentData);
+      console.log("Assignment loaded successfully:", assignmentData);
+      
+      // Set exercises from assignment data
+      if (assignmentData.exercises && assignmentData.exercises.length > 0) {
+        setExercises(assignmentData.exercises);
+        
+        // เพิ่ม log เพื่อตรวจสอบประเภทของแต่ละข้อ
+        console.log("EXERCISE TYPES:");
+        assignmentData.exercises.forEach((ex, idx) => {
+          console.log(`Exercise ${idx+1} (ID: ${ex.id}) - Type: ${ex.type}`);
+        });
+      } else {
+        setExercises(mockExercises); // Fallback to mock if no exercises
+        console.warn("No exercises found in assignment data, using mock data");
+      }
+      
+      // First, look up the user by student_id to get the MongoDB user_id
+      let mongoUserId = studentId; // Default to using the provided ID
+      
+      try {
+        const userLookupResponse = await fetch(`${API_BASE}/users/student-lookup/${studentId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (userLookupResponse.ok) {
+          const userData = await userLookupResponse.json();
+          mongoUserId = userData.user_id; // Use the MongoDB user_id for submission lookup
+          console.log(`Mapped student_id ${studentId} to MongoDB user_id ${mongoUserId}`);
+        } else {
+          // If lookup fails, continue with the original studentId
+          console.warn(`Could not find user with student_id ${studentId}, using ID as-is`);
+        }
+      } catch (userLookupError) {
+        console.error("Error looking up user:", userLookupError);
+        // Continue with original ID
+      }
+      
+      // Fetch student submission using the MongoDB user_id
+      try {
+        const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${mongoUserId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (submissionResponse.ok) {
+          const submissionData = await submissionResponse.json();
+          setSubmission(submissionData);
+          console.log("Submission loaded successfully:", submissionData);
+          
+          // ดึงคำตอบจาก submission โดยตรง ง่ายๆ
+          if (submissionData.answers) {
+            console.log("RAW SUBMISSION ANSWERS:", submissionData.answers);
+            setAnswers(submissionData.answers);
+          } else {
+            console.warn("No answers found in submission data");
+            setAnswers({});
+          }
+        } else {
+          // If submission not found, create a placeholder
+          console.log("No submission found, creating placeholder");
+          setSubmission({
+            id: null,
+            assignment_id: assignmentId,
+            user_id: mongoUserId,
+            username: "Unknown Student",
+            section: "Unknown",
+            status: "pending",
+            submitted_at: null,
+            answers: {},
+            comments: []
+          });
+        }
+      } catch (submissionError) {
+        console.error("Error fetching submission:", submissionError);
+        // Use mock data as fallback
+        setSubmission(mockSubmission);
+        setAnswers(mockAnswers);
+      }
+      
+      // Fetch code history
+      try {
+        const codeHistoryResponse = await fetch(`${API_BASE}/code/code-history?user_id=${mongoUserId}&assignment_id=${assignmentId}&limit=100`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (codeHistoryResponse.ok) {
+          const historyData = await codeHistoryResponse.json();
+          setCodeHistory(historyData);
+          console.log("Code history loaded successfully:", historyData);
+          
+          // Organize code history into coding activity structure
+          const activity = {};
+          if (assignmentData.exercises && assignmentData.exercises.length > 0) {
+            assignmentData.exercises.forEach(exercise => {
+              // Filter history for this exercise and sort by timestamp
+              const exerciseHistory = historyData
+                .filter(item => {
+                  // Match by exercise_id if available, otherwise by problem_index
+                  return (item.exercise_id && item.exercise_id === exercise.id) || 
+                         (item.problem_index === exercise.id);
+                })
+                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+              // Map to the format expected by the UI
+              activity[exercise.id] = exerciseHistory.map((item, index) => ({
+                id: index + 1,
+                timestamp: item.created_at,
+                action: item.action_type || 'run',
+                exerciseId: exercise.id,
+                code: item.code || ''
+              }));
+            });
+            setCodingActivity(activity);
+          }
+        } else {
+          // Fallback to mock data
+          console.warn("Failed to fetch code history, using mock data");
+      setCodeHistory(mockCodeHistory);
+          setCodingActivity(mockCodingActivity);
+        }
+      } catch (historyError) {
+        console.error("Error fetching code history:", historyError);
+        setCodeHistory(mockCodeHistory);
+        setCodingActivity(mockCodingActivity);
+      }
+      
+      // Fetch keystroke history
+      try {
+        const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (keystrokeResponse.ok) {
+          const keystrokeData = await keystrokeResponse.json();
+          
+          // Transform the data into the format expected by the UI
+          const formattedKeystrokeData = keystrokeData.map(item => ({
+            day: item.day,
+            count: item.count,
+            action_type: item.action_type,
+            problem_index: item.problem_index,
+            exercise_id: item.exercise_id
+          }));
+          
+          setKeystrokeHistory(formattedKeystrokeData);
+          console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
+        } else {
+          console.warn("Failed to fetch keystroke history, using mock data");
+      setKeystrokeHistory(mockKeystrokeHistory);
+        }
+      } catch (keystrokeError) {
+        console.error("Error fetching keystroke history:", keystrokeError);
+        setKeystrokeHistory(mockKeystrokeHistory);
+      }
+      
+      // Fetch AI chat history
+      try {
+        // Create an object to store chat histories by exercise
+        const chatHistories = {};
+        
+        // Fetch chat history for each exercise
+        if (exercises.length > 0) {
+          for (const exercise of exercises) {
+            const chatResponse = await fetch(`${API_BASE}/ai/conversations?user_id=${mongoUserId}&exercise_id=${exercise.id}&assignment_id=${assignmentId}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            });
+            
+            if (chatResponse.ok) {
+              const chatData = await chatResponse.json();
+              
+              if (chatData.messages && chatData.messages.length > 0) {
+                // Transform to the format expected by the UI
+                chatHistories[exercise.id] = chatData.messages.map((msg, index) => ({
+                  id: index + 1,
+                  timestamp: msg.timestamp || new Date().toISOString(),
+                  role: msg.role === 'user' ? 'student' : 'ai',
+                  content: msg.content
+                }));
+              } else {
+                chatHistories[exercise.id] = [];
+              }
+            }
+          }
+          
+          setAiChatHistory(chatHistories);
+          console.log("AI chat history loaded successfully:", chatHistories);
+        } else {
+          console.warn("No exercises found, using mock AI chat history");
+      setAiChatHistory(mockAiChatHistory);
+        }
+      } catch (chatError) {
+        console.error("Error fetching AI chat history:", chatError);
+        setAiChatHistory(mockAiChatHistory);
+      }
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching assignment data:', err);
+      
+      // Fallback to mock data
       setAssignment(mockAssignment);
       setSubmission(mockSubmission);
       setCodeHistory(mockCodeHistory);
       setKeystrokeHistory(mockKeystrokeHistory);
       setAiChatHistory(mockAiChatHistory);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error setting mock data:', err);
+      setExercises(mockExercises);
+      setAnswers(mockAnswers);
+      setCodingActivity(mockCodingActivity);
     }
   };
 
   useEffect(() => {
     fetchData();
+    
+    // Initialize current exercise ID in localStorage
+    if (exercises.length > 0) {
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[0].id));
+      } catch (e) {
+        console.warn('Could not initialize current exercise ID in localStorage', e);
+      }
+    }
   }, [studentId, assignmentId]);
+  
+  // Update localStorage when exercises change
+  useEffect(() => {
+    if (exercises.length > 0 && currentExerciseIndex < exercises.length) {
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[currentExerciseIndex].id));
+      } catch (e) {
+        console.warn('Could not update current exercise ID in localStorage', e);
+      }
+    }
+  }, [exercises, currentExerciseIndex]);
 
   const handleBack = () => {
     router.push('/teacher/dashboard');
@@ -381,7 +625,35 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
     setIsSubmitting(true);
     try {
-      // Simulate success for demo purposes without API call
+      // Define API base URL
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      // Prepare data for submission
+      const gradingData = {
+        score: Number(score),
+        feedback: { general: feedback.trim() },
+        comments: [
+          {
+            text: feedback.trim()
+          }
+        ]
+      };
+
+      // Send grading data to API
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/grade/${submission.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(gradingData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit grade: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Grade submitted successfully:", result);
+
       // Update local submission data
       setSubmission(prev => ({
         ...prev,
@@ -393,8 +665,8 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           ...(prev.comments || []),
           {
             id: Date.now().toString(),
-            user_id: "current_teacher", // This should be the actual teacher ID
-            username: "Current Teacher", // This should be the actual teacher name
+            user_id: "current_teacher", // This should be updated if we have current user info
+            username: "Current Teacher", // This should be updated if we have current user info
             role: "teacher",
             text: feedback.trim(),
             timestamp: new Date().toISOString()
@@ -414,64 +686,82 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   // Helper to format datetime
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
+    try {
     const date = new Date(dateString);
     return date.toLocaleString();
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return String(dateString);
+    }
   };
 
   // Get code history for current exercise
   const getCurrentExerciseHistory = () => {
-    if (!codeHistory.length) return [];
-    return codeHistory.filter(history => 
-      history.problem_index === exercises[currentExerciseIndex].id
-    );
+    const currentExercise = exercises[currentExerciseIndex];
+    if (!currentExercise || !codingActivity[currentExercise.id]) {
+      return [];
+    }
+    return codingActivity[currentExercise.id];
   };
 
   // Get code at specific timeline position for current exercise
   const getCodeAtTimeIndex = (index) => {
-    const exerciseHistory = getCurrentExerciseHistory();
-    if (!exerciseHistory.length) return '';
+    const currentExercise = exercises[currentExerciseIndex];
+    if (!currentExercise || !codingActivity[currentExercise.id]) {
+      return '';
+    }
     
-    // Sort by timestamp
-    const sortedHistory = [...exerciseHistory].sort((a, b) => 
-      new Date(a.created_at) - new Date(b.created_at)
-    );
+    const exerciseActivity = codingActivity[currentExercise.id];
     
-    // If index is at the end, return the latest
-    if (index >= sortedHistory.length - 1) {
-      return sortedHistory[sortedHistory.length - 1].code;
+    // If index is out of range, return the latest
+    if (index >= exerciseActivity.length) {
+      return exerciseActivity[exerciseActivity.length - 1]?.code || '';
     }
     
     // Return code at specific point in timeline
-    return sortedHistory[index].code;
+    return exerciseActivity[index]?.code || '';
   };
 
   // Generate timeline markers for current exercise
   const generateTimelineMarkers = () => {
-    const exerciseHistory = getCurrentExerciseHistory();
-    if (!exerciseHistory.length) return [];
+    const currentExercise = exercises[currentExerciseIndex];
+    if (!currentExercise || !codingActivity[currentExercise.id]) {
+      return [];
+    }
     
-    const sortedHistory = [...exerciseHistory].sort((a, b) => 
-      new Date(a.created_at) - new Date(b.created_at)
-    );
-    
-    return sortedHistory.map((item, index) => ({
+    const exerciseActivity = codingActivity[currentExercise.id];
+    return exerciseActivity.map((item, index) => ({
       index,
-      time: new Date(item.created_at).toLocaleTimeString(),
-      type: item.action_type
+      time: new Date(item.timestamp).toLocaleTimeString(),
+      type: item.action
     }));
   };
 
   const handleNextExercise = () => {
     if (currentExerciseIndex < exercises.length - 1) {
-      setCurrentExerciseIndex(prev => prev + 1);
+      setCurrentExerciseIndex(currentExerciseIndex + 1);
       setTimelinePosition(0);
+      
+      // Save current exercise ID to localStorage for submission tracking
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[currentExerciseIndex + 1].id));
+      } catch (e) {
+        console.warn('Could not save current exercise ID to localStorage', e);
+      }
     }
   };
 
   const handlePrevExercise = () => {
     if (currentExerciseIndex > 0) {
-      setCurrentExerciseIndex(prev => prev - 1);
+      setCurrentExerciseIndex(currentExerciseIndex - 1);
       setTimelinePosition(0);
+      
+      // Save current exercise ID to localStorage for submission tracking
+      try {
+        localStorage.setItem('current-exercise-id', JSON.stringify(exercises[currentExerciseIndex - 1].id));
+      } catch (e) {
+        console.warn('Could not save current exercise ID to localStorage', e);
+      }
     }
   };
 
@@ -518,7 +808,9 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
             </div>
             <div className="info-item">
               <label>Status</label>
-              <span className={`status-badge ${submission.status}`}>{submission.status}</span>
+              <span className={`status-badge ${typeof submission.status === 'string' ? submission.status : 'pending'}`}>
+                {typeof submission.status === 'string' ? submission.status : 'pending'}
+              </span>
             </div>
             <div className="info-item score-input-container">
               <label>Score</label>
@@ -596,15 +888,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   {exercises[currentExerciseIndex].description}
                 </p>
 
-                {exercises[currentExerciseIndex].type === 'output' && (
+                {(exercises[currentExerciseIndex].type === 'output' || 
+                  exercises[currentExerciseIndex].type === 'explain' || 
+                  exercises[currentExerciseIndex].type === 'Output' || 
+                  exercises[currentExerciseIndex].type === 'Explain') && (
                   <div className="exercise-output">
-                    <h4>Code:</h4>
-                    <pre className="code-display">
-                      <code>{exercises[currentExerciseIndex].code}</code>
-                    </pre>
                     <h4>Student's Answer:</h4>
                     <div className="answer-display">
-                      {answers[exercises[currentExerciseIndex].id]}
+                      {(() => {
+                        const exerciseId = exercises[currentExerciseIndex].id;
+                        const exerciseNumber = currentExerciseIndex + 1;
+                        const exerciseType = exercises[currentExerciseIndex].type;
+                        console.log(`Looking for OUTPUT/EXPLAIN answer for exercise ${exerciseNumber} (ID: ${exerciseId}, Type: ${exerciseType})`, answers);
+                        
+                        // ใช้เลขข้อโดยตรง - ดูจากรูปแล้วใช้ตัวเลขเป็นคีย์
+                        const answer = answers[exerciseNumber] || answers[String(exerciseNumber)];
+                        
+                        if (answer) {
+                          console.log(`Found answer for exercise ${exerciseNumber}:`, answer);
+                          if (typeof answer === 'string') {
+                            return answer;
+                          } else if (typeof answer === 'object') {
+                            return JSON.stringify(answer);
+                          }
+                        }
+                        
+                        console.log(`No answer found for exercise ${exerciseNumber}`);
+                        return "No answer submitted";
+                      })()}
                     </div>
                   </div>
                 )}
@@ -617,7 +928,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                     </pre>
                     <h4>Student's Answer:</h4>
                     <div className="answer-display">
-                      {answers[exercises[currentExerciseIndex].id]}
+                      {(() => {
+                        const exerciseNumber = currentExerciseIndex + 1;
+                        console.log(`Looking for fill answer for exercise ${exerciseNumber}`, answers);
+                        
+                        // ใช้เลขข้อโดยตรง
+                        const answer = answers[exerciseNumber] || answers[exerciseNumber.toString()];
+                        
+                        if (answer) {
+                          if (typeof answer === 'object') {
+                            return (
+                              <div>
+                                {Object.entries(answer).map(([key, value], i) => {
+                                  const blankIndex = key.split('-').pop();
+                                  return (
+                                    <div key={i} className="blank-answer">
+                                      <strong>Blank {blankIndex}:</strong> {value}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else if (typeof answer === 'string') {
+                            return answer;
+                          }
+                        }
+                        
+                        return "No answer submitted";
+                      })()}
                     </div>
                   </div>
                 )}
@@ -626,7 +964,79 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   <div className="exercise-coding">
                     <h4>Student's Code:</h4>
                     <pre className="code-display">
-                      <code>{answers[exercises[currentExerciseIndex].id]}</code>
+                      <code>{(() => {
+                        const exerciseId = exercises[currentExerciseIndex].id;
+                        const exerciseNumber = currentExerciseIndex + 1;
+                        console.log(`Looking for coding answer for exercise ${exerciseNumber} (ID: ${exerciseId})`, answers);
+                        
+                        // Log ค่าคำตอบทั้งหมดเพื่อดูข้อมูล
+                        console.log("All answers:", JSON.stringify(answers, null, 2));
+                        
+                        // ใช้เลขข้อโดยตรงและแยกตามข้อที่ชัดเจน
+                        let answer;
+                        
+                        // วิธีที่ 1: ใช้ exerciseNumber (ตัวเลขลำดับข้อ)
+                        if (answers[exerciseNumber] !== undefined) {
+                          answer = answers[exerciseNumber];
+                          console.log(`Found answer using exercise number key ${exerciseNumber}:`, answer);
+                        }
+                        
+                        // วิธีที่ 2: ใช้ exerciseId (ID ของข้อ)
+                        else if (answers[exerciseId] !== undefined) {
+                          answer = answers[exerciseId];
+                          console.log(`Found answer using exercise ID key ${exerciseId}:`, answer);
+                        }
+                        
+                        // วิธีที่ 3: ใช้ String(exerciseNumber)
+                        else if (answers[String(exerciseNumber)] !== undefined) {
+                          answer = answers[String(exerciseNumber)];
+                          console.log(`Found answer using string exercise number key "${exerciseNumber}":`, answer);
+                        }
+                        
+                        // วิธีที่ 4: ใช้ String(exerciseId)
+                        else if (answers[String(exerciseId)] !== undefined) {
+                          answer = answers[String(exerciseId)];
+                          console.log(`Found answer using string exercise ID key "${exerciseId}":`, answer);
+                        }
+                        
+                        // ถ้าเจอคำตอบ ให้แสดงผล
+                        if (answer !== undefined) {
+                          if (typeof answer === 'string') {
+                            return answer;
+                          } else if (typeof answer === 'object') {
+                            return JSON.stringify(answer, null, 2);
+                          }
+                        }
+                        
+                        // ถ้าไม่เจอคำตอบจากข้างบน ลองดูใน submission
+                        if (submission) {
+                          // ถ้ามี code ใน submission โดยตรง
+                          if (submission.code) {
+                            return submission.code;
+                          }
+                          
+                          // ถ้ามี answers และเป็น coding exercise
+                          if (submission.answers) {
+                            // ลองดึงคำตอบจาก submission.answers โดยตรง
+                            const subAnswer = submission.answers[exerciseId] || 
+                                             submission.answers[String(exerciseId)] || 
+                                             submission.answers[exerciseNumber] || 
+                                             submission.answers[String(exerciseNumber)];
+                            
+                            if (subAnswer) {
+                              console.log(`Found answer in submission for exercise ${exerciseNumber}:`, subAnswer);
+                              if (typeof subAnswer === 'string') {
+                                return subAnswer;
+                              } else if (typeof subAnswer === 'object') {
+                                return JSON.stringify(subAnswer, null, 2);
+                              }
+                            }
+                          }
+                        }
+                        
+                        // ถ้าไม่มีเลย ใช้โค้ดเริ่มต้นของโจทย์
+                        return exercises[currentExerciseIndex].starter_code || "No code submitted";
+                      })()}</code>
                     </pre>
                   </div>
                 )}
@@ -656,9 +1066,13 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 </button>
               </div>
 
-              <h3>Code Evolution Timeline - {exercises[currentExerciseIndex].title}</h3>
+              <h3>Code Evolution Timeline - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
               
               <div className="timeline-slider-container">
+                {exercises[currentExerciseIndex] && 
+                 codingActivity[exercises[currentExerciseIndex].id] &&
+                 codingActivity[exercises[currentExerciseIndex].id].length > 0 ? (
+                  <>
                 <input 
                   type="range" 
                   min="0" 
@@ -684,8 +1098,17 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                     </div>
                   ))}
                 </div>
+                  </>
+                ) : (
+                  <div className="empty-state">No timeline data available for this exercise</div>
+                )}
               </div>
 
+              {exercises[currentExerciseIndex] && 
+               codingActivity[exercises[currentExerciseIndex].id] &&
+               codingActivity[exercises[currentExerciseIndex].id].length > 0 &&
+               timelinePosition < codingActivity[exercises[currentExerciseIndex].id].length ? (
+                <>
               <div className="timeline-info">
                 <div className="current-position-info">
                   <span>Time: {new Date(codingActivity[exercises[currentExerciseIndex].id][timelinePosition].timestamp).toLocaleTimeString()}</span>
@@ -701,6 +1124,8 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   </code>
                 </pre>
               </div>
+                </>
+              ) : null}
             </div>
           )}
 
@@ -726,10 +1151,12 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 </button>
               </div>
 
-              <h3>AI Chat History - {exercises[currentExerciseIndex].title}</h3>
+              <h3>AI Chat History - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
               
               <div className="chat-container">
-                {aiChatHistory[exercises[currentExerciseIndex].id].map((message) => (
+                {exercises[currentExerciseIndex] && 
+                 aiChatHistory[exercises[currentExerciseIndex].id] ? (
+                  aiChatHistory[exercises[currentExerciseIndex].id].map((message) => (
                   <div key={message.id} className={`chat-message ${message.role}`}>
                     <div className="message-header">
                       <span className="message-sender">
@@ -743,7 +1170,10 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                       {message.content}
                     </div>
                   </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="empty-state">No AI chat history available for this exercise</div>
+                )}
               </div>
             </div>
           )}
@@ -770,7 +1200,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 </button>
               </div>
 
-              <h3>Coding Activity - {exercises[currentExerciseIndex].title}</h3>
+              <h3>Coding Activity - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
               {keystrokeHistory && keystrokeHistory.length > 0 ? (
                 <div className="activity-visualization">
                   <div className="activity-heatmap">
@@ -786,7 +1216,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                         >
                           <span className="activity-count">{day.count}</span>
                         </div>
-                        <div className="activity-type">{day.action_type}</div>
+                        <div className="activity-type">{typeof day.action_type === 'object' ? JSON.stringify(day.action_type) : day.action_type}</div>
                       </div>
                     ))}
                   </div>
@@ -803,8 +1233,8 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                       <label>Average Time Between Runs</label>
                       <span>
                         {codeHistory.length > 1 ? 
-                          Math.round((new Date(codeHistory[codeHistory.length-1].created_at) - 
-                                    new Date(codeHistory[0].created_at)) / 
+                          Math.round((new Date(codeHistory[codeHistory.length-1]?.created_at || new Date()) - 
+                                    new Date(codeHistory[0]?.created_at || new Date())) / 
                                     (codeHistory.length * 60000)) + ' min' : 
                           'N/A'}
                       </span>

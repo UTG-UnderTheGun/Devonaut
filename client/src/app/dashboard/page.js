@@ -29,48 +29,63 @@ export default function Dashboard() {
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    // Fetch chapters and performance data
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
-        console.log('Fetching dashboard data...');
-        
-        // Fetch dashboard data from the new endpoint
-        const response = await axios.get(`${API_BASE}/users/dashboard`, { 
-          withCredentials: true 
-        });
-        
-        const dashboardData = response.data;
-        console.log('Dashboard data received:', dashboardData);
-        
-        // Update the state with the received data
-        if (dashboardData.chapters && Array.isArray(dashboardData.chapters)) {
-          console.log(`Setting ${dashboardData.chapters.length} chapters`);
-          setChapters(dashboardData.chapters);
-        } else {
-          console.warn('No chapters array in dashboard data:', dashboardData);
-          setChapters([]);
-        }
-        
-        if (dashboardData.performance) {
-          console.log('Setting performance data:', dashboardData.performance);
-          setPerformance(dashboardData.performance);
-        } else {
-          console.warn('No performance data in dashboard response');
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setIsLoading(false);
+  // Function for fetching dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      console.log('Fetching dashboard data...');
+      
+      // Fetch dashboard data from the new endpoint
+      const response = await axios.get(`${API_BASE}/users/dashboard`, { 
+        withCredentials: true 
+      });
+      
+      const dashboardData = response.data;
+      console.log('Dashboard data received:', dashboardData);
+      
+      // Update the state with the received data
+      if (dashboardData.chapters && Array.isArray(dashboardData.chapters)) {
+        console.log(`Setting ${dashboardData.chapters.length} chapters`);
+        setChapters(dashboardData.chapters);
+      } else {
+        console.warn('No chapters array in dashboard data:', dashboardData);
+        setChapters([]);
       }
+      
+      if (dashboardData.performance) {
+        console.log('Setting performance data:', dashboardData.performance);
+        setPerformance(dashboardData.performance);
+      } else {
+        console.warn('No performance data in dashboard response');
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on initial load
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Add focus event listener to refresh data when user returns to the page
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, refreshing dashboard data');
+      fetchDashboardData();
     };
 
-    fetchData();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Update indicator position with a more reliable approach
