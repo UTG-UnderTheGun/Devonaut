@@ -26,7 +26,15 @@ const Terminal = () => {
       textMeasure.style.visibility = 'hidden';
       textMeasure.style.position = 'absolute';
       textMeasure.style.whiteSpace = 'pre';
-      textMeasure.style.font = window.getComputedStyle(inputRef.current).font;
+      
+      // Get all relevant font properties for accurate measurement
+      const inputStyle = window.getComputedStyle(inputRef.current);
+      textMeasure.style.font = inputStyle.font;
+      textMeasure.style.fontSize = inputStyle.fontSize;
+      textMeasure.style.fontFamily = inputStyle.fontFamily;
+      textMeasure.style.letterSpacing = inputStyle.letterSpacing;
+      textMeasure.style.fontWeight = inputStyle.fontWeight;
+      
       textMeasure.textContent = userInput;
       document.body.appendChild(textMeasure);
       
@@ -35,7 +43,9 @@ const Terminal = () => {
       
       // Position cursor after text plus prompt width
       const textWidth = textMeasure.offsetWidth;
-      setCursorPosition(promptWidth + textWidth);
+      // Add a larger offset to move cursor more to the right
+      const cursorOffset = 6; // Increased from 4 to 8 pixels
+      setCursorPosition(promptWidth + textWidth + cursorOffset);
       
       // Clean up
       document.body.removeChild(textMeasure);
@@ -271,7 +281,7 @@ const Terminal = () => {
         
         {/* Inline input area that appears when waiting for input */}
         {isWaitingForInput && (
-          <form onSubmit={handleInputSubmit} className="terminal-input-container">
+          <form onSubmit={handleInputSubmit} className="terminal-input-container" style={{ position: 'relative' }}>
             <span className="terminal-prompt">$</span>
             <input
               type="text"

@@ -280,9 +280,10 @@
   position: absolute;
   vertical-align: middle;
   top: 1px;
-  left: 0;
+  /* The left position will be set dynamically by JavaScript */
   z-index: 1;
   pointer-events: none;
+  transform: translateY(0px); /* Fine-tune vertical alignment if needed */
 }
 
 .terminal-input-submit {
