@@ -52,3 +52,21 @@ async def get_user_by_id(user_id: str):
         return user
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get user: {str(e)}")
+
+
+async def get_user_by_student_id(student_id: str):
+    """
+    Get user by student ID from the database
+    """
+    try:
+        # Find user by their institutional student ID
+        user = collection.find_one({"student_id": student_id})
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with student ID {student_id} not found")
+        
+        # Convert ObjectId to string
+        user["_id"] = str(user["_id"])
+        
+        return user
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get user by student ID: {str(e)}")

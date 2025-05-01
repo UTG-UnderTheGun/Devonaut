@@ -8,6 +8,7 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
   const [currentExercise, setCurrentExercise] = useState(0);
   const [showStatus, setShowStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [sections, setSections] = useState([]);
   const [students, setStudents] = useState([]);
@@ -126,6 +127,26 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
       ...updatedExercises[currentExercise],
       [field]: value
     };
+    setAssignment(prev => ({
+      ...prev,
+      exercises: updatedExercises
+    }));
+  };
+
+  // Function to handle exercise type change
+  const handleExerciseTypeChange = (type) => {
+    // Make sure we preserve existing code content across different exercise types
+    const currentEx = assignment.exercises[currentExercise];
+    const updatedExercise = {
+      ...currentEx,
+      type: type,
+      // Make sure the code field is initialized properly
+      code: currentEx.code || ""
+    };
+    
+    const updatedExercises = [...assignment.exercises];
+    updatedExercises[currentExercise] = updatedExercise;
+    
     setAssignment(prev => ({
       ...prev,
       exercises: updatedExercises
@@ -338,6 +359,40 @@ def binary_search(arr, target):
     { id: 'fill', label: 'Fill in' }
   ];
 
+  const handleDelete = async () => {
+    try {
+      setLoading(true);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete assignment');
+      }
+
+      setStatusMessage('Assignment deleted successfully!');
+      setShowStatus(true);
+      setTimeout(() => {
+        setShowStatus(false);
+        onBack(); // Navigate back to assignments list
+      }, 2000);
+    } catch (err) {
+      setError(err.message);
+      setStatusMessage('Error deleting assignment: ' + err.message);
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 3000);
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   if (loading && !assignment) {
     return (
       <div className="loading-container">
@@ -405,8 +460,29 @@ def binary_search(arr, target):
           <button onClick={handleSave} className="save-button" disabled={loading}>
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
+          <button onClick={() => setShowDeleteConfirm(true)} className="delete-button" disabled={loading}>
+            Delete
+          </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="confirm-modal">
+          <div className="confirm-dialog">
+            <h3>Delete Assignment</h3>
+            <p>Are you sure you want to delete this assignment? This action cannot be undone.</p>
+            <div className="confirm-actions">
+              <button onClick={() => setShowDeleteConfirm(false)} className="cancel-button">
+                Cancel
+              </button>
+              <button onClick={handleDelete} className="confirm-delete-button">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="main-content-detail">
         {/* Left Panel */}
@@ -504,6 +580,86 @@ def binary_search(arr, target):
                     placeholder="Enter test cases"
                   />
                 </div>
+
+
+                <div className="form-group">
+                  <div className="exercise-list-header">
+                    <label className="exercise-list-title">Exercises</label>
+                  </div>
+                  <div className="exercise-tabs">
+                    {assignment.exercises.map((exercise, index) => (
+                      <div
+                        key={index}
+                        className={`exercise-tab ${index === currentExercise ? 'active' : ''}`}
+                        onClick={() => setCurrentExercise(index)}
+                      >
+                        <span>{exercise.title.length > 15 ? exercise.title.substring(0, 15) + '...' : exercise.title}</span>
+                        <button
+                          className="remove-exercise"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExercise(index);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button className="add-exercise" onClick={handleAddExercise}>+</button>
+                  </div>
+                </div>
+
+                {currentExerciseData && (
+                  <>
+                    <div className="form-group">
+                      <label>Exercise Title</label>
+                      <input
+                        type="text"
+                        value={currentExerciseData.title}
+                        onChange={(e) => handleExerciseChange('title', e.target.value)}
+                        className="form-input"
+                        placeholder="Enter exercise title"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Exercise Description</label>
+                      <textarea
+                        value={currentExerciseData.description}
+                        onChange={(e) => handleExerciseChange('description', e.target.value)}
+                        className="form-textarea"
+                        rows="3"
+                        placeholder="Enter exercise description"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Points</label>
+                      <input
+                        type="number"
+                        value={currentExerciseData.points}
+                        onChange={(e) => handleExerciseChange('points', parseInt(e.target.value) || 0)}
+                        className="form-input"
+                        min="0"
+                        placeholder="Enter points for this exercise"
+                      />
+                    </div>
+
+                    {currentExerciseData.type === "coding" && (
+                      <div className="form-group">
+                        <label>Test Cases</label>
+                        <textarea
+                          value={currentExerciseData.test_cases || ""}
+                          onChange={(e) => handleExerciseChange('test_cases', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="Enter test cases (e.g. assert sum([1,2,3]) == 6)"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
               </div>
             ) : (
               /* This is the settings view that appears when "Assign To" is clicked */
@@ -623,7 +779,7 @@ def binary_search(arr, target):
                     <button
                       key={type.id}
                       className={`code-type-button ${currentExerciseData?.type === type.id ? 'active' : ''}`}
-                      onClick={() => handleExerciseChange('type', type.id)}
+                      onClick={() => handleExerciseTypeChange(type.id)}
                     >
                       {type.label}
                     </button>
@@ -633,8 +789,16 @@ def binary_search(arr, target):
             </div>
             <div className="code-area-wrapper">
               <textarea
-                value={currentExerciseData?.starter_code || ""}
-                onChange={(e) => handleExerciseChange('starter_code', e.target.value)}
+                value={
+                  currentExerciseData?.type === 'coding'
+                    ? currentExerciseData?.starter_code || ""
+                    : currentExerciseData?.code || ""
+                }
+                onChange={(e) => 
+                  currentExerciseData?.type === 'coding'
+                    ? handleExerciseChange('starter_code', e.target.value)
+                    : handleExerciseChange('code', e.target.value)
+                }
                 className="code-area"
                 spellCheck="false"
                 placeholder={getPlaceholderForType(currentExerciseData?.type)}

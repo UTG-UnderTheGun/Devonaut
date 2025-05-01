@@ -60,6 +60,7 @@ export default function DashboardSkeleton() {
                 <div className="skeleton-progress-info">
                   <div className="skeleton-progress-label"></div>
                   <div className="skeleton-progress-title"></div>
+                  <div className="skeleton-progress-chapter"></div>
                 </div>
                 <div className="skeleton-progress-bar"></div>
                 <div className="skeleton-progress-score"></div>

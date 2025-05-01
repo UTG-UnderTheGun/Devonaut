@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './ai-interface.css';
+import { useSearchParams } from 'next/navigation';
 
 const SendIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -54,6 +55,9 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
   const timerRef = useRef(null);
   const previousExerciseIdRef = useRef(exercise_id);
   const initialLoadRef = useRef(true);
+  const searchParams = useSearchParams();
+  const assignmentId = searchParams ? searchParams.get('assignment') : null;
+  const previousAssignmentIdRef = useRef(assignmentId);
 
   const suggestions = [
     "How do I solve this problem?",
@@ -116,7 +120,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       console.log('Resetting AIChatInterface chat history');
       setChat([]);
       // Clear local storage for this specific exercise if available
-      const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+      const chatKey = getChatStorageKey();
       localStorage.removeItem(chatKey);
     };
 
@@ -124,21 +128,30 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     return () => window.removeEventListener('reset-chat-history', handleResetChat);
   }, [user_id, exercise_id]);
 
-  // Track exercise_id changes and reset chat accordingly
+  // Track both exercise_id AND assignment_id changes and reset chat accordingly
   useEffect(() => {
-    if (previousExerciseIdRef.current !== exercise_id) {
-      console.log(`Exercise ID changed from ${previousExerciseIdRef.current} to ${exercise_id}`);
+    const exerciseChanged = previousExerciseIdRef.current !== exercise_id;
+    const assignmentChanged = previousAssignmentIdRef.current !== assignmentId;
+    
+    console.log(`Exercise ID changed: ${exerciseChanged} (${previousExerciseIdRef.current} -> ${exercise_id})`);
+    console.log(`Assignment ID changed: ${assignmentChanged} (${previousAssignmentIdRef.current} -> ${assignmentId})`);
+    
+    if (exerciseChanged || assignmentChanged) {
       previousExerciseIdRef.current = exercise_id;
+      previousAssignmentIdRef.current = assignmentId;
 
-      // If we're switching to a different exercise, reset the chat state
-      setChat([]);
+      // If we're switching to a different exercise or assignment, reset the chat state
+      console.log("Resetting chat state due to exercise or assignment change");
+      setChat([WELCOME_MESSAGE]);
 
       // Load chat for the new exercise
-      if (user_id && exercise_id) {
+      if (user_id) {
         loadChatForExercise();
+        // Also refresh question count
+        fetchQuestionsRemaining();
       }
     }
-  }, [exercise_id, user_id]);
+  }, [exercise_id, assignmentId, user_id]);
 
   // Load chat history from localStorage when component mounts or exercise changes
   useEffect(() => {
@@ -156,11 +169,24 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     };
   }, [user_id, exercise_id]);
 
+  const getChatStorageKey = () => {
+    // Include both assignment_id and exercise_id in the localStorage key
+    if (assignmentId) {
+      return exercise_id ? 
+        `chat_${user_id}_${assignmentId}_${exercise_id}` : 
+        `chat_${user_id}_${assignmentId}`;
+    } else {
+      return exercise_id ? 
+        `chat_${user_id}_${exercise_id}` : 
+        `chat_${user_id}`;
+    }
+  };
+
   const loadChatForExercise = async () => {
     if (!user_id) return;
 
-    // Build the localStorage key
-    const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+    // Build the localStorage key that includes assignment context
+    const chatKey = getChatStorageKey();
     console.log(`Loading chat for ${chatKey}`);
 
     try {
@@ -169,26 +195,35 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       if (exercise_id) {
         url += `&exercise_id=${exercise_id}`;
       }
+      if (assignmentId) {
+        url += `&assignment_id=${assignmentId}`;
+      }
 
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         // Transform backend messages to the frontend format
-        // Assuming each message in the backend is stored with { role, content, timestamp? }
         if (data.messages && Array.isArray(data.messages)) {
-          const backendChat = data.messages.map((msg, index) => ({
-            id: index + 1,
-            text: msg.content,
-            isUser: msg.role === "user",
-            // If timestamp is provided in your DB records, use it; otherwise, use current time
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
-          }));
-          setChat(backendChat);
-          localStorage.setItem(chatKey, JSON.stringify(backendChat));
-          console.log(`Loaded ${backendChat.length} messages from API for ${chatKey}`);
+          if (data.messages.length > 0) {
+            const backendChat = data.messages.map((msg, index) => ({
+              id: index + 1,
+              text: msg.content,
+              isUser: msg.role === "user",
+              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+            }));
+            setChat(backendChat);
+            localStorage.setItem(chatKey, JSON.stringify(backendChat));
+            console.log(`Loaded ${backendChat.length} messages from API for ${chatKey}`);
+          } else {
+            // No messages in the backend, set welcome message
+            setChat([WELCOME_MESSAGE]);
+            localStorage.setItem(chatKey, JSON.stringify([WELCOME_MESSAGE]));
+            console.log(`No messages found, setting welcome message for ${chatKey}`);
+          }
           return;
         } else {
           console.log('No messages found or invalid response structure:', data);
+          setChat([WELCOME_MESSAGE]); // Set welcome message for new conversations
         }
       } else {
         console.log(`API response not OK: ${response.status}`);
@@ -208,11 +243,11 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       } catch (error) {
         console.error("Error parsing saved chat:", error);
         localStorage.removeItem(chatKey);
-        setChat([]);
+        setChat([WELCOME_MESSAGE]);
       }
     } else {
-      console.log(`No saved chat found in localStorage for ${chatKey}`);
-      setChat([]);
+      console.log(`No saved chat found in localStorage for ${chatKey}, using welcome message`);
+      setChat([WELCOME_MESSAGE]);
     }
   };
 
@@ -221,10 +256,13 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
 
     setIsLoading(true);
     try {
-      // Build the URL with exercise_id if available
+      // Build the URL with both exercise_id and assignment_id if available
       let url = `${API_BASE_URL}/ai/questions/remaining?user_id=${user_id}`;
       if (exercise_id) {
         url += `&exercise_id=${exercise_id}`;
+      }
+      if (assignmentId) {
+        url += `&assignment_id=${assignmentId}`;
       }
 
       console.log(`Fetching questions remaining from: ${url}`);
@@ -280,15 +318,15 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     const updatedChat = [...chat, userMessageObject];
     setChat(updatedChat);
 
-    // Save to localStorage with exercise-specific key if available
-    const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+    // Save to localStorage with assignment/exercise-specific key
+    const chatKey = getChatStorageKey();
     localStorage.setItem(chatKey, JSON.stringify(updatedChat));
 
     setNewMessage('');
     setIsTyping(true); // Show typing indicator
 
     try {
-      // Include exercise_id in the request if available
+      // Include both exercise_id and assignment_id in the request if available
       const requestBody = {
         user_id,
         prompt: newMessage
@@ -297,8 +335,12 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       if (exercise_id) {
         requestBody.exercise_id = exercise_id;
       }
+      
+      if (assignmentId) {
+        requestBody.assignment_id = assignmentId;
+      }
 
-      console.log(`Sending chat request with exercise_id: ${exercise_id}`);
+      console.log(`Sending chat request with exercise_id: ${exercise_id}, assignment_id: ${assignmentId}`);
       const response = await fetch(`${API_BASE_URL}/ai/chat`, {
         method: 'POST',
         headers: {
@@ -318,14 +360,14 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiMessageObject = {
-        id: chat.length + 2,
+        id: updatedChat.length + 1,
         text: '',
         isUser: false,
         timestamp: new Date(),
         isStreaming: true
       };
 
-      // Add initial AI message and save to localStorage
+      // Add initial AI message
       const chatWithAiMessage = [...updatedChat, aiMessageObject];
       setChat(chatWithAiMessage);
       localStorage.setItem(chatKey, JSON.stringify(chatWithAiMessage));
@@ -333,7 +375,6 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         const chunk = decoder.decode(value, { stream: true });
         aiMessageObject.text += chunk;
 
@@ -344,6 +385,10 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
             newChat[newChat.length - 1] = { ...aiMessageObject };
             // Save updated chat with new AI message content
             localStorage.setItem(chatKey, JSON.stringify(newChat));
+          } else {
+            const updatedChatWithAi = [...newChat, aiMessageObject];
+            localStorage.setItem(chatKey, JSON.stringify(updatedChatWithAi));
+            return updatedChatWithAi;
           }
           return newChat;
         });
@@ -373,7 +418,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       }
 
       const errorMessage = {
-        id: chat.length + 2,
+        id: updatedChat.length + 1,
         text: error.message || 'Sorry, there was an error processing your request.',
         isUser: false,
         timestamp: new Date()
@@ -442,7 +487,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
         setChat(prev => [...prev, errorMessage]);
 
         // Save to localStorage with exercise-specific key if available
-        const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+        const chatKey = getChatStorageKey();
         localStorage.setItem(chatKey, JSON.stringify([...chat, errorMessage]));
         return;
       }
@@ -454,7 +499,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       setChat(updatedChat);
 
       // Save to localStorage with exercise-specific key if available
-      const chatKey = exercise_id ? `chat_${user_id}_${exercise_id}` : `chat_${user_id}`;
+      const chatKey = getChatStorageKey();
       localStorage.setItem(chatKey, JSON.stringify(updatedChat));
 
       // Send message directly without setting input
@@ -572,9 +617,11 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     <div className="chat-interface">
       <div className="chat-content">
         <div className="chat-messages">
-          <div className="message-wrapper ai">
-            {renderMessage(WELCOME_MESSAGE)}
-          </div>
+          {chat.length === 0 && (
+            <div className="message-wrapper ai">
+              {renderMessage(WELCOME_MESSAGE)}
+            </div>
+          )}
 
           {chat.map((message) => (
             <div

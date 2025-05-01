@@ -372,4 +372,15 @@
 .panel-content {
   overflow-y: auto;
   max-height: calc(100vh - 200px);
+}
+
+/* Info text styling */
+.info-text {
+  color: #6B7280;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background-color: #F3F4F6;
+  border-radius: 0.375rem;
+  border-left: 3px solid #7C3AED;
+  margin-top: 0.25rem;
 } 

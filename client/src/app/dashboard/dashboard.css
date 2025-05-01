@@ -304,25 +304,35 @@ body {
 }
 
 .progress-info {
-    width: 6rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 15rem;
 }
 
 .progress-label {
-    font-size: 0.75rem;
-    color: var(--gray-500);
-    display: block;
+    font-weight: 500;
+    color: var(--gray-700);
+    font-size: 1rem;
+    margin-bottom: 0.125rem;
 }
 
 .progress-title {
+    color: var(--gray-600);
     font-size: 0.875rem;
-    color: var(--gray-700);
-    display: block;
+    margin-bottom: 0.125rem;
+}
+
+.progress-chapter {
+    color: var(--gray-500);
+    font-size: 0.75rem;
+    font-style: italic;
 }
 
 .progress-score {
+    margin-left: 1rem;
     min-width: 3rem;
     text-align: right;
-    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--gray-700);
 }
 
@@ -414,7 +424,7 @@ body {
     }
     
     .progress-info {
-        width: 4rem;
+        min-width: 10rem;
     }
 }
 
@@ -535,6 +545,17 @@ body {
         align-items: flex-start;
         gap: 0.25rem;
     }
+    
+    .progress-info {
+        min-width: 8rem;
+    }
+    
+    .progress-label, .progress-title, .progress-chapter {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
 }
 
 /* Fix for very small screens */
@@ -589,4 +610,25 @@ body {
 /* Add this new class */
 .tab-indicator-active {
   background-color: var(--primary) !important;
+}
+
+.skeleton-progress-label,
+.skeleton-progress-title,
+.skeleton-progress-chapter {
+  height: 0.875rem;
+  background: var(--gray-200);
+  border-radius: 2px;
+  margin-bottom: 0.25rem;
+}
+
+.skeleton-progress-label {
+  width: 30%;
+}
+
+.skeleton-progress-title {
+  width: 60%;
+}
+
+.skeleton-progress-chapter {
+  width: 40%;
 }

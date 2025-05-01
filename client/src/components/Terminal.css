@@ -238,3 +238,70 @@
   color: inherit;
 }
 
+/* Terminal input styles */
+.terminal-input-container {
+  display: flex;
+  margin-top: 5px;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.terminal-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px 0 0 4px;
+  outline: none;
+}
+
+.terminal-input:focus {
+  border-color: #6b46c1;
+  box-shadow: 0 0 0 1px rgba(107, 70, 193, 0.5);
+}
+
+.terminal-input-submit {
+  padding: 6px 12px;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  background-color: #6b46c1;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.terminal-input-submit:hover {
+  background-color: #553c9a;
+}
+
+.terminal-input-submit:active {
+  background-color: #44337a;
+}
+
+/* Input placeholder style */
+.terminal-input::placeholder {
+  color: #888;
+  opacity: 1;
+}
+
+/* Terminal blink effect for cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background-color: #fff;
+  animation: blink 1s infinite;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+

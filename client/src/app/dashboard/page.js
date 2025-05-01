@@ -29,48 +29,63 @@ export default function Dashboard() {
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    // Fetch chapters and performance data
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
-        console.log('Fetching dashboard data...');
-        
-        // Fetch dashboard data from the new endpoint
-        const response = await axios.get(`${API_BASE}/users/dashboard`, { 
-          withCredentials: true 
-        });
-        
-        const dashboardData = response.data;
-        console.log('Dashboard data received:', dashboardData);
-        
-        // Update the state with the received data
-        if (dashboardData.chapters && Array.isArray(dashboardData.chapters)) {
-          console.log(`Setting ${dashboardData.chapters.length} chapters`);
-          setChapters(dashboardData.chapters);
-        } else {
-          console.warn('No chapters array in dashboard data:', dashboardData);
-          setChapters([]);
-        }
-        
-        if (dashboardData.performance) {
-          console.log('Setting performance data:', dashboardData.performance);
-          setPerformance(dashboardData.performance);
-        } else {
-          console.warn('No performance data in dashboard response');
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setIsLoading(false);
+  // Function for fetching dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      console.log('Fetching dashboard data...');
+      
+      // Fetch dashboard data from the new endpoint
+      const response = await axios.get(`${API_BASE}/users/dashboard`, { 
+        withCredentials: true 
+      });
+      
+      const dashboardData = response.data;
+      console.log('Dashboard data received:', dashboardData);
+      
+      // Update the state with the received data
+      if (dashboardData.chapters && Array.isArray(dashboardData.chapters)) {
+        console.log(`Setting ${dashboardData.chapters.length} chapters`);
+        setChapters(dashboardData.chapters);
+      } else {
+        console.warn('No chapters array in dashboard data:', dashboardData);
+        setChapters([]);
       }
+      
+      if (dashboardData.performance) {
+        console.log('Setting performance data:', dashboardData.performance);
+        setPerformance(dashboardData.performance);
+      } else {
+        console.warn('No performance data in dashboard response');
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on initial load
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Add focus event listener to refresh data when user returns to the page
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, refreshing dashboard data');
+      fetchDashboardData();
     };
 
-    fetchData();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Update indicator position with a more reliable approach
@@ -260,11 +275,11 @@ export default function Dashboard() {
                           <div className="progress-bar">
                             <div 
                               className="progress-fill"
-                              style={{ width: `${chapter.progress}%` }}
+                              style={{ width: `${chapter.status === 'COMPLETED' ? 100 : chapter.progress}%` }}
                             />
                           </div>
                           <span className="progress-text">
-                            {chapter.progress}% Complete
+                            {chapter.status === 'COMPLETED' ? 100 : chapter.progress}% Complete
                           </span>
                         </div>
                       </div>
@@ -297,13 +312,13 @@ export default function Dashboard() {
             {performance.chapters.map((chapter) => (
               <div key={chapter.id} className="progress-row">
                 <div className="progress-info">
-                  <span className="progress-label">{chapter.id}</span>
                   <span className="progress-title">{chapter.title}</span>
+                  <span className="progress-chapter">{chapter.chapter}</span>
                 </div>
                 <div className="progress-bar">
                   <div 
                     className={`progress-fill ${chapter.completed ? 'complete' : 'partial'}`}
-                    style={{ width: `${(chapter.score / chapter.total) * 100}%` }}
+                    style={{ width: `${chapter.completed ? 100 : (chapter.score / chapter.total) * 100}%` }}
                   />
                 </div>
                 <span className="progress-score">
