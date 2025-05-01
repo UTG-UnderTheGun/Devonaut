@@ -37,9 +37,6 @@ export default function Home() {
   return (
     <div className="homepage-container">
       <main className="homepage-main-content">
-        <div style={{ fontSize: "144px" }}>
-          <h1>THIS IS BUG</h1>
-        </div>
         <h1 className="heading-1 animate-on-scroll">
           All Your Coding Journey
         </h1>
