@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import AIChatInterface from '../ai-interface/ai-interface';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Helper function to determine if the test type should show the description tab
 const shouldShowDescription = (type) => {
@@ -167,7 +169,9 @@ const DescriptionPanel = ({
             <div className="problem-display">
               <h3 className="problem-title-display">{title || 'No Title'}</h3>
               <div className="problem-description-display">
-                {description || 'No description available.'}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {description || 'No description available.'}
+                </ReactMarkdown>
               </div>
             </div>
           </>
