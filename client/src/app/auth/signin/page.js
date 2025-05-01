@@ -263,13 +263,13 @@ export default function Login() {
             {success && <div className="success-message">{success}</div>}
 
             <div className="form-group">
-              <label className="form-label">TU Username</label>
+              <label className="form-label">TU Student ID</label>
               <input
                 type="text"
                 name="username"
                 className="form-input"
                 required
-                placeholder="Enter your TU username"
+                placeholder="Enter your TU Student ID"
                 value={tuFormData.username}
                 onChange={handleTUChange}
                 disabled={isLoading}

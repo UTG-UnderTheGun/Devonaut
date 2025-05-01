@@ -161,16 +161,18 @@ export default function Profile() {
 
           <div className="form-group">
             <label className="form-label">Section</label>
-            <input
-              type="text"
+            <select
               name="section"
               className="form-input"
               value={formData.section}
               onChange={handleChange}
               required
-              placeholder="Enter your section"
               disabled={isLoading}
-            />
+            >
+              <option value="">Select your section</option>
+              <option value="760001">760001</option>
+              <option value="760002">760002</option>
+            </select>
           </div>
 
           <button 
