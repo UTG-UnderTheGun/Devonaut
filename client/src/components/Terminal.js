@@ -11,10 +11,36 @@ const Terminal = () => {
   const [displayedOutput, setDisplayedOutput] = useState('');
   const [isWaitingForInput, setIsWaitingForInput] = useState(false);
   const [userInput, setUserInput] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
   const terminalRef = useRef(null);
   const inputRef = useRef(null);
+  const cursorRef = useRef(null);
 
   const hasError = Boolean(error);
+
+  // Update cursor position when input changes
+  useEffect(() => {
+    if (cursorRef.current && inputRef.current) {
+      // Calculate position based on text measurement
+      const textMeasure = document.createElement('span');
+      textMeasure.style.visibility = 'hidden';
+      textMeasure.style.position = 'absolute';
+      textMeasure.style.whiteSpace = 'pre';
+      textMeasure.style.font = window.getComputedStyle(inputRef.current).font;
+      textMeasure.textContent = userInput;
+      document.body.appendChild(textMeasure);
+      
+      // Get the prompt width
+      const promptWidth = document.querySelector('.terminal-prompt')?.offsetWidth || 0;
+      
+      // Position cursor after text plus prompt width
+      const textWidth = textMeasure.offsetWidth;
+      setCursorPosition(promptWidth + textWidth);
+      
+      // Clean up
+      document.body.removeChild(textMeasure);
+    }
+  }, [userInput]);
 
   // Update displayed output when output or error changes
   useEffect(() => {
@@ -29,6 +55,7 @@ const Terminal = () => {
       setIsWaitingForInput(true);
       if (inputRef.current) {
         setTimeout(() => {
+          // Add null check inside the callback
           if (inputRef.current) {
             inputRef.current.focus();
           }
@@ -52,6 +79,7 @@ const Terminal = () => {
         setIsWaitingForInput(true);
         if (inputRef.current) {
           setTimeout(() => {
+            // Add null check inside the callback
             if (inputRef.current) {
               inputRef.current.focus();
             }
@@ -156,8 +184,8 @@ const Terminal = () => {
       const input = userInput;
       setUserInput('');
       
-      // Update the displayed output to include the user's input
-      setDisplayedOutput(prevOutput => prevOutput + input);
+      // Update the displayed output to include the user's input with prompt
+      setDisplayedOutput(prevOutput => prevOutput + '$ ' + input + '\n');
       
       // Send the input to the server
       const response = await axios.post(
@@ -185,6 +213,7 @@ const Terminal = () => {
           setIsWaitingForInput(true);
           if (inputRef.current) {
             setTimeout(() => {
+              // Add null check inside the callback
               if (inputRef.current) {
                 inputRef.current.focus();
               }
@@ -204,6 +233,13 @@ const Terminal = () => {
     }
   };
 
+  // Clean output by removing any unwanted markers
+  const cleanOutput = (output) => {
+    if (!output) return '';
+    // Remove any __INPUT_REQUIRED__ markers that might have slipped through
+    return output.replace(/__INPUT_REQUIRED__/g, '');
+  };
+
   // Format error message for better display
   const formatErrorMessage = (message) => {
     if (!hasError) return message;
@@ -220,13 +256,6 @@ const Terminal = () => {
     });
   };
 
-  // Clean output by removing any unwanted markers
-  const cleanOutput = (output) => {
-    if (!output) return '';
-    // Remove any __INPUT_REQUIRED__ markers that might have slipped through
-    return output.replace(/__INPUT_REQUIRED__/g, '');
-  };
-
   return (
     <div 
       ref={terminalRef}
@@ -234,32 +263,37 @@ const Terminal = () => {
       onContextMenu={handleContextMenu}
     >
       <pre style={{ 
-        color: hasError ? 'red' : 'dark', 
-        marginLeft: '.1rem', 
-        marginTop: '.1rem',
+        color: hasError ? 'red' : 'inherit', 
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word'
       }}>
         {formatErrorMessage(cleanOutput(displayedOutput))}
+        
+        {/* Inline input area that appears when waiting for input */}
+        {isWaitingForInput && (
+          <form onSubmit={handleInputSubmit} className="terminal-input-container">
+            <span className="terminal-prompt">$</span>
+            <input
+              type="text"
+              ref={inputRef}
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              className="terminal-input"
+              placeholder="Type here..."
+              autoFocus
+            />
+            {/* Custom block cursor that follows text position */}
+            <div 
+              ref={cursorRef}
+              className="terminal-block-cursor"
+              style={{ left: `${cursorPosition}px` }}
+            />
+            <button type="submit" className="terminal-input-submit">
+              Enter
+            </button>
+          </form>
+        )}
       </pre>
-      
-      {/* Input area that appears when waiting for input */}
-      {isWaitingForInput && (
-        <form onSubmit={handleInputSubmit} className="terminal-input-container">
-          <input
-            type="text"
-            ref={inputRef}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            className="terminal-input"
-            placeholder="Type here..."
-            autoFocus
-          />
-          <button type="submit" className="terminal-input-submit">
-            Enter
-          </button>
-        </form>
-      )}
       
       {contextMenu.visible && contextMenu.text && (
         <div
