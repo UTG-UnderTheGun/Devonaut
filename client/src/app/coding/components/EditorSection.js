@@ -355,6 +355,9 @@ const EditorSection = ({
         // Get user ID from localStorage or sessionStorage
         const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
         
+        // Check for previous code to calculate changes
+        const previousCode = localStorage.getItem(`keystrokes-last-${currentProblemIndex}-${assignmentId || 'local'}`);
+        
         const keystrokeData = {
           code: code,
           problem_index: currentProblemIndex,
@@ -365,6 +368,36 @@ const EditorSection = ({
           timestamp: new Date().toISOString(),
           user_id: userId // Add user_id to the request
         };
+        
+        // Track what was changed (for better visualizing code evolution)
+        if (previousCode && previousCode !== code) {
+          // Find line numbers that changed
+          const prevLines = previousCode.split('\n');
+          const currLines = code.split('\n');
+          
+          // Simple approach to track changes
+          const changedLines = [];
+          const maxLines = Math.max(prevLines.length, currLines.length);
+          
+          for (let i = 0; i < maxLines; i++) {
+            const prevLine = i < prevLines.length ? prevLines[i] : null;
+            const currLine = i < currLines.length ? currLines[i] : null;
+            
+            if (prevLine !== currLine) {
+              changedLines.push({
+                line: i + 1,
+                previous: prevLine,
+                current: currLine
+              });
+            }
+          }
+          
+          // Add changed lines to keystroke data
+          keystrokeData.changes = changedLines;
+        }
+        
+        // Save current code as previous for next comparison
+        localStorage.setItem(`keystrokes-last-${currentProblemIndex}-${assignmentId || 'local'}`, code);
 
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,

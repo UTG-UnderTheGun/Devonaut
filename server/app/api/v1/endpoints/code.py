@@ -4,6 +4,7 @@ from fastapi_limiter.depends import RateLimiter
 from app.db.schemas import Code, CodeHistory, KeystrokeData, InputData
 from app.services.run_code_service import run_code as run_code_service, send_input
 from app.services.export_code import export_code
+from app.services.keystroke_service import save_keystroke, get_keystrokes, get_keystroke_timeline, get_keystroke_aggregates
 from typing import Dict, Any, Tuple, List
 from app.core.security import get_current_user
 import time
@@ -471,6 +472,8 @@ async def track_keystrokes(
             "username": user.get("username", ""),
             "code": keystroke_data.code,
             "problem_index": keystroke_data.problem_index,
+            "exercise_id": keystroke_data.exercise_id,
+            "assignment_id": keystroke_data.assignment_id,
             "test_type": keystroke_data.test_type,
             "cursor_position": keystroke_data.cursor_position,
             "timestamp": datetime.utcnow(),
@@ -484,3 +487,165 @@ async def track_keystrokes(
     except Exception as e:
         print(f"Error tracking keystrokes: {str(e)}")
         return {"success": False, "error": str(e)}
+
+@router.get("/keystrokes/{user_id}/{assignment_id}")
+async def get_user_keystrokes(
+    request: Request,
+    user_id: str,
+    assignment_id: str,
+    exercise_id: str = None,
+    problem_index: int = None,
+    limit: int = 100,
+    skip: int = 0,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get keystroke data for a user on a specific assignment
+    """
+    try:
+        # Check if current user is either admin or requesting their own data
+        admin_user, admin_id = current_user
+        
+        # Only allow users to view their own data or admins to view any data
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        if user_id != admin_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+        
+        # Get keystrokes using the service
+        keystrokes = await get_keystrokes(
+            db=request.app.mongodb,
+            user_id=user_id,
+            assignment_id=assignment_id,
+            exercise_id=exercise_id,
+            problem_index=problem_index,
+            limit=limit,
+            skip=skip
+        )
+        
+        return keystrokes
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystrokes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke data: {str(e)}")
+
+@router.get("/keystrokes/{user_id}/{assignment_id}/timeline")
+async def get_user_keystroke_timeline(
+    request: Request,
+    user_id: str,
+    assignment_id: str,
+    exercise_id: str = None,
+    problem_index: int = None,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get a processed timeline of code changes for visualization
+    """
+    try:
+        # Check if current user is either admin or requesting their own data
+        admin_user, admin_id = current_user
+        
+        # Only allow users to view their own data or admins to view any data
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        if user_id != admin_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+        
+        # Get keystroke timeline using the service
+        timeline = await get_keystroke_timeline(
+            db=request.app.mongodb,
+            user_id=user_id,
+            assignment_id=assignment_id,
+            exercise_id=exercise_id,
+            problem_index=problem_index
+        )
+        
+        return timeline
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystroke timeline: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke timeline: {str(e)}")
+
+@router.get("/keystrokes/{user_id}/aggregate")
+async def get_user_keystroke_aggregates(
+    request: Request,
+    user_id: str,
+    assignment_id: str = None,
+    days: int = 7,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get aggregated keystroke statistics by day and problem
+    """
+    try:
+        # Check if current user is either admin or requesting their own data
+        admin_user, admin_id = current_user
+        
+        # Only allow users to view their own data or admins to view any data
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        if user_id != admin_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+        
+        # Get keystroke aggregates using the service
+        aggregates = await get_keystroke_aggregates(
+            db=request.app.mongodb,
+            user_id=user_id,
+            assignment_id=assignment_id,
+            days=days
+        )
+        
+        return aggregates
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystroke aggregates: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke aggregates: {str(e)}")
+
+@router.get("/keystrokes/assignment/{assignment_id}/exercise/{exercise_id}")
+async def get_exercise_keystrokes(
+    request: Request,
+    assignment_id: str,
+    exercise_id: str,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get keystroke data for all users on a specific exercise (teachers only)
+    """
+    try:
+        # Check if current user is a teacher or admin
+        admin_user, admin_id = current_user
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="Only teachers can access this data")
+        
+        # Get all users who have submitted keystrokes for this exercise
+        pipeline = [
+            {"$match": {"assignment_id": assignment_id, "exercise_id": exercise_id}},
+            {"$group": {
+                "_id": "$user_id",
+                "username": {"$first": "$username"},
+                "keystrokes": {"$sum": 1},
+                "last_activity": {"$max": "$timestamp"}
+            }},
+            {"$sort": {"last_activity": -1}}
+        ]
+        
+        result = await request.app.mongodb["code_keystrokes"].aggregate(pipeline).to_list(length=100)
+        
+        # Process results
+        users = []
+        for item in result:
+            users.append({
+                "user_id": item["_id"],
+                "username": item["username"],
+                "keystrokes": item["keystrokes"],
+                "last_activity": item["last_activity"].isoformat() if isinstance(item["last_activity"], datetime) else item["last_activity"]
+            })
+            
+        return users
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting exercise keystrokes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving exercise keystroke data: {str(e)}")

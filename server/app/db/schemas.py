@@ -376,3 +376,4 @@ class KeystrokeData(BaseModel):
     cursor_position: Optional[dict] = None
     timestamp: Optional[datetime] = None
     user_id: Optional[str] = None
+    changes: Optional[List[Dict[str, Any]]] = None  # Track what lines changed
