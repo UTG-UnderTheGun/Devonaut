@@ -148,12 +148,15 @@ const Header = () => {
       });
       
       // Handle coding answers - store them directly with the exercise ID
+      // ต้องตรวจสอบให้แน่ใจว่าแต่ละข้อได้รับค่าที่ถูกต้องและไม่ทับกัน
       Object.keys(answers).forEach(key => {
         if (key.startsWith('coding-')) {
           const parts = key.split('-');
           if (parts.length >= 2) {
             const exerciseId = parts[1];
+            // เก็บค่าโดยตรงจาก answers โดยไม่มีการทับซ้อน
             formattedAnswers[exerciseId] = answers[key];
+            console.log(`Setting coding answer for exercise ${exerciseId} from coding-${exerciseId}:`, answers[key]);
           }
         }
       });
@@ -163,6 +166,10 @@ const Header = () => {
         formattedAnswers[key] = outputs[key];
       });
       
+      // ไม่ใช้ currentExerciseId เพื่อป้องกันการทับซ้อนของคำตอบ
+      // แทนที่จะดึงจาก localStorage ให้ใช้ค่าที่เก็บเฉพาะในแต่ละข้อ
+      
+      /* *** ลบส่วนนี้ออกเพื่อป้องกันการทับซ้อน ***
       // If we have current code and current exercise, store it directly
       // This is critical for coding exercises
       if (currentCode && currentExerciseId) {
@@ -204,11 +211,15 @@ const Header = () => {
       } catch (e) {
         console.warn('Error getting editor code:', e);
       }
+      */
 
+      // ตรวจสอบค่าคำตอบก่อนส่ง
+      console.log('Final formatted answers before submission:', formattedAnswers);
+      
       // Get user details from localStorage or session
       const username = userData.username || localStorage.getItem('username') || sessionStorage.getItem('username') || '';
       const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id') || '';
-
+      
       // Prepare submission data according to the schema
       const submissionData = {
         id: String(Date.now()), // Generate a timestamp-based ID as per schema

@@ -78,7 +78,7 @@ const EditorSection = ({
   const [isImport, setIsImport] = useState(false);
   const [isImported, setIsImported] = useState(false);
   const [lastKeystrokeTime, setLastKeystrokeTime] = useState(null);
-  const KEYSTROKE_DEBOUNCE_TIME = 1000; // 1 second
+  const KEYSTROKE_DEBOUNCE_TIME = 300; // Change from 1000 to 300 milliseconds for more responsive tracking
   const [contextMenu, setContextMenu] = useState(null);
   const [textareaHeights, setTextareaHeights] = useState({});
 
@@ -245,6 +245,8 @@ const EditorSection = ({
       
       console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType} (question #${questionNumber})`);
       
+      let codeToSet = ''; // Variable to store the code we'll load
+      
       // Try to load from problem-answers first for coding exercises (new format)
       if (effectiveType === 'code' || effectiveType === 'coding') {
         try {
@@ -255,10 +257,31 @@ const EditorSection = ({
             
             if (answers[codingKey]) {
               console.log(`Found saved coding answer for question #${questionNumber}`);
-              handleCodeChange(answers[codingKey]);
+              codeToSet = answers[codingKey];
+              handleCodeChange(codeToSet);
               if (editorRef.current) {
-                editorRef.current.setValue(answers[codingKey]);
+                editorRef.current.setValue(codeToSet);
               }
+              
+              // Also track this initial code load as a keystroke
+              setTimeout(() => {
+                if (codeToSet) {
+                  let cursorPosition = null;
+                  if (editorRef.current) {
+                    const model = editorRef.current.getModel();
+                    const selection = editorRef.current.getSelection();
+                    if (model && selection) {
+                      cursorPosition = {
+                        lineNumber: selection.positionLineNumber,
+                        column: selection.positionColumn
+                      };
+                    }
+                  }
+                  
+                  debouncedSaveKeystrokes(codeToSet, cursorPosition);
+                }
+              }, 500); // Small delay to ensure editor is fully loaded
+              
               return; // Found code, return early
             }
           }
@@ -275,29 +298,51 @@ const EditorSection = ({
       
       if (savedCode) {
         console.log(`Found saved code for problem ${currentProblemIndex} from ${key}`);
-        handleCodeChange(savedCode);
+        codeToSet = savedCode;
+        handleCodeChange(codeToSet);
         if (editorRef.current) {
-          editorRef.current.setValue(savedCode);
+          editorRef.current.setValue(codeToSet);
         }
       } else if (currentProblem.code) {
         // If no saved code, use the problem's original code
         console.log(`Using original code for problem ${currentProblemIndex}`);
-        handleCodeChange(currentProblem.code);
+        codeToSet = currentProblem.code;
+        handleCodeChange(codeToSet);
         if (editorRef.current) {
-          editorRef.current.setValue(currentProblem.code);
+          editorRef.current.setValue(codeToSet);
         }
         // Save this code to localStorage for future
-        localStorage.setItem(key, currentProblem.code);
+        localStorage.setItem(key, codeToSet);
       } else if (currentProblem.starterCode) {
         // Fall back to starter code if no saved code and no original code
         console.log(`Using starter code for problem ${currentProblemIndex}`);
-        handleCodeChange(currentProblem.starterCode);
+        codeToSet = currentProblem.starterCode;
+        handleCodeChange(codeToSet);
         if (editorRef.current) {
-          editorRef.current.setValue(currentProblem.starterCode);
+          editorRef.current.setValue(codeToSet);
         }
         // Save this code to localStorage for future
-        localStorage.setItem(key, currentProblem.starterCode);
+        localStorage.setItem(key, codeToSet);
       }
+      
+      // Also track this initial code load as a keystroke
+      setTimeout(() => {
+        if (codeToSet) {
+          let cursorPosition = null;
+          if (editorRef.current) {
+            const model = editorRef.current.getModel();
+            const selection = editorRef.current.getSelection();
+            if (model && selection) {
+              cursorPosition = {
+                lineNumber: selection.positionLineNumber,
+                column: selection.positionColumn
+              };
+            }
+          }
+          
+          debouncedSaveKeystrokes(codeToSet, cursorPosition);
+        }
+      }, 500); // Small delay to ensure editor is fully loaded
     };
     
     loadProblemCode();
@@ -333,7 +378,8 @@ const EditorSection = ({
           
           // Store keystroke data locally for submission
           try {
-            const key = `keystrokes-${assignmentId}`;
+            // Use problem index in the key to track keystrokes separately for each problem
+            const key = `keystrokes-${currentProblemIndex}-${assignmentId || 'local'}`;
             const existingData = localStorage.getItem(key);
             let keystrokeHistory = [];
             
@@ -369,38 +415,37 @@ const EditorSection = ({
         
         // Still store keystroke data locally even if API fails
         try {
-          if (assignmentId) {
-            const key = `keystrokes-${assignmentId}`;
-            const existingData = localStorage.getItem(key);
-            let keystrokeHistory = [];
-            
-            if (existingData) {
-              keystrokeHistory = JSON.parse(existingData);
-            }
-            
-            // Get user ID from localStorage or sessionStorage
-            const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
-            
-            // Add new keystroke data with timestamp
-            keystrokeHistory.push({
-              code,
-              problem_index: currentProblemIndex,
-              exercise_id: problems[currentProblemIndex]?.id,
-              assignment_id: assignmentId,
-              test_type: testType,
-              cursor_position: cursorPosition,
-              timestamp: new Date().toISOString(),
-              user_id: userId
-            });
-            
-            localStorage.setItem(key, JSON.stringify(keystrokeHistory));
+          // Include problem index in the key to track keystrokes separately for each problem
+          const key = `keystrokes-${currentProblemIndex}-${assignmentId || 'local'}`;
+          const existingData = localStorage.getItem(key);
+          let keystrokeHistory = [];
+          
+          if (existingData) {
+            keystrokeHistory = JSON.parse(existingData);
           }
+          
+          // Get user ID from localStorage or sessionStorage
+          const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
+          
+          // Add new keystroke data with timestamp
+          keystrokeHistory.push({
+            code,
+            problem_index: currentProblemIndex,
+            exercise_id: problems[currentProblemIndex]?.id,
+            assignment_id: assignmentId,
+            test_type: testType,
+            cursor_position: cursorPosition,
+            timestamp: new Date().toISOString(),
+            user_id: userId
+          });
+          
+          localStorage.setItem(key, JSON.stringify(keystrokeHistory));
         } catch (storageErr) {
           console.warn('Error storing keystroke data locally:', storageErr);
         }
       }
     }, KEYSTROKE_DEBOUNCE_TIME),
-    [currentProblemIndex, testType, assignmentId]
+    [currentProblemIndex, testType, assignmentId, problems]
   );
 
   // Update the handleEditorChange function
@@ -465,10 +510,9 @@ const EditorSection = ({
 
     // Track keystrokes with debouncing
     const now = Date.now();
-    if (!lastKeystrokeTime || now - lastKeystrokeTime >= KEYSTROKE_DEBOUNCE_TIME) {
-      debouncedSaveKeystrokes(value, cursorPosition);
-      setLastKeystrokeTime(now);
-    }
+    // Always track keystrokes when editor changes, but use debouncing to limit API calls
+    debouncedSaveKeystrokes(value, cursorPosition);
+    setLastKeystrokeTime(now);
   };
 
   const handleResetAll = () => {
@@ -501,6 +545,7 @@ const EditorSection = ({
       /^problem-title-/,  // problem-title-*
       /^problem-description-/, // problem-description-*
       /^output-/,         // output-*
+      /^keystrokes-/,     // keystrokes-* (add this pattern to clean up keystroke data)
       /^editorCode$/,     // editorCode (exact match)
       /^problem-code$/,   // problem-code (exact match)
       /^problem-outputs$/,// problem-outputs (exact match)

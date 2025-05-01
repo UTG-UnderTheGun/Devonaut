@@ -81,12 +81,6 @@ async def save_code_history(
         if history.problem_index is not None:
             history_data["problem_index"] = history.problem_index
             
-        if history.exercise_id is not None:
-            history_data["exercise_id"] = history.exercise_id
-            
-        if history.assignment_id is not None:
-            history_data["assignment_id"] = history.assignment_id
-            
         if history.test_type:
             history_data["test_type"] = history.test_type
             
@@ -124,8 +118,6 @@ async def get_code_history(
     request: Request,
     current_user=Depends(get_current_user),
     problem_index: int = None,
-    exercise_id: str = None,
-    assignment_id: str = None,
     limit: int = 50,
     skip: int = 0,
 ):
@@ -139,12 +131,6 @@ async def get_code_history(
         query = {"user_id": user_id}
         if problem_index is not None:
             query["problem_index"] = problem_index
-            
-        if exercise_id is not None:
-            query["exercise_id"] = exercise_id
-            
-        if assignment_id is not None:
-            query["assignment_id"] = assignment_id
             
         # Get history from MongoDB
         cursor = request.app.mongodb["code_history"].find(query).sort("created_at", -1).skip(skip).limit(limit)
@@ -323,12 +309,6 @@ async def track_code_access(
         if history.problem_index is not None:
             history_data["problem_index"] = history.problem_index
             
-        if history.exercise_id is not None:
-            history_data["exercise_id"] = history.exercise_id
-            
-        if history.assignment_id is not None:
-            history_data["assignment_id"] = history.assignment_id
-            
         if history.test_type:
             history_data["test_type"] = history.test_type
             
@@ -354,8 +334,6 @@ async def get_access_patterns(
     request: Request,
     current_user=Depends(get_current_user),
     problem_index: int = None,
-    exercise_id: str = None,
-    assignment_id: str = None,
     user_id: str = None,
     days: int = 7
 ):
@@ -386,10 +364,6 @@ async def get_access_patterns(
             query["user_id"] = user_id
         if problem_index is not None:
             query["problem_index"] = problem_index
-        if exercise_id is not None:
-            query["exercise_id"] = exercise_id
-        if assignment_id is not None:
-            query["assignment_id"] = assignment_id
             
         # Get access patterns from MongoDB
         pipeline = [
@@ -398,9 +372,7 @@ async def get_access_patterns(
                 "_id": {
                     "day": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
                     "action_type": "$action_type",
-                    "problem_index": "$problem_index",
-                    "exercise_id": "$exercise_id",
-                    "assignment_id": "$assignment_id"
+                    "problem_index": "$problem_index"
                 },
                 "count": {"$sum": 1},
                 "users": {"$addToSet": "$user_id"}
@@ -415,8 +387,6 @@ async def get_access_patterns(
             item["day"] = item["_id"]["day"]
             item["action_type"] = item["_id"]["action_type"]
             item["problem_index"] = item["_id"]["problem_index"]
-            item["exercise_id"] = item["_id"].get("exercise_id")
-            item["assignment_id"] = item["_id"].get("assignment_id")
             item["unique_users"] = len(item["users"])
             del item["_id"]
             del item["users"]
@@ -488,13 +458,6 @@ async def track_keystrokes(
             "timestamp": datetime.utcnow(),
             "action_type": "keystroke"
         }
-        
-        # Add additional fields if provided
-        if keystroke_data.exercise_id is not None:
-            data["exercise_id"] = keystroke_data.exercise_id
-            
-        if keystroke_data.assignment_id is not None:
-            data["assignment_id"] = keystroke_data.assignment_id
         
         # Store in MongoDB collection named 'code_keystrokes'
         await request.app.mongodb["code_keystrokes"].insert_one(data)

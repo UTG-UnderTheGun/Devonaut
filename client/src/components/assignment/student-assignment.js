@@ -969,40 +969,38 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                         const exerciseNumber = currentExerciseIndex + 1;
                         console.log(`Looking for coding answer for exercise ${exerciseNumber} (ID: ${exerciseId})`, answers);
                         
-                        // ดึงข้อมูลจากทุกรูปแบบที่เป็นไปได้และแสดงเพื่อตรวจสอบ
-                        const answerById = answers[exerciseId];
-                        const answerByStringId = answers[String(exerciseId)];
-                        const answerByNumber = answers[exerciseNumber]; 
-                        const answerByStringNumber = answers[String(exerciseNumber)];
+                        // Log ค่าคำตอบทั้งหมดเพื่อดูข้อมูล
+                        console.log("All answers:", JSON.stringify(answers, null, 2));
                         
-                        console.log(`Answer by ID (${exerciseId}):`, answerById);
-                        console.log(`Answer by String ID (${String(exerciseId)}):`, answerByStringId);
-                        console.log(`Answer by Number (${exerciseNumber}):`, answerByNumber);
-                        console.log(`Answer by String Number (${String(exerciseNumber)}):`, answerByStringNumber);
+                        // ใช้เลขข้อโดยตรงและแยกตามข้อที่ชัดเจน
+                        let answer;
                         
-                        // ใช้เงื่อนไขที่เฉพาะเจาะจงสำหรับข้อ 5 และข้อ 6 เพื่อแก้ปัญหาข้อมูลซ้ำกัน
-                        // ในกรณีพิเศษสำหรับข้อ 5 และ 6 ที่เกิดปัญหา
-                        if (exerciseNumber === 5) {
-                          // พยายามค้นหาคำตอบสำหรับข้อ 5 โดยเฉพาะ
-                          const answer5 = answers["5"];
-                          if (answer5) {
-                            console.log("Found specific answer for exercise 5:", answer5);
-                            return answer5;
-                          }
-                        } else if (exerciseNumber === 6) {
-                          // พยายามค้นหาคำตอบสำหรับข้อ 6 โดยเฉพาะ
-                          const answer6 = answers["6"];
-                          if (answer6) {
-                            console.log("Found specific answer for exercise 6:", answer6);
-                            return answer6;
-                          }
+                        // วิธีที่ 1: ใช้ exerciseNumber (ตัวเลขลำดับข้อ)
+                        if (answers[exerciseNumber] !== undefined) {
+                          answer = answers[exerciseNumber];
+                          console.log(`Found answer using exercise number key ${exerciseNumber}:`, answer);
                         }
                         
-                        // ใช้เลขข้อโดยตรง - ซึ่งควรจะแตกต่างกันแม้มีข้อมูลเดียวกัน
-                        const answer = answers[exerciseNumber] || answers[String(exerciseNumber)];
+                        // วิธีที่ 2: ใช้ exerciseId (ID ของข้อ)
+                        else if (answers[exerciseId] !== undefined) {
+                          answer = answers[exerciseId];
+                          console.log(`Found answer using exercise ID key ${exerciseId}:`, answer);
+                        }
                         
-                        if (answer) {
-                          console.log(`Found standard answer for exercise ${exerciseNumber}:`, answer);
+                        // วิธีที่ 3: ใช้ String(exerciseNumber)
+                        else if (answers[String(exerciseNumber)] !== undefined) {
+                          answer = answers[String(exerciseNumber)];
+                          console.log(`Found answer using string exercise number key "${exerciseNumber}":`, answer);
+                        }
+                        
+                        // วิธีที่ 4: ใช้ String(exerciseId)
+                        else if (answers[String(exerciseId)] !== undefined) {
+                          answer = answers[String(exerciseId)];
+                          console.log(`Found answer using string exercise ID key "${exerciseId}":`, answer);
+                        }
+                        
+                        // ถ้าเจอคำตอบ ให้แสดงผล
+                        if (answer !== undefined) {
                           if (typeof answer === 'string') {
                             return answer;
                           } else if (typeof answer === 'object') {
@@ -1010,29 +1008,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                           }
                         }
                         
-                        // ถ้าไม่พบคำตอบที่เฉพาะเจาะจง ให้ใช้ fallback จากส่วนอื่น
+                        // ถ้าไม่เจอคำตอบจากข้างบน ลองดูใน submission
                         if (submission) {
-                          // ถ้ามีข้อมูลใน submission.code
-                          if (submission.code && submission.code.length > 0) {
-                            console.log(`Using global code from submission for exercise ${exerciseNumber}`);
+                          // ถ้ามี code ใน submission โดยตรง
+                          if (submission.code) {
                             return submission.code;
                           }
                           
-                          // ถ้ามีข้อมูลใน submission.answers ที่เป็น object แต่ไม่ใช่ object ของ fill
-                          if (submission.answers && submission.answers[exerciseNumber] && 
-                              typeof submission.answers[exerciseNumber] === 'string') {
-                            console.log(`Using code from submission.answers for exercise ${exerciseNumber}`);
-                            return submission.answers[exerciseNumber];
+                          // ถ้ามี answers และเป็น coding exercise
+                          if (submission.answers) {
+                            // ลองดึงคำตอบจาก submission.answers โดยตรง
+                            const subAnswer = submission.answers[exerciseId] || 
+                                             submission.answers[String(exerciseId)] || 
+                                             submission.answers[exerciseNumber] || 
+                                             submission.answers[String(exerciseNumber)];
+                            
+                            if (subAnswer) {
+                              console.log(`Found answer in submission for exercise ${exerciseNumber}:`, subAnswer);
+                              if (typeof subAnswer === 'string') {
+                                return subAnswer;
+                              } else if (typeof subAnswer === 'object') {
+                                return JSON.stringify(subAnswer, null, 2);
+                              }
+                            }
                           }
                         }
                         
-                        // ถ้าไม่มีคำตอบที่เหมาะสม ให้ใช้ starter code
-                        if (exercises[currentExerciseIndex].starter_code) {
-                          console.log(`Using starter code for exercise ${exerciseNumber}`);
-                          return exercises[currentExerciseIndex].starter_code;
-                        }
-                        
-                        return "No code submitted";
+                        // ถ้าไม่มีเลย ใช้โค้ดเริ่มต้นของโจทย์
+                        return exercises[currentExerciseIndex].starter_code || "No code submitted";
                       })()}</code>
                     </pre>
                   </div>

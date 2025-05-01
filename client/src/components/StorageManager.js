@@ -253,6 +253,9 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
         } else if (problemType === 'code' || problemType === 'coding') {
           // For code problems, the answer is the code itself
           // Store it directly with the exercise ID as shown in the schema example
+          const codeAnswer = currentCode;
+          console.log(`Exporting code for problem ${index} (ID: ${exerciseId}): ${codeAnswer.substring(0, 30)}...`);
+          
           return {
             id: exerciseId,
             title: problem.title || '',
@@ -260,7 +263,7 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             code: currentCode,
             type: problemType === 'coding' ? 'code' : problemType, // Normalize type
             answers: {
-              [exerciseId]: currentCode // Directly use the code as the answer value
+              [exerciseId]: codeAnswer // เก็บค่าโดยใช้ ID เป็นคีย์
             }
           };
         }
@@ -371,7 +374,7 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             Object.entries(item.answers).forEach(([answerKey, answerValue]) => {
               schemaAnswers[answerKey] = answerValue;
             });
-          } 
+          }
           
           // Also check legacy format in userAnswers
           if (item.userAnswers) {
@@ -382,6 +385,9 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             } else if (item.type === 'code' || item.type === 'coding') {
               if (item.userAnswers.codeAnswer) {
                 schemaAnswers[exerciseId] = item.userAnswers.codeAnswer;
+              } else if (item.code) {
+                // Fallback to using the problem code
+                schemaAnswers[exerciseId] = item.code;
               }
             } else if (item.type === 'fill') {
               if (item.userAnswers.fillAnswers) {
@@ -437,9 +443,11 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             // For coding exercises, store the code directly with the exercise ID
             if (data.userAnswers.codeAnswer) {
               schemaAnswers[exerciseId] = data.userAnswers.codeAnswer;
+              console.log(`Storing code answer for exercise ${exerciseId}: ${data.userAnswers.codeAnswer.substring(0, 30)}...`);
             } else if (data.code) {
               // Fallback to using the problem code
               schemaAnswers[exerciseId] = data.code;
+              console.log(`Using problem code for exercise ${exerciseId}: ${data.code.substring(0, 30)}...`);
             }
           }
         }
