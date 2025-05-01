@@ -376,3 +376,28 @@ class KeystrokeData(BaseModel):
     cursor_position: Optional[dict] = None
     timestamp: Optional[datetime] = None
     user_id: Optional[str] = None
+    changes: Optional[List[Dict[str, Any]]] = None  # Track what lines changed
+    
+    class Config:
+        # Allow extra fields to be flexible with client data
+        extra = "allow"
+        
+        schema_extra = {
+            "example": {
+                "code": "print('Hello world')",
+                "problem_index": 1,
+                "exercise_id": "exercise123",
+                "assignment_id": "assignment456",
+                "test_type": "code",
+                "cursor_position": {"lineNumber": 1, "column": 5},
+                "timestamp": "2023-03-03T12:00:00",
+                "user_id": "user123",
+                "changes": [
+                    {
+                        "line": 1,
+                        "previous": "print('Hello')",
+                        "current": "print('Hello world')"
+                    }
+                ]
+            }
+        }

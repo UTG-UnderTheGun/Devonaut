@@ -198,6 +198,29 @@ async def submit_assignment_solution(
         if user.get("role") == "teacher":
             raise HTTPException(status_code=403, detail="Teachers cannot submit assignments")
         
+        # Process the answers to ensure proper formatting for coding exercises
+        if "answers" in submission_data:
+            answers = submission_data["answers"]
+            processed_answers = {}
+            
+            # Process each answer entry
+            for exercise_id, answer in answers.items():
+                # Handle coding exercises specifically
+                if isinstance(answer, str) and len(answer) > 0:
+                    # This is likely a coding answer (string of code)
+                    processed_answers[exercise_id] = answer
+                elif isinstance(answer, dict):
+                    # This could be a fill-in-the-blank or other structured answer
+                    processed_answers[exercise_id] = answer
+                else:
+                    # Handle other answer types
+                    processed_answers[exercise_id] = answer
+            
+            # Replace the original answers with processed ones
+            submission_data["answers"] = processed_answers
+            
+            print(f"Processed answers for submission: {processed_answers}")
+        
         # Process the submission
         result = await submit_assignment(
             db=request.app.mongodb,

@@ -4,6 +4,7 @@ from fastapi_limiter.depends import RateLimiter
 from app.db.schemas import Code, CodeHistory, KeystrokeData, InputData
 from app.services.run_code_service import run_code as run_code_service, send_input
 from app.services.export_code import export_code
+from app.services.keystroke_service import save_keystroke, get_keystrokes, get_keystroke_timeline, get_keystroke_aggregates
 from typing import Dict, Any, Tuple, List
 from app.core.security import get_current_user
 import time
@@ -465,22 +466,242 @@ async def track_keystrokes(
         # Get user info
         user, user_id = current_user
         
+        # Print detailed logs for debugging
+        print(f"DEBUG KEYSTROKE: Received data: {keystroke_data.dict(exclude={'code'})}")
+        
         # Prepare data for MongoDB
         data = {
             "user_id": user_id,
             "username": user.get("username", ""),
             "code": keystroke_data.code,
             "problem_index": keystroke_data.problem_index,
-            "test_type": keystroke_data.test_type,
-            "cursor_position": keystroke_data.cursor_position,
             "timestamp": datetime.utcnow(),
             "action_type": "keystroke"
         }
         
+        # Add optional fields only if they exist and are not None or empty strings
+        if keystroke_data.exercise_id and str(keystroke_data.exercise_id).strip():
+            data["exercise_id"] = str(keystroke_data.exercise_id)
+            
+        if keystroke_data.assignment_id and str(keystroke_data.assignment_id).strip():
+            data["assignment_id"] = str(keystroke_data.assignment_id)
+            
+        if keystroke_data.test_type:
+            data["test_type"] = keystroke_data.test_type
+            
+        if keystroke_data.cursor_position:
+            data["cursor_position"] = keystroke_data.cursor_position
+            
+        if keystroke_data.changes:
+            data["changes"] = keystroke_data.changes
+            
+        # Print detailed logs about what we're about to save
+        print(f"DEBUG KEYSTROKE: Preparing to save keystroke data for user {user_id}:")
+        print(f"DEBUG KEYSTROKE: Collection target: code_keystrokes")
+        print(f"DEBUG KEYSTROKE: Data: {data}")
+        
+        # Check if the collection exists, create it if not
+        collections = await request.app.mongodb.list_collection_names()
+        if "code_keystrokes" not in collections:
+            print(f"DEBUG KEYSTROKE: Collection 'code_keystrokes' does not exist, creating it now")
+            await request.app.mongodb.create_collection("code_keystrokes")
+        
         # Store in MongoDB collection named 'code_keystrokes'
-        await request.app.mongodb["code_keystrokes"].insert_one(data)
+        result = await request.app.mongodb["code_keystrokes"].insert_one(data)
+        print(f"DEBUG KEYSTROKE: Data saved successfully with ID: {result.inserted_id}")
+        
+        # Also add a record to code_history for backward compatibility
+        try:
+            history_data = {
+                "user_id": user_id,
+                "username": user.get("username", ""),
+                "code": keystroke_data.code,
+                "problem_index": keystroke_data.problem_index,
+                "created_at": datetime.utcnow(),
+                "action_type": "keystroke"  # Override to ensure correct action type
+            }
+            
+            # Add optional fields only if they exist in the keystroke data
+            if keystroke_data.exercise_id and str(keystroke_data.exercise_id).strip():
+                history_data["exercise_id"] = str(keystroke_data.exercise_id)
+                
+            if keystroke_data.assignment_id and str(keystroke_data.assignment_id).strip():
+                history_data["assignment_id"] = str(keystroke_data.assignment_id)
+                
+            if keystroke_data.test_type:
+                history_data["test_type"] = keystroke_data.test_type
+                
+            # Insert into MongoDB
+            await request.app.mongodb["code_history"].insert_one(history_data)
+            print(f"DEBUG KEYSTROKE: Also saved to code_history for backward compatibility")
+        except Exception as historyErr:
+            print(f"Warning: Failed to save to code_history: {str(historyErr)}")
+            # Continue even if this fails - we don't want to fail the main operation
         
         return {"success": True}
     except Exception as e:
-        print(f"Error tracking keystrokes: {str(e)}")
+        print(f"ERROR KEYSTROKE: Error tracking keystrokes: {str(e)}")
+        print(f"ERROR KEYSTROKE: Full exception details: {repr(e)}")
         return {"success": False, "error": str(e)}
+
+@router.get("/keystrokes/{user_id}/{assignment_id}")
+async def get_user_keystrokes(
+    request: Request,
+    user_id: str,
+    assignment_id: str,
+    exercise_id: str = None,
+    problem_index: int = None,
+    limit: int = 100,
+    skip: int = 0,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get keystroke data for a user on a specific assignment
+    """
+    try:
+        # Check if current user is either admin or requesting their own data
+        admin_user, admin_id = current_user
+        
+        # Only allow users to view their own data or admins to view any data
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        if user_id != admin_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+        
+        # Get keystrokes using the service
+        keystrokes = await get_keystrokes(
+            db=request.app.mongodb,
+            user_id=user_id,
+            assignment_id=assignment_id,
+            exercise_id=exercise_id,
+            problem_index=problem_index,
+            limit=limit,
+            skip=skip
+        )
+        
+        return keystrokes
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystrokes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke data: {str(e)}")
+
+@router.get("/keystrokes/{user_id}/{assignment_id}/timeline")
+async def get_user_keystroke_timeline(
+    request: Request,
+    user_id: str,
+    assignment_id: str,
+    exercise_id: str = None,
+    problem_index: int = None,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get a processed timeline of code changes for visualization
+    """
+    try:
+        # Check if current user is either admin or requesting their own data
+        admin_user, admin_id = current_user
+        
+        # Only allow users to view their own data or admins to view any data
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        if user_id != admin_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+        
+        # Get keystroke timeline using the service
+        timeline = await get_keystroke_timeline(
+            db=request.app.mongodb,
+            user_id=user_id,
+            assignment_id=assignment_id,
+            exercise_id=exercise_id,
+            problem_index=problem_index
+        )
+        
+        return timeline
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystroke timeline: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke timeline: {str(e)}")
+
+@router.get("/keystrokes/{user_id}/aggregate")
+async def get_user_keystroke_aggregates(
+    request: Request,
+    user_id: str,
+    assignment_id: str = None,
+    days: int = 7,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get aggregated keystroke statistics by day and problem
+    """
+    try:
+        # Check if current user is either admin or requesting their own data
+        admin_user, admin_id = current_user
+        
+        # Only allow users to view their own data or admins to view any data
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        if user_id != admin_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+        
+        # Get keystroke aggregates using the service
+        aggregates = await get_keystroke_aggregates(
+            db=request.app.mongodb,
+            user_id=user_id,
+            assignment_id=assignment_id,
+            days=days
+        )
+        
+        return aggregates
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystroke aggregates: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke aggregates: {str(e)}")
+
+@router.get("/keystrokes/assignment/{assignment_id}/exercise/{exercise_id}")
+async def get_exercise_keystrokes(
+    request: Request,
+    assignment_id: str,
+    exercise_id: str,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get keystroke data for all users on a specific exercise (teachers only)
+    """
+    try:
+        # Check if current user is a teacher or admin
+        admin_user, admin_id = current_user
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="Only teachers can access this data")
+        
+        # Get all users who have submitted keystrokes for this exercise
+        pipeline = [
+            {"$match": {"assignment_id": assignment_id, "exercise_id": exercise_id}},
+            {"$group": {
+                "_id": "$user_id",
+                "username": {"$first": "$username"},
+                "keystrokes": {"$sum": 1},
+                "last_activity": {"$max": "$timestamp"}
+            }},
+            {"$sort": {"last_activity": -1}}
+        ]
+        
+        result = await request.app.mongodb["code_keystrokes"].aggregate(pipeline).to_list(length=100)
+        
+        # Process results
+        users = []
+        for item in result:
+            users.append({
+                "user_id": item["_id"],
+                "username": item["username"],
+                "keystrokes": item["keystrokes"],
+                "last_activity": item["last_activity"].isoformat() if isinstance(item["last_activity"], datetime) else item["last_activity"]
+            })
+            
+        return users
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting exercise keystrokes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving exercise keystroke data: {str(e)}")
