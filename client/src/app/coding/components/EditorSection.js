@@ -64,6 +64,8 @@ const EditorSection = ({
   description,
   setDescription,
   setSelectedDescriptionTab,
+  selectedDescriptionTab,
+  user_id,
   handleClearImport,
   isConsoleFolded,
   setIsConsoleFolded,
@@ -78,6 +80,7 @@ const EditorSection = ({
   const [lastKeystrokeTime, setLastKeystrokeTime] = useState(null);
   const KEYSTROKE_DEBOUNCE_TIME = 1000; // 1 second
   const [contextMenu, setContextMenu] = useState(null);
+  const [textareaHeights, setTextareaHeights] = useState({});
 
   // This wrapper is used when StorageManager calls onImport.
   const handleImportWrapper = async (data) => {
@@ -942,6 +945,25 @@ const EditorSection = ({
     }
   }, [assignmentId]);
 
+  const countLines = (text) => {
+    if (!text) return 0;
+    return text.split('\n').length;
+  };
+
+  // Add a useEffect to reset the textarea height when switching problems
+  useEffect(() => {
+    const answerTextarea = document.querySelector('.output-input');
+    if (answerTextarea) {
+      // Set the height to the saved height or default height
+      const savedHeight = textareaHeights[currentProblemIndex + 1];
+      if (savedHeight) {
+        answerTextarea.style.height = savedHeight;
+      } else {
+        answerTextarea.style.height = '32px'; // Default height
+      }
+    }
+  }, [currentProblemIndex, textareaHeights]);
+
   return (
     <div className="code-editor">
       <div className="editor-header">
@@ -1081,6 +1103,13 @@ const EditorSection = ({
       return <div className="error">เกิดข้อผิดพลาดในการโหลดโค้ด: {error.message}</div>;
     }
 
+    // Check if the Description tab is selected
+    const showDescription = selectedDescriptionTab !== 'Description';
+    
+    // Count lines in the description
+    const descriptionLines = countLines(currentProblem.description);
+    const isShortDescription = descriptionLines < 5;
+
     switch (effectiveTestType) {
       case 'code':
         console.log("Rendering code type");
@@ -1101,9 +1130,13 @@ const EditorSection = ({
         console.log("Output code:", outputCode ? outputCode.substring(0, 50) + "..." : "empty");
         
         return (
-          <div className="output-question">
-            <div className="question-title">{currentProblem.title || ''}</div>
-            <div className="question-description">{currentProblem.description || ''}</div>
+          <div className={`output-question ${!showDescription ? 'no-description' : ''} ${isShortDescription ? 'short-description' : ''}`}>
+            {showDescription && (
+              <>
+                <div className="question-title">{currentProblem.title || ''}</div>
+                <div className="question-description">{currentProblem.description || ''}</div>
+              </>
+            )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, outputCode)}>
               <SyntaxHighlighter 
                 language="python" 
@@ -1135,6 +1168,13 @@ const EditorSection = ({
                 onInput={(e) => {
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
+                  
+                  // Save the current height for this problem
+                  const questionNumber = currentProblemIndex + 1;
+                  setTextareaHeights(prev => ({
+                    ...prev,
+                    [questionNumber]: e.target.style.height
+                  }));
                 }}
               />
             </div>
@@ -1157,9 +1197,13 @@ const EditorSection = ({
           return <div className="error">เกิดข้อผิดพลาดในการแบ่งโค้ด: {error.message}</div>;
         }
         return (
-          <div className="fill-question">
-            <div className="question-title">{currentProblem.title || ''}</div>
-            <div className="question-description">{currentProblem.description || ''}</div>
+          <div className={`fill-question ${!showDescription ? 'no-description' : ''} ${isShortDescription ? 'short-description' : ''}`}>
+            {showDescription && (
+              <>
+                <div className="question-title">{currentProblem.title || ''}</div>
+                <div className="question-description">{currentProblem.description || ''}</div>
+              </>
+            )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, fillCode)}>
               <pre style={{ margin: 0, background: 'transparent', userSelect: 'text' }}>
                 {codeParts.map((part, index, array) => (

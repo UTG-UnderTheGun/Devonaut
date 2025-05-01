@@ -175,6 +175,8 @@
   flex-direction: column;
   gap: 1rem;
   animation: fadeIn 0.3s ease-out;
+  height: 100%;
+  overflow: hidden;
 }
 
 .output-question .question-title {
@@ -189,12 +191,99 @@
   font-size: 14px;
   line-height: 1.6;
   color: #374151;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   padding: 1rem;
   background: #f9fafb;
   border-radius: 4px;
   border: 1px solid #e5e7eb;
   animation: slideIn 0.3s ease-out;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  height: 40%;
+  max-height: 40%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f9fafb;
+}
+
+.output-question .question-description::-webkit-scrollbar,
+.fill-question .question-description::-webkit-scrollbar {
+  width: 8px;
+}
+
+.output-question .question-description::-webkit-scrollbar-track,
+.fill-question .question-description::-webkit-scrollbar-track {
+  background: #f9fafb;
+  border-radius: 4px;
+}
+
+.output-question .question-description::-webkit-scrollbar-thumb,
+.fill-question .question-description::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 4px;
+  border: 2px solid #f9fafb;
+}
+
+.output-question .question-description::-webkit-scrollbar-thumb:hover,
+.fill-question .question-description::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+
+.output-question .code-display,
+.fill-question .code-display {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+  overflow-x: auto;
+  height: 60%;
+  max-height: 60%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f8f9fa;
+}
+
+.output-question .code-display::-webkit-scrollbar,
+.fill-question .code-display::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.output-question .code-display::-webkit-scrollbar-track,
+.fill-question .code-display::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.output-question .code-display::-webkit-scrollbar-thumb,
+.fill-question .code-display::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 4px;
+  border: 2px solid #f8f9fa;
+}
+
+.output-question .code-display::-webkit-scrollbar-thumb:hover,
+.fill-question .code-display::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+
+/* When description is hidden, code display takes full height */
+.output-question:not(:has(.question-description)) .code-display,
+.fill-question:not(:has(.question-description)) .code-display {
+  height: 100%;
+  max-height: 100%;
+}
+
+/* Alternative for browsers that don't support :has */
+.output-question.no-description .code-display,
+.fill-question.no-description .code-display {
+  height: 100%;
+  max-height: 100%;
 }
 
 /* เพิ่ม keyframes สำหรับ animations */
@@ -418,4 +507,92 @@
 .code-context-menu button:active {
   transform: translateY(0px);
   background-color: rgba(0, 0, 0, 0.15);
+}
+
+.fill-question .question-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  animation: slideIn 0.3s ease-out;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  height: 40%;
+  max-height: 40%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f9fafb;
+}
+
+.fill-question {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+  overflow: hidden;
+}
+
+.fill-question .code-display {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 4px;
+  line-height: 1.6;
+  height: 60%;
+  max-height: 60%;
+  overflow-y: auto;
+}
+
+/* When description is hidden, code display takes full height */
+.output-question:not(:has(.question-description)) .code-display,
+.fill-question:not(:has(.question-description)) .code-display {
+  height: 100%;
+  max-height: 100%;
+}
+
+/* Alternative for browsers that don't support :has */
+.output-question.no-description .code-display,
+.fill-question.no-description .code-display {
+  height: 100%;
+  max-height: 100%;
+}
+
+/* Style for short descriptions (less than 5 lines) */
+.output-question.short-description .question-description,
+.fill-question.short-description .question-description {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Adjust code display height for short descriptions */
+.output-question.short-description .code-display,
+.fill-question.short-description .code-display {
+  height: 80%;
+  max-height: 80%;
+}
+
+.output-input {
+  width: 100%;
+  min-height: 32px;
+  height: 32px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  display: block;
+  box-sizing: border-box;
+  background: white;
+  transition: height 0.1s ease;
 }
