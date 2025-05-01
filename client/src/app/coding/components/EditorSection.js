@@ -22,7 +22,7 @@ const ContextMenu = ({ x, y, onAskAI, onClose }) => {
         onClose();
       }
     };
-    
+
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [onClose]);
@@ -230,21 +230,21 @@ const EditorSection = ({
       console.log(`Saving code for problem ${currentProblemIndex} with key ${previousKey}`);
       localStorage.setItem(previousKey, code);
     }
-    
+
     // Now load code for the new problem
     const loadProblemCode = () => {
       if (!problems || !problems[currentProblemIndex]) return;
-      
+
       const currentProblem = problems[currentProblemIndex];
       const effectiveType = mapExerciseType(currentProblem.type || testType);
-      
+
       // Try to load saved code specifically for this problem
       const key = `code-${effectiveType}-${currentProblemIndex}`;
       const savedCode = localStorage.getItem(key);
-      
+
       console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType}`);
       console.log(`Looking for key: ${key}`);
-      
+
       if (savedCode) {
         console.log(`Found saved code for problem ${currentProblemIndex} from ${key}`);
         handleCodeChange(savedCode);
@@ -271,7 +271,7 @@ const EditorSection = ({
         localStorage.setItem(key, currentProblem.starterCode);
       }
     };
-    
+
     loadProblemCode();
   }, [currentProblemIndex, problems, testType]);
 
@@ -310,7 +310,7 @@ const EditorSection = ({
     // Get the current problem type
     const currentProblem = problems && problems[currentProblemIndex];
     const currentType = currentProblem ? currentProblem.type || testType : testType;
-    
+
     // Save code with the correct type and index
     const key = `code-${currentType}-${currentProblemIndex}`;
     localStorage.setItem(key, value);
@@ -579,11 +579,11 @@ const EditorSection = ({
 
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`, 
-        { code: currentCode }, 
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/run-code`,
+        { code: currentCode },
         { withCredentials: true }
       );
-      
+
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
@@ -677,7 +677,7 @@ const EditorSection = ({
   const mapExerciseType = (type) => {
     // Map assignment exercise types to editor types, but maintain consistency
     // to avoid infinite loops between "coding" and "code"
-    switch(type) {
+    switch (type) {
       case 'coding': return 'code';
       case 'explain': return 'output';
       case 'fill': return 'fill';
@@ -694,13 +694,13 @@ const EditorSection = ({
       if (!window.monacoEditors) {
         window.monacoEditors = [];
       }
-      
+
       // Add this editor instance to the global list if not already there
       if (!window.monacoEditors.includes(editorRef.current.editor)) {
         window.monacoEditors.push(editorRef.current.editor);
         console.log("Added editor to global monaco editors list");
       }
-      
+
       return () => {
         // Remove editor from global list on component unmount
         if (window.monacoEditors) {
@@ -737,7 +737,7 @@ const EditorSection = ({
 
     // Switch to AI tab with the message
     const switchEvent = new CustomEvent('switch-description-tab', {
-      detail: { 
+      detail: {
         tab: 'ASK AI',
         pendingMessage: message
       }
@@ -748,11 +748,11 @@ const EditorSection = ({
   const handleContextMenu = (e, code) => {
     e.preventDefault();
     const selection = window.getSelection().toString().trim();
-    
+
     if (selection) {
       const currentProblem = problems[currentProblemIndex];
       const effectiveTestType = mapExerciseType(currentProblem?.type || testType);
-      
+
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
@@ -786,7 +786,7 @@ const EditorSection = ({
             </button>
           </div>
           <div className="import-section">
-            <StorageManager onImport={handleImportWrapper} currentProblemIndex={currentProblemIndex} testType={testType} />
+            {/* <StorageManager onImport={handleImportWrapper} currentProblemIndex={currentProblemIndex} testType={testType} /> */}
             <button onClick={handleResetAll} className="icon-button" title="Reset">Reset</button>
           </div>
           {!showEmptyState && problems && problems.length > 0 && problems[0].title && (
@@ -842,17 +842,17 @@ const EditorSection = ({
 
     const currentProblem = problems[currentProblemIndex];
     console.log("Current problem:", currentProblem);
-    
+
     // Map the problem type for consistency
     const effectiveTestType = mapExerciseType(currentProblem.type || testType);
     console.log("Effective test type:", effectiveTestType);
 
     // Only update type if the mapped values are different
-    if (effectiveTestType !== testType && setTestType && 
-        !(
-          (testType === 'code' && currentProblem.type === 'coding') || 
-          (testType === 'output' && currentProblem.type === 'explain')
-        )) {
+    if (effectiveTestType !== testType && setTestType &&
+      !(
+        (testType === 'code' && currentProblem.type === 'coding') ||
+        (testType === 'output' && currentProblem.type === 'explain')
+      )) {
       console.log("Updating test type to", effectiveTestType);
       setTestType(effectiveTestType);
     }
@@ -928,20 +928,20 @@ const EditorSection = ({
       case 'output':
         console.log("Rendering output type");
         const outputCode = currentProblem.code || '';
-        
+
         return (
           <div className="output-question">
             <div className="question-title">{currentProblem.title || ''}</div>
             <div className="question-description">{currentProblem.description || ''}</div>
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, outputCode)}>
-              <SyntaxHighlighter 
-                language="python" 
-                style={vs} 
-                customStyle={{ 
-                  margin: 0, 
-                  padding: '1rem', 
-                  background: 'transparent', 
-                  fontSize: '14px', 
+              <SyntaxHighlighter
+                language="python"
+                style={vs}
+                customStyle={{
+                  margin: 0,
+                  padding: '1rem',
+                  background: 'transparent',
+                  fontSize: '14px',
                   lineHeight: '1.6',
                   userSelect: 'text'
                 }}
@@ -991,12 +991,12 @@ const EditorSection = ({
                     <SyntaxHighlighter
                       language="python"
                       style={vs}
-                      customStyle={{ 
-                        margin: 0, 
-                        padding: 0, 
-                        background: 'transparent', 
-                        display: 'inline', 
-                        fontSize: '14px', 
+                      customStyle={{
+                        margin: 0,
+                        padding: 0,
+                        background: 'transparent',
+                        display: 'inline',
+                        fontSize: '14px',
                         lineHeight: '1.6',
                         userSelect: 'text'
                       }}
