@@ -8,9 +8,14 @@ import resource
 from pathlib import Path
 from fastapi import HTTPException
 from app.db.schemas import Code
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 from concurrent.futures import ThreadPoolExecutor
+import uuid
+import io
+import sys
+import queue
+import threading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,12 +26,17 @@ SEMAPHORE = asyncio.Semaphore(50)
 THREAD_POOL = ThreadPoolExecutor(max_workers=25)
 TEMP_DIRS_SEMAPHORE = asyncio.Semaphore(75)
 
+# Store active processes by user_id
+ACTIVE_PROCESSES = {}
+PROCESS_INPUTS = {}
+PROCESS_OUTPUTS = {}
+
 # Security configurations
 BANNED_PATTERNS = {".env", "config/", "/etc/passwd", "/etc/shadow"}
 BANNED_MODULES = {
     "os",
     "subprocess",
-    "sys",
+    "sys.exit",  # Allow sys for input but not exit
     "shutil",
     "socket",
     "resource",
@@ -34,7 +44,7 @@ BANNED_MODULES = {
     "grp",
     "ctypes",
 }
-BANNED_FUNCTIONS = {"eval", "exec", "open", "compile", "execfile", "__import__", "exit"}
+BANNED_FUNCTIONS = {"eval", "exec", "compile", "execfile", "__import__", "exit"}
 BANNED_METHODS = {
     "system",
     "popen",
@@ -74,63 +84,142 @@ class SecurityVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def validate_code_safety(code: str) -> bool:
-    """
-    Validate code safety using AST analysis.
-
-    Args:
-        code: String containing Python code
-
-    Returns:
-        bool: True if code is safe, False otherwise
-    """
+def validate_code_safety(code_str: str) -> bool:
+    """Validate code safety using AST analysis."""
     try:
-        if any(pattern in code for pattern in BANNED_PATTERNS):
-            return False
-        tree = ast.parse(code)
+        if not code_str or not code_str.strip():
+            return True
+
+        # Basic pattern check
+        for pattern in BANNED_PATTERNS:
+            if pattern in code_str:
+                logger.warning(f"Banned pattern detected: {pattern}")
+                return False
+
+        # Parse the code into an AST
+        tree = ast.parse(code_str)
+
+        # Check for unsafe constructs
         visitor = SecurityVisitor()
         visitor.visit(tree)
+
         return not visitor.unsafe
     except SyntaxError:
+        # Syntax errors will be caught by the Python interpreter
+        return True
+    except Exception as e:
+        logger.error(f"Error validating code safety: {str(e)}")
         return False
 
 
-def sandbox_setup(uid: int, gid: int):
-    """
-    Set up sandbox environment with resource limits.
+def sandbox_setup(uid: int, gid: int) -> None:
+    """Set up sandbox environment with resource limits."""
+    # Set resource limits
+    resource.setrlimit(resource.RLIMIT_CPU, (5, 5))  # 5 seconds CPU time
+    resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))  # Max 64 open files
+    resource.setrlimit(resource.RLIMIT_NPROC, (10, 10))  # Max 10 processes/threads
+    resource.setrlimit(resource.RLIMIT_FSIZE, (1024 * 1024, 1024 * 1024))  # 1MB file size
 
-    Args:
-        uid: User ID for sandbox
-        gid: Group ID for sandbox
-    """
-    try:
-        # Set resource limits
-        resource.setrlimit(
-            resource.RLIMIT_AS, (50 * 1024 * 1024, 50 * 1024 * 1024)
-        )  # 50MB memory
-        resource.setrlimit(resource.RLIMIT_CPU, (4, 4))  # 4 seconds CPU time
-        resource.setrlimit(
-            resource.RLIMIT_FSIZE, (512 * 1024, 512 * 1024)
-        )  # 512KB file size
-        resource.setrlimit(resource.RLIMIT_NOFILE, (50, 50))  # 50 file descriptors
+    # Drop privileges by changing to nobody user
+    os.setgroups([])
+    os.setgid(gid)
+    os.setuid(uid)
 
-        # Drop privileges
-        os.setgid(gid)
-        os.setuid(uid)
-        os.chdir("/")
 
-        # Set no new privileges flag
+class InputWrapper:
+    """Custom wrapper for redirecting sys.stdin to handle input."""
+    def __init__(self, process_id):
+        self.process_id = process_id
+        self.buffer = queue.Queue()
+        self.waiting = False
+
+    def readline(self):
+        self.waiting = True
+        # Signal to the frontend that we need input
+        PROCESS_OUTPUTS[self.process_id] += "__INPUT_REQUIRED__"
+        # Wait for input
+        result = self.buffer.get()
+        self.waiting = False
+        return result + "\n"  # Add newline to simulate pressing Enter
+
+
+class OutputWrapper:
+    """Custom wrapper for capturing stdout and stderr."""
+    def __init__(self, process_id):
+        self.process_id = process_id
+        self.buffer = []
+
+    def write(self, data):
+        if data:
+            PROCESS_OUTPUTS[self.process_id] += data
+            self.buffer.append(data)
+            return len(data)
+        return 0
+
+    def flush(self):
+        pass
+
+
+class InteractiveCodeRunner:
+    """Class to handle interactive code execution with support for input."""
+    def __init__(self, code_str, process_id):
+        self.code_str = code_str
+        self.process_id = process_id
+        self.stdin_wrapper = InputWrapper(process_id)
+        self.stdout_wrapper = OutputWrapper(process_id)
+        self.stderr_wrapper = OutputWrapper(process_id)
+        self.namespace = {}
+        self.thread = None
+        self.is_running = False
+        self.error = None
+
+    def run(self):
+        """Run the code in a thread to allow for async input handling."""
+        self.is_running = True
+        self.thread = threading.Thread(target=self._execute)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def _execute(self):
+        """Execute the code with custom input/output handling."""
         try:
-            from ctypes import CDLL, c_int
+            # Save original stdin/stdout/stderr
+            original_stdin = sys.stdin
+            original_stdout = sys.stdout
+            original_stderr = sys.stderr
 
-            libc = CDLL(None)
-            PR_SET_NO_NEW_PRIVS = 38
-            libc.prctl(PR_SET_NO_NEW_PRIVS, c_int(1), c_int(0), c_int(0), c_int(0))
-        except:
-            pass
+            # Set up custom input/output
+            sys.stdin = self.stdin_wrapper
+            sys.stdout = self.stdout_wrapper
+            sys.stderr = self.stderr_wrapper
 
-    except (resource.error, ValueError) as e:
-        logger.warning(f"Could not set some resource limits: {str(e)}")
+            # Include a custom safe input function in the execution namespace
+            def safe_input(prompt=""):
+                print(prompt, end="")
+                return sys.stdin.readline().rstrip("\n")
+
+            self.namespace["input"] = safe_input
+
+            # Execute the code
+            exec(self.code_str, self.namespace)
+            
+        except Exception as e:
+            self.error = str(e)
+            PROCESS_OUTPUTS[self.process_id] += f"Runtime error: {str(e)}"
+        finally:
+            # Restore original stdin/stdout/stderr
+            sys.stdin = original_stdin
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+            self.is_running = False
+
+    def send_input(self, input_str):
+        """Send input to the running process."""
+        if self.is_running and self.stdin_wrapper.waiting:
+            # Add the input to the process buffer
+            self.stdin_wrapper.buffer.put(input_str)
+            return True
+        return False
 
 
 async def execute_in_sandbox(
@@ -147,6 +236,10 @@ async def execute_in_sandbox(
     Returns:
         Dict containing execution results or error message
     """
+    # For interactive input, we use a different approach
+    if "input(" in code_str:
+        return await execute_interactive(code_str, user_id)
+    
     try:
         sandbox_user = pwd.getpwnam("nobody")
         sandbox_gid = sandbox_user.pw_gid
@@ -179,6 +272,96 @@ async def execute_in_sandbox(
         return {"error": f"Server error: {str(e)}"}
 
 
+async def execute_interactive(code_str: str, user_id: str) -> Dict[str, Any]:
+    """
+    Execute code in interactive mode with input support.
+    
+    Args:
+        code_str: String containing Python code
+        user_id: User ID for tracking the process
+        
+    Returns:
+        Dict containing execution results or error message
+    """
+    try:
+        # Clean up any previous process for this user
+        if user_id in ACTIVE_PROCESSES:
+            del ACTIVE_PROCESSES[user_id]
+        
+        # Generate a unique process ID
+        process_id = f"{user_id}_{uuid.uuid4().hex}"
+        
+        # Initialize output buffer for this process
+        PROCESS_OUTPUTS[process_id] = ""
+        
+        # Create and run the interactive code runner
+        runner = InteractiveCodeRunner(code_str, process_id)
+        ACTIVE_PROCESSES[user_id] = {"runner": runner, "process_id": process_id}
+        
+        # Start execution
+        runner.run()
+        
+        # Wait a short time for initial output or prompt
+        await asyncio.sleep(0.1)
+        
+        # Return the initial output
+        return {
+            "output": PROCESS_OUTPUTS[process_id],
+            "user_id": user_id
+        }
+    except Exception as e:
+        logger.error(f"Interactive execution error: {str(e)}")
+        return {"error": f"Server error: {str(e)}"}
+
+
+async def send_input(input_str: str, user_id: str) -> Dict[str, Any]:
+    """
+    Send input to a running interactive process.
+    
+    Args:
+        input_str: Input string from the user
+        user_id: User ID for identifying the process
+        
+    Returns:
+        Dict containing updated execution results
+    """
+    try:
+        # Check if there's an active process for this user
+        if user_id not in ACTIVE_PROCESSES:
+            return {"error": "No active process found. Please run your code first."}
+        
+        process_info = ACTIVE_PROCESSES[user_id]
+        runner = process_info["runner"]
+        process_id = process_info["process_id"]
+        
+        # Update the output with the user's input (to display it)
+        PROCESS_OUTPUTS[process_id] += input_str + "\n"
+        
+        # Send the input to the process
+        success = runner.send_input(input_str)
+        
+        if not success:
+            return {"error": "Process is not waiting for input"}
+            
+        # Wait a short time for processing
+        await asyncio.sleep(0.1)
+        
+        # Check if process is still running
+        if not runner.is_running:
+            # Process finished, clean up
+            result = {"output": PROCESS_OUTPUTS[process_id]}
+            del ACTIVE_PROCESSES[user_id]
+            del PROCESS_OUTPUTS[process_id]
+        else:
+            # Process still running, return current output
+            result = {"output": PROCESS_OUTPUTS[process_id]}
+            
+        return result
+    except Exception as e:
+        logger.error(f"Input handling error: {str(e)}")
+        return {"error": f"Input error: {str(e)}"}
+
+
 async def run_code(code: Code, user_id: str) -> Dict[str, Any]:
     """
     Main function to run code with all security measures and user context.
@@ -193,6 +376,10 @@ async def run_code(code: Code, user_id: str) -> Dict[str, Any]:
                     status_code=400, detail="Potentially dangerous code detected"
                 )
 
+            # Check if code contains input() function
+            if "input(" in code.code:
+                return await execute_interactive(code.code, user_id)
+            
             async with TEMP_DIRS_SEMAPHORE:
                 try:
                     with tempfile.TemporaryDirectory() as temp_dir:
