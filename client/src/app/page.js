@@ -9,7 +9,7 @@ export default function Home() {
   useEffect(() => {
     localStorage.removeItem('isDescriptionFolded');
     localStorage.removeItem('isConsoleFolded');
-    
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -34,9 +34,12 @@ export default function Home() {
     };
   }, []);
 
-  return (  
+  return (
     <div className="homepage-container">
       <main className="homepage-main-content">
+        <div style={{ fontSize: "144px" }}>
+          <h1>THIS IS BUG</h1>
+        </div>
         <h1 className="heading-1 animate-on-scroll">
           All Your Coding Journey
         </h1>
@@ -44,8 +47,8 @@ export default function Home() {
           In One Platform.
         </h2>
         <p className="description animate-on-scroll">
-          Learn, Debug, and Master Programming - From Beginner to Professional. 
-          Complete Learning System with Smart Debugging, Personalized Paths, 
+          Learn, Debug, and Master Programming - From Beginner to Professional.
+          Complete Learning System with Smart Debugging, Personalized Paths,
           and Professional Tools.
         </p>
         <Link href="/auth/signin" className="get-started-button animate-on-scroll">
