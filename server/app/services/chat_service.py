@@ -26,7 +26,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017")
 MODEL_NAME = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
 MAX_TOKENS = int(os.getenv("MAX_RESPONSE_TOKENS", "1024"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0"))
-MAX_CONVERSATION_LENGTH = int(os.getenv("MAX_CONVERSATION_LENGTH", "10"))
+MAX_CONVERSATION_LENGTH = int(os.getenv("MAX_CONVERSATION_LENGTH", "5"))
 
 # MongoDB connection with proper connection pooling
 client = MongoClient(
@@ -922,4 +922,3 @@ def detect_problem_type(prompt: str) -> str:
 if __name__ == "__main__":
     setup_database()
     print("Teaching assistant module initialized successfully.")
-
