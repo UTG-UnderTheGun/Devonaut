@@ -665,43 +665,127 @@ async def get_exercise_keystrokes(
     current_user=Depends(get_current_user),
 ):
     """
-    Get keystroke data for all users on a specific exercise (teachers only)
+    Get all keystrokes for a specific exercise in an assignment
     """
     try:
-        # Check if current user is a teacher or admin
-        admin_user, admin_id = current_user
-        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        # Verify authentication
+        user, _ = current_user
         
-        if not is_admin:
-            raise HTTPException(status_code=403, detail="Only teachers can access this data")
+        # Check if user is authenticated and has teacher role
+        if not user.get("is_teacher", False):
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
         
-        # Get all users who have submitted keystrokes for this exercise
+        # Query to find the latest keystroke for each user/problem combination
         pipeline = [
-            {"$match": {"assignment_id": assignment_id, "exercise_id": exercise_id}},
-            {"$group": {
-                "_id": "$user_id",
-                "username": {"$first": "$username"},
-                "keystrokes": {"$sum": 1},
-                "last_activity": {"$max": "$timestamp"}
-            }},
-            {"$sort": {"last_activity": -1}}
+            {
+                "$match": {
+                    "assignment_id": assignment_id,
+                    "exercise_id": exercise_id
+                }
+            },
+            {
+                "$sort": {
+                    "created_at": -1
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$user_id",
+                    "latest_keystroke": {"$first": "$$ROOT"}
+                }
+            },
+            {
+                "$replaceRoot": {
+                    "newRoot": "$latest_keystroke"
+                }
+            }
         ]
         
-        result = await request.app.mongodb["code_keystrokes"].aggregate(pipeline).to_list(length=100)
+        cursor = request.app.mongodb["keystrokes"].aggregate(pipeline)
+        keystrokes = await cursor.to_list(length=100)
         
-        # Process results
-        users = []
-        for item in result:
-            users.append({
-                "user_id": item["_id"],
-                "username": item["username"],
-                "keystrokes": item["keystrokes"],
-                "last_activity": item["last_activity"].isoformat() if isinstance(item["last_activity"], datetime) else item["last_activity"]
-            })
-            
-        return users
-    except HTTPException:
-        raise
+        # Convert ObjectId to string in results
+        for keystroke in keystrokes:
+            if "_id" in keystroke:
+                keystroke["_id"] = str(keystroke["_id"])
+        
+        return keystrokes
     except Exception as e:
-        print(f"Error getting exercise keystrokes: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error retrieving exercise keystroke data: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/get-latest-code")
+async def get_latest_code(
+    request: Request,
+    assignment_id: str,
+    problem_index: int,
+    exercise_id: str = None,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get the latest code for a specific problem in an assignment
+    
+    This endpoint retrieves the most recent code that a student has written for a specific
+    problem in an assignment. It first tries to find the code in the keystrokes collection,
+    and if not found, falls back to the code_history collection.
+    """
+    try:
+        # Get authenticated user
+        user, user_id = current_user
+        
+        # Try to find the latest keystroke for this problem
+        keystroke_query = {
+            "user_id": user_id,
+            "problem_index": problem_index
+        }
+        
+        # Add assignment_id to query if provided
+        if assignment_id:
+            keystroke_query["assignment_id"] = assignment_id
+        
+        # Add exercise_id to query if provided
+        if exercise_id:
+            keystroke_query["exercise_id"] = exercise_id
+        
+        # Get the latest keystroke
+        latest_keystroke = await request.app.mongodb["keystrokes"].find_one(
+            keystroke_query,
+            sort=[("created_at", -1)]
+        )
+        
+        if latest_keystroke and "code" in latest_keystroke:
+            # Return the code from the keystroke
+            return {
+                "code": latest_keystroke["code"],
+                "source": "keystrokes",
+                "timestamp": latest_keystroke.get("created_at", datetime.utcnow())
+            }
+        
+        # If no keystroke found, try to find the latest code history entry
+        history_query = {
+            "user_id": user_id,
+            "problem_index": problem_index
+        }
+        
+        # Add assignment_id to query if available in history schema
+        history_entry = await request.app.mongodb["code_history"].find_one(
+            history_query,
+            sort=[("created_at", -1)]
+        )
+        
+        if history_entry and "code" in history_entry:
+            # Return the code from history
+            return {
+                "code": history_entry["code"],
+                "source": "code_history",
+                "timestamp": history_entry.get("created_at", datetime.utcnow())
+            }
+        
+        # If no data found, return empty response
+        return {
+            "code": "",
+            "source": "none",
+            "timestamp": datetime.utcnow()
+        }
+    except Exception as e:
+        # Return informative error
+        return {"error": str(e), "code": ""}
