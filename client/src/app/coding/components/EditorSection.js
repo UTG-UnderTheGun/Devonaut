@@ -266,7 +266,7 @@ const EditorSection = ({
           );
           
           if (response.data && response.data.code) {
-            console.log(`Found latest code from server for problem ${currentProblemIndex}`);
+            console.log(`Found latest code from server for problem ${currentProblemIndex} (source: ${response.data.source || 'unknown'})`);
             codeToSet = response.data.code;
             handleCodeChange(codeToSet);
             if (editorRef.current) {
@@ -1157,6 +1157,49 @@ const EditorSection = ({
       }
     }
   }, [currentProblemIndex, textareaHeights]);
+
+  // Add effect for syncing code with server when navigating between problems
+  useEffect(() => {
+    const fetchLatestCodeFromServer = async () => {
+      if (!problems || !problems[currentProblemIndex] || !assignmentId) return;
+      
+      try {
+        const currentProblem = problems[currentProblemIndex];
+        console.log(`Refreshing latest code from server for problem ${currentProblemIndex} in assignment ${assignmentId}`);
+        
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/get-latest-code`, 
+          { 
+            params: { 
+              assignment_id: assignmentId,
+              problem_index: currentProblemIndex,
+              exercise_id: currentProblem.id
+            },
+            withCredentials: true 
+          }
+        );
+        
+        if (response.data && response.data.code) {
+          console.log(`Found latest code from server for problem ${currentProblemIndex} (source: ${response.data.source || 'unknown'})`);
+          const latestCode = response.data.code;
+          
+          // If we have new code, update state and editor
+          if (latestCode && editorRef.current) {
+            const currentValue = editorRef.current.getValue();
+            if (currentValue !== latestCode) {
+              console.log('Updating editor with latest code from server');
+              handleCodeChange(latestCode);
+              editorRef.current.setValue(latestCode);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not refresh latest code from server:', e);
+      }
+    };
+    
+    fetchLatestCodeFromServer();
+  }, [currentProblemIndex, assignmentId]);
 
   return (
     <div className="code-editor">

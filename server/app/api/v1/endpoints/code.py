@@ -725,7 +725,7 @@ async def get_latest_code(
     Get the latest code for a specific problem in an assignment
     
     This endpoint retrieves the most recent code that a student has written for a specific
-    problem in an assignment. It first tries to find the code in the keystrokes collection,
+    problem in an assignment. It first tries to find the code in the code_keystrokes collection,
     and if not found, falls back to the code_history collection.
     """
     try:
@@ -747,17 +747,17 @@ async def get_latest_code(
             keystroke_query["exercise_id"] = exercise_id
         
         # Get the latest keystroke
-        latest_keystroke = await request.app.mongodb["keystrokes"].find_one(
+        latest_keystroke = await request.app.mongodb["code_keystrokes"].find_one(
             keystroke_query,
-            sort=[("created_at", -1)]
+            sort=[("timestamp", -1)]
         )
         
         if latest_keystroke and "code" in latest_keystroke:
             # Return the code from the keystroke
             return {
                 "code": latest_keystroke["code"],
-                "source": "keystrokes",
-                "timestamp": latest_keystroke.get("created_at", datetime.utcnow())
+                "source": "code_keystrokes",
+                "timestamp": latest_keystroke.get("timestamp", datetime.utcnow())
             }
         
         # If no keystroke found, try to find the latest code history entry
