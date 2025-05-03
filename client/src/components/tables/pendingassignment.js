@@ -199,9 +199,50 @@ const PendingAssignments = () => {
       // Process assignments and students
       const processedAssignments = [];
       
+      // Student ID to MongoDB User ID mapping cache - shared across all assignments
+      const userIdMappingCache = {};
+      
+      // Function to get MongoDB user ID from student ID
+      const getMongoUserId = async (studentId) => {
+        // Return from cache if available
+        if (userIdMappingCache[studentId]) {
+          return userIdMappingCache[studentId];
+        }
+        
+        try {
+          const userLookupResponse = await fetch(`${API_BASE}/users/student-lookup/${studentId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          });
+          
+          if (userLookupResponse.ok) {
+            const userData = await userLookupResponse.json();
+            userIdMappingCache[studentId] = userData.user_id;
+            return userData.user_id;
+          }
+        } catch (error) {
+          console.warn(`Could not map student ID ${studentId}: ${error.message}`);
+        }
+        
+        // Fall back to the original ID if lookup fails
+        userIdMappingCache[studentId] = studentId; // Cache the result anyway to avoid repeated lookups
+        return studentId;
+      };
+      
+      // First, let's map all student IDs to MongoDB user IDs in one batch
+      await Promise.all(students.map(student => {
+        const studentId = student.id;
+        if (studentId && studentId !== 'N/A') {
+          return getMongoUserId(studentId);
+        }
+        return Promise.resolve();
+      }));
+      
+      // Process each assignment
       for (const assignment of assignmentsResult) {
         try {
-          // Try to get submissions for this assignment
+          // First, get all submissions for this assignment in one batch request
           const submissionsMap = {};
           try {
             const submissionsUrl = `${API_BASE}/assignments/${assignment.id}/submissions`;
@@ -216,9 +257,12 @@ const PendingAssignments = () => {
               submissions.forEach(sub => {
                 submissionsMap[sub.user_id] = sub;
               });
+              console.log(`Fetched ${submissions.length} submissions for assignment ${assignment.id}`);
+            } else {
+              console.warn(`Could not fetch submissions for assignment ${assignment.id}: ${submissionsResponse.status}`);
             }
           } catch (subError) {
-            console.warn(`Could not fetch submissions: ${subError.message}`);
+            console.warn(`Error fetching submissions for assignment ${assignment.id}: ${subError.message}`);
           }
           
           // Create student entries for each student
@@ -238,7 +282,11 @@ const PendingAssignments = () => {
               };
             }
             
-            const submission = submissionsMap[studentId];
+            // Get MongoDB user ID for this student (should be from cache now)
+            const mongoUserId = userIdMappingCache[studentId] || studentId;
+            
+            // Check if we already have the submission from the batch request
+            const submission = submissionsMap[mongoUserId];
             
             // Default values for a student with no submission
             let status = "Not Submitted";
@@ -262,10 +310,6 @@ const PendingAssignments = () => {
               if (submission.score !== undefined) {
                 score = `${submission.score}/${assignment.points}`;
               }
-            } else {
-              // Don't check for code history here - this will be done in the student-assignment component when needed
-              // This prevents unnecessary API calls for every student
-              status = "Not Submitted";
             }
             
             return {
@@ -422,36 +466,56 @@ const PendingAssignments = () => {
             />
           </div>
         ) : (
-          <table className="student-table">
-            <thead>
-              <tr>
-                <th>Student ID</th>
-                <th>Student Name</th>
-                <th>Assignment Title</th>
-                <th>Due Date</th>
-                <th>Time Remaining</th>
-                <th>Status</th>
-                <th>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {error ? (
+          <>
+            <div className="table-header">
+              <h2>Student Assignments</h2>
+              <button 
+                className="refresh-all-button"
+                onClick={() => {
+                  setLoading(true);
+                  fetchAssignmentsAndStudents();
+                }}
+                disabled={loading}
+              >
+                {loading ? 'Refreshing...' : (
+                  <>
+                    <span className="refresh-icon">↻</span>
+                    Refresh All
+                  </>
+                )}
+              </button>
+            </div>
+            <table className="student-table">
+              <thead>
                 <tr>
-                  <td colSpan="7" className="error-cell">{error}</td>
+                  <th>Student ID</th>
+                  <th>Student Name</th>
+                  <th>Assignment Title</th>
+                  <th>Due Date</th>
+                  <th>Time Remaining</th>
+                  <th>Status</th>
+                  <th>Score</th>
                 </tr>
-              ) : assignments.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="empty-cell">No pending assignments found</td>
-                </tr>
-              ) : (
-                assignments.map(assignment =>
-                  assignment.students.map((student, index) =>
-                    renderAssignmentRow(assignment, student, index)
+              </thead>
+              <tbody>
+                {error ? (
+                  <tr>
+                    <td colSpan="7" className="error-cell">{error}</td>
+                  </tr>
+                ) : assignments.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="empty-cell">No pending assignments found</td>
+                  </tr>
+                ) : (
+                  assignments.map(assignment =>
+                    assignment.students.map((student, index) =>
+                      renderAssignmentRow(assignment, student, index)
+                    )
                   )
-                )
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
     </div>
