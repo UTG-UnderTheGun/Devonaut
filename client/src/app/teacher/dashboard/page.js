@@ -478,13 +478,20 @@ const TeacherDashboard = () => {
     }
   };
 
+  // Enhanced auth check that redirects unauthorized users to sign-in page
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
     
-    if (!authLoading && (!storedRole || storedRole !== 'teacher')) {
-      router.push('/dashboard');
+    if (!authLoading) {
+      if (authError || !storedRole) {
+        // Redirect to sign-in if authentication error or no role stored
+        router.push('/auth/signin');
+      } else if (storedRole !== 'teacher') {
+        // Redirect students to their dashboard
+        router.push('/dashboard');
+      }
     }
-  }, [authLoading, router]);
+  }, [authLoading, authError, router]);
 
   useEffect(() => {
     const view = searchParams.get('view');
@@ -495,7 +502,7 @@ const TeacherDashboard = () => {
 
   // Fetch data from the API based on active view
   useEffect(() => {
-    if (activeView === 'students') {
+    if (activeView === 'students' && user && user.role === 'teacher') {
       fetchStudents();
     } else if (activeView === 'assignments') {
       fetchAssignments();
@@ -506,17 +513,20 @@ const TeacherDashboard = () => {
     }
   }, [activeView]);
 
+
   // If we're loading auth or data, show skeleton
   if (authLoading || loading && !isReloading) {
     return <DashboardSkeleton />;
   }
 
-  if (authError) {
-    return <div>Access denied: {authError}</div>;
+  // If not authorized or not a teacher, this will be shown temporarily before redirect happens
+  if (authError || (user && user.role !== 'teacher')) {
+    return <DashboardSkeleton />;
   }
 
+  // If no user data yet, show loading
   if (!user) {
-    return <div>Please log in</div>;
+    return <DashboardSkeleton />;
   }
 
   const handleStatClick = (statId) => {
