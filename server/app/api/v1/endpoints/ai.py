@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timedelta
 import logging
 import json
+from app.db.schemas import ChatMessage, ChatHistory
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +46,7 @@ conversation_collection = db["conversations"]
 exercises_collection = db[
     "exercises"
 ]  # Collection for tracking exercise-specific quotas
+chat_history_collection = db["chat_histories"]  # New collection for storing chat histories
 
 # Create router
 router = APIRouter()
@@ -160,6 +162,10 @@ async def update_conversation_history(user_id, prompt, response, exercise_id=Non
         if assignment_id:
             query["assignment_id"] = assignment_id
 
+        # Get user information for username
+        user = users_collection.find_one({"_id": user_id})
+        username = user.get("username", user_id) if user else user_id
+        
         # Add new messages to history
         conversation_collection.update_one(
             query,
@@ -176,6 +182,51 @@ async def update_conversation_history(user_id, prompt, response, exercise_id=Non
             },
             upsert=True,
         )
+
+        # Store in chat history collection if exercise and assignment IDs are provided
+        if exercise_id and assignment_id:
+            current_time = datetime.utcnow()
+            # Check if a chat history record exists
+            chat_history_query = {
+                "user_id": user_id,
+                "exercise_id": exercise_id,
+                "assignment_id": assignment_id
+            }
+            
+            # Create student message
+            student_message = {
+                "role": "student",
+                "content": prompt,
+                "timestamp": current_time
+            }
+            
+            # Create assistant message
+            assistant_message = {
+                "role": "assistant",
+                "content": response,
+                "timestamp": current_time
+            }
+            
+            # Update or create chat history
+            chat_history_collection.update_one(
+                chat_history_query,
+                {
+                    "$push": {
+                        "messages": {
+                            "$each": [student_message, assistant_message]
+                        }
+                    },
+                    "$set": {
+                        "updated_at": current_time,
+                        "username": username
+                    },
+                    "$setOnInsert": {
+                        "created_at": current_time,
+                        "id": str(datetime.now().timestamp())
+                    }
+                },
+                upsert=True
+            )
 
         # Trim conversation if it exceeds maximum length
         conversation_collection.update_one(
@@ -601,3 +652,341 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=503, detail="Service unavailable")
+
+
+@router.get("/chat-history")
+async def get_chat_history(
+    user_id: str = None,
+    assignment_id: str = None,
+    exercise_id: str = None
+):
+    """Retrieve chat history for a specific assignment exercise
+    
+    If user_id is provided, returns chat history for that specific user.
+    If only assignment_id and exercise_id are provided, returns chat histories for all users for that assignment exercise.
+    """
+    try:
+        # Print debugging info
+        print(f"Fetching chat history with params: user_id={user_id}, assignment_id={assignment_id}, exercise_id={exercise_id}")
+        
+        # Build the query
+        query = {}
+        
+        if user_id:
+            query["user_id"] = user_id
+        
+        if assignment_id:
+            query["assignment_id"] = assignment_id
+            
+        if exercise_id:
+            query["exercise_id"] = exercise_id
+            
+        # Print the final query
+        print(f"MongoDB query: {query}")
+            
+        # Return empty list if no query parameters are provided
+        if not query:
+            print("No query parameters provided, returning empty result")
+            return {"histories": []}
+        
+        # Log the collection we're using
+        print(f"Using collection: {chat_history_collection.name}")
+        print(f"Collection count: {await chat_history_collection.count_documents({})}")
+            
+        # Retrieve chat histories
+        chat_histories = list(chat_history_collection.find(query))
+        print(f"Found {len(chat_histories)} chat history records")
+        
+        # If no results with the exact query, try a more flexible approach
+        if len(chat_histories) == 0:
+            print("No results with exact query, trying more flexible approach")
+            
+            # Try with just assignment_id if both assignment_id and exercise_id were provided
+            if assignment_id and exercise_id:
+                flexible_query = {"assignment_id": assignment_id}
+                print(f"Trying with just assignment_id: {flexible_query}")
+                chat_histories = list(chat_history_collection.find(flexible_query))
+                print(f"Found {len(chat_histories)} records with flexible query")
+                
+                # Filter in memory by exercise_id
+                if len(chat_histories) > 0:
+                    chat_histories = [h for h in chat_histories if str(h.get("exercise_id", "")) == str(exercise_id)]
+                    print(f"After filtering by exercise_id, found {len(chat_histories)} records")
+        
+        # Print the first document if available for debugging
+        if len(chat_histories) > 0:
+            print(f"First document: {chat_histories[0].get('_id')} - User: {chat_histories[0].get('user_id')}")
+            print(f"Messages count: {len(chat_histories[0].get('messages', []))}")
+            
+            # Check if messages array is populated
+            first_messages = chat_histories[0].get('messages', [])
+            if first_messages:
+                print(f"First message: {first_messages[0] if len(first_messages) > 0 else 'No messages'}")
+            else:
+                print("First document has no messages")
+        
+        # Format for response
+        formatted_histories = []
+        for history in chat_histories:
+            # Skip entries with no messages
+            if 'messages' not in history or not history['messages']:
+                print(f"Skipping document {history.get('_id')} - no messages found")
+                continue
+                
+            # Create a formatted copy
+            formatted_history = dict(history)
+            
+            # Convert ObjectId to string
+            if "_id" in formatted_history:
+                formatted_history["_id"] = str(formatted_history["_id"])
+                
+            # Convert datetime objects to strings
+            if "created_at" in formatted_history and isinstance(formatted_history["created_at"], datetime):
+                formatted_history["created_at"] = formatted_history["created_at"].isoformat()
+                
+            if "updated_at" in formatted_history and isinstance(formatted_history["updated_at"], datetime):
+                formatted_history["updated_at"] = formatted_history["updated_at"].isoformat()
+                
+            # Format message timestamps
+            if "messages" in formatted_history:
+                for message in formatted_history["messages"]:
+                    if "timestamp" in message and isinstance(message["timestamp"], datetime):
+                        message["timestamp"] = message["timestamp"].isoformat()
+            
+            formatted_histories.append(formatted_history)
+            
+        print(f"Returning {len(formatted_histories)} formatted history records")
+        if len(formatted_histories) > 0:
+            print(f"Sample message count in first history: {len(formatted_histories[0].get('messages', []))}")
+        
+        return {"histories": formatted_histories}
+    except PyMongoError as e:
+        logger.error(f"Error retrieving chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_chat_history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@router.get("/chat-history-direct")
+async def get_chat_history_direct(
+    user_id: str = None,
+    assignment_id: str = None,
+    exercise_id: str = None
+):
+    """Simplified endpoint to retrieve chat history directly
+    
+    Returns chat history with minimal processing for debugging
+    """
+    try:
+        # Print debugging info
+        print(f"Direct fetch chat history with params: user_id={user_id}, assignment_id={assignment_id}, exercise_id={exercise_id}")
+        
+        # Build the query
+        query = {}
+        
+        if user_id:
+            query["user_id"] = user_id
+        
+        if assignment_id:
+            query["assignment_id"] = assignment_id
+            
+        if exercise_id:
+            query["exercise_id"] = exercise_id
+        
+        print(f"Direct MongoDB query: {query}")
+        
+        # Get all results from the collection if query is empty
+        if not query:
+            all_records = list(chat_history_collection.find({}))
+            print(f"Returning all {len(all_records)} chat history records")
+            
+            # Convert ObjectId to strings
+            for record in all_records:
+                record['_id'] = str(record['_id'])
+                
+            return {"direct_histories": all_records, "count": len(all_records)}
+        
+        # Find records
+        records = list(chat_history_collection.find(query))
+        print(f"Found {len(records)} direct chat history records")
+        
+        # Process records
+        result_records = []
+        for record in records:
+            # Convert ObjectId to string
+            record['_id'] = str(record['_id'])
+            
+            # Convert datetime objects
+            for field in ['created_at', 'updated_at']:
+                if field in record and isinstance(record[field], datetime):
+                    record[field] = record[field].isoformat()
+                    
+            # Convert message timestamps
+            if 'messages' in record:
+                for msg in record['messages']:
+                    if 'timestamp' in msg and isinstance(msg['timestamp'], datetime):
+                        msg['timestamp'] = msg['timestamp'].isoformat()
+                        
+            result_records.append(record)
+            
+        return {
+            "direct_histories": result_records, 
+            "count": len(result_records),
+            "query": query
+        }
+            
+    except Exception as e:
+        logger.error(f"Error in direct chat history: {str(e)}")
+        return {
+            "error": str(e),
+            "query": query,
+            "trace": str(e.__traceback__)
+        }
+
+
+@router.get("/chat-history-simple")
+async def get_chat_history_simple(
+    user_id: str = None,
+    assignment_id: str = None,
+    exercise_id: str = None
+):
+    """Simple endpoint to retrieve chat history directly without complex processing
+    
+    This is a fallback endpoint that returns raw chat history data with minimal processing
+    """
+    try:
+        # Log request parameters
+        print(f"[SIMPLE ENDPOINT] Request params: user_id={user_id}, assignment_id={assignment_id}, exercise_id={exercise_id}")
+        
+        # Test MongoDB connection first
+        try:
+            db.command("ping")
+            print("[SIMPLE ENDPOINT] MongoDB connection successful")
+        except Exception as db_error:
+            print(f"[SIMPLE ENDPOINT] MongoDB connection error: {str(db_error)}")
+            return {
+                "success": False,
+                "error": f"MongoDB connection error: {str(db_error)}",
+                "collection": "chat_histories"
+            }
+        
+        # List all collections for debugging
+        collections = db.list_collection_names()
+        print(f"[SIMPLE ENDPOINT] Available collections: {collections}")
+        
+        # Log collection status
+        count = 0
+        try:
+            count = chat_history_collection.count_documents({})
+            print(f"[SIMPLE ENDPOINT] Collection count: {count}")
+        except Exception as count_error:
+            print(f"[SIMPLE ENDPOINT] Error counting documents: {str(count_error)}")
+        
+        # Try to get one document for debugging
+        try:
+            sample_doc = chat_history_collection.find_one({})
+            if sample_doc:
+                print(f"[SIMPLE ENDPOINT] Sample document _id: {sample_doc.get('_id')}")
+                print(f"[SIMPLE ENDPOINT] Sample document fields: {list(sample_doc.keys())}")
+                print(f"[SIMPLE ENDPOINT] Exercise ID from sample: {sample_doc.get('exercise_id')}")
+                print(f"[SIMPLE ENDPOINT] Exercise ID type: {type(sample_doc.get('exercise_id'))}")
+            else:
+                print("[SIMPLE ENDPOINT] No documents found in collection")
+        except Exception as sample_error:
+            print(f"[SIMPLE ENDPOINT] Error getting sample document: {str(sample_error)}")
+        
+        # Build simple query with flexible type handling
+        query = {}
+        if user_id:
+            query["user_id"] = user_id
+        if assignment_id:
+            query["assignment_id"] = assignment_id
+            
+        # Special handling for exercise_id
+        if exercise_id:
+            # We won't add it to the query yet - we'll handle it with an in-memory filter
+            print(f"[SIMPLE ENDPOINT] Will filter for exercise_id={exercise_id} (type: {type(exercise_id)})")
+            
+        print(f"[SIMPLE ENDPOINT] MongoDB query: {query}")
+        
+        # If no query, return limited results
+        if not query:
+            print("[SIMPLE ENDPOINT] Empty query - returning all documents (limited to 10)")
+            try:
+                results = list(chat_history_collection.find({}).limit(10))
+            except Exception as find_error:
+                print(f"[SIMPLE ENDPOINT] Error fetching all documents: {str(find_error)}")
+                results = []
+        else:
+            # Find matching documents
+            try:
+                results = list(chat_history_collection.find(query))
+                print(f"[SIMPLE ENDPOINT] Found {len(results)} documents with query")
+            except Exception as query_error:
+                print(f"[SIMPLE ENDPOINT] Error with query: {str(query_error)}")
+                results = []
+        
+        # If exercise_id is provided, filter the results in memory
+        if exercise_id and results:
+            original_count = len(results)
+            
+            # Filter based on string comparison of exercise_id
+            filtered_results = []
+            for doc in results:
+                doc_exercise_id = doc.get('exercise_id')
+                
+                # Compare as strings
+                if str(doc_exercise_id) == str(exercise_id):
+                    filtered_results.append(doc)
+                    print(f"[SIMPLE ENDPOINT] Matched document with exercise_id={doc_exercise_id}")
+            
+            print(f"[SIMPLE ENDPOINT] Filtered from {original_count} to {len(filtered_results)} documents")
+            results = filtered_results
+        
+        # Convert ObjectId to string in results
+        formatted_results = []
+        for doc in results:
+            try:
+                # Convert ObjectId to string
+                if "_id" in doc:
+                    doc["_id"] = str(doc["_id"])
+                    
+                # Format timestamps
+                for field in ["created_at", "updated_at"]:
+                    if field in doc and isinstance(doc[field], datetime):
+                        doc[field] = doc[field].isoformat()
+                
+                # Format messages
+                if "messages" in doc:
+                    for msg in doc["messages"]:
+                        if "timestamp" in msg and isinstance(msg["timestamp"], datetime):
+                            msg["timestamp"] = msg["timestamp"].isoformat()
+                
+                formatted_results.append(doc)
+            except Exception as format_error:
+                print(f"[SIMPLE ENDPOINT] Error formatting document: {str(format_error)}")
+        
+        # Return results with detailed diagnostics
+        return {
+            "success": True,
+            "message": f"Found {len(formatted_results)} chat history records",
+            "mongo_ok": True,
+            "collection_count": count,
+            "results": formatted_results,
+            "query": query,
+            "request_params": {
+                "user_id": user_id,
+                "assignment_id": assignment_id,
+                "exercise_id": exercise_id
+            }
+        }
+    except Exception as e:
+        print(f"[SIMPLE ENDPOINT] Error: {str(e)}")
+        # Don't raise an exception - return error details instead
+        return {
+            "success": False,
+            "error": str(e),
+            "query": locals().get('query', {}),
+            "trace": str(e.__traceback__.tb_frame)
+        }
