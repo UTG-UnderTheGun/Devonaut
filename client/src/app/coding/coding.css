@@ -714,15 +714,27 @@ margin: 0 2px;
 }
 
 .equation-display {
-font-family: monospace;
-margin-bottom: 1rem;
+font-family: 'Consolas', 'Monaco', monospace;
+margin-bottom: 1.5rem;
 font-size: 14px;
+color: #1a1a1a;
+padding: 8px;
+background: #f8f9fa;
+border-radius: 4px;
 }
 
 .fill-question {
-padding: 1rem;
+padding: 1.5rem;
 display: flex;
 flex-direction: column;
+gap: 1rem;
+}
+
+.fill-question .question-title {
+font-size: 1.125rem;
+font-weight: 600;
+color: #111827;
+margin-bottom: 0.5rem;
 }
 
 .code-with-blanks {
@@ -752,22 +764,6 @@ color: #1a1a1a;
 outline: none;
 border-color: #6D28D9;
 box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
-}
-
-.fill-question {
-padding: 1.5rem;
-display: flex;
-flex-direction: column;
-}
-
-.equation-display {
-font-family: 'Consolas', 'Monaco', monospace;
-margin-bottom: 1.5rem;
-font-size: 14px;
-color: #1a1a1a;
-padding: 8px;
-background: #f8f9fa;
-border-radius: 4px;
 }
 
 .code-blank-inline {
@@ -819,28 +815,128 @@ height: 100%;
 }
 
 .question-description {
-font-size: 14px;
-line-height: 1.6;
-color: #374151;
-margin-bottom: 1.5rem;
-padding: 1rem;
-background: #f9fafb;
-border-radius: 4px;
-border: 1px solid #e5e7eb;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
-.fill-question {
-padding: 1.5rem;
-display: flex;
-flex-direction: column;
-gap: 1rem;
+/* Markdown styling for question-description */
+.question-description h1,
+.question-description h2,
+.question-description h3,
+.question-description h4,
+.question-description h5,
+.question-description h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #111827;
 }
 
-.fill-question .question-title {
-font-size: 1.125rem;
-font-weight: 600;
-color: #111827;
-margin-bottom: 0.5rem;
+.question-description h1 {
+  font-size: 1.5rem;
+}
+
+.question-description h2 {
+  font-size: 1.25rem;
+}
+
+.question-description h3 {
+  font-size: 1.125rem;
+}
+
+.question-description p {
+  margin-bottom: 1rem;
+}
+
+.question-description a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.question-description a:hover {
+  text-decoration: underline;
+}
+
+.question-description ul,
+.question-description ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.question-description li {
+  margin-bottom: 0.25rem;
+}
+
+.question-description blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #d1d5db;
+  background-color: #f3f4f6;
+}
+
+.question-description pre {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.question-description code {
+  background-color: #f1f5f9;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.875em;
+}
+
+.question-description pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
+
+.question-description table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.question-description th,
+.question-description td {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+}
+
+.question-description th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  text-align: left;
+}
+
+.question-description hr {
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.question-description img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
 }
 
 .btn-compact {
@@ -941,13 +1037,124 @@ height: 36px;
   padding: 1rem;
   border-radius: 0.375rem;
   border: 1px solid #e5e7eb;
-  white-space: pre-wrap;
   overflow-wrap: break-word;
   word-wrap: break-word;
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e0 #f9fafb;
+}
+
+/* Markdown styling */
+.problem-description-display h1,
+.problem-description-display h2,
+.problem-description-display h3,
+.problem-description-display h4,
+.problem-description-display h5,
+.problem-description-display h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #111827;
+}
+
+.problem-description-display h1 {
+  font-size: 1.5rem;
+}
+
+.problem-description-display h2 {
+  font-size: 1.25rem;
+}
+
+.problem-description-display h3 {
+  font-size: 1.125rem;
+}
+
+.problem-description-display p {
+  margin-bottom: 1rem;
+}
+
+.problem-description-display a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.problem-description-display a:hover {
+  text-decoration: underline;
+}
+
+.problem-description-display ul,
+.problem-description-display ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.problem-description-display li {
+  margin-bottom: 0.25rem;
+}
+
+.problem-description-display blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #d1d5db;
+  background-color: #f3f4f6;
+}
+
+.problem-description-display pre {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.problem-description-display code {
+  background-color: #f1f5f9;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.875em;
+}
+
+.problem-description-display pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
+
+.problem-description-display table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.problem-description-display th,
+.problem-description-display td {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+}
+
+.problem-description-display th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  text-align: left;
+}
+
+.problem-description-display hr {
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.problem-description-display img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
 }
 
 .problem-description-display::-webkit-scrollbar {

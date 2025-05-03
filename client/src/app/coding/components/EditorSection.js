@@ -10,6 +10,8 @@ import './EditorSection.css';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
 import _ from 'lodash';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -236,7 +238,7 @@ const EditorSection = ({
     }
     
     // Now load code for the new problem
-    const loadProblemCode = () => {
+    const loadProblemCode = async () => {
       if (!problems || !problems[currentProblemIndex]) return;
       
       const currentProblem = problems[currentProblemIndex];
@@ -246,6 +248,73 @@ const EditorSection = ({
       console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType} (question #${questionNumber})`);
       
       let codeToSet = ''; // Variable to store the code we'll load
+      
+      // First try to load from server API if we have an assignment ID
+      if (assignmentId) {
+        try {
+          console.log(`Trying to fetch latest code from server for assignment ${assignmentId}, problem ${currentProblemIndex}`);
+          const response = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/get-latest-code`, 
+            { 
+              params: { 
+                assignment_id: assignmentId,
+                problem_index: currentProblemIndex,
+                exercise_id: currentProblem.id
+              },
+              withCredentials: true 
+            }
+          );
+          
+          if (response.data && response.data.code) {
+            console.log(`Found latest code from server for problem ${currentProblemIndex} (source: ${response.data.source || 'unknown'})`);
+            codeToSet = response.data.code;
+            handleCodeChange(codeToSet);
+            if (editorRef.current) {
+              editorRef.current.setValue(codeToSet);
+            }
+            
+            // Also store this code in localStorage for offline use
+            const key = `code-${effectiveType}-${currentProblemIndex}`;
+            localStorage.setItem(key, codeToSet);
+            
+            // Also update the problem-answers storage
+            try {
+              const answersString = localStorage.getItem('problem-answers');
+              let answers = {};
+              if (answersString) {
+                answers = JSON.parse(answersString);
+              }
+              answers[`coding-${questionNumber}`] = codeToSet;
+              answers[questionNumber] = codeToSet;
+              localStorage.setItem('problem-answers', JSON.stringify(answers));
+            } catch (e) {
+              console.warn('Could not update problem-answers with server code:', e);
+            }
+            
+            // Track this initial code load as a keystroke
+            setTimeout(() => {
+              if (codeToSet) {
+                let cursorPosition = null;
+                if (editorRef.current) {
+                  const model = editorRef.current.getModel();
+                  const selection = editorRef.current.getSelection();
+                  if (model && selection) {
+                    cursorPosition = {
+                      lineNumber: selection.positionLineNumber,
+                      column: selection.positionColumn
+                    };
+                  }
+                }
+                debouncedSaveKeystrokes(codeToSet, cursorPosition);
+              }
+            }, 500);
+            
+            return; // Found code, return early
+          }
+        } catch (e) {
+          console.warn('Could not load code from server:', e);
+        }
+      }
       
       // Try to load from problem-answers first for coding exercises (new format)
       if (effectiveType === 'code' || effectiveType === 'coding') {
@@ -346,7 +415,7 @@ const EditorSection = ({
     };
     
     loadProblemCode();
-  }, [currentProblemIndex, problems, testType]);
+  }, [currentProblemIndex, problems, testType, assignmentId]);
 
   // Create a debounced function to save keystrokes
   const debouncedSaveKeystrokes = useCallback(
@@ -1089,6 +1158,49 @@ const EditorSection = ({
     }
   }, [currentProblemIndex, textareaHeights]);
 
+  // Add effect for syncing code with server when navigating between problems
+  useEffect(() => {
+    const fetchLatestCodeFromServer = async () => {
+      if (!problems || !problems[currentProblemIndex] || !assignmentId) return;
+      
+      try {
+        const currentProblem = problems[currentProblemIndex];
+        console.log(`Refreshing latest code from server for problem ${currentProblemIndex} in assignment ${assignmentId}`);
+        
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/get-latest-code`, 
+          { 
+            params: { 
+              assignment_id: assignmentId,
+              problem_index: currentProblemIndex,
+              exercise_id: currentProblem.id
+            },
+            withCredentials: true 
+          }
+        );
+        
+        if (response.data && response.data.code) {
+          console.log(`Found latest code from server for problem ${currentProblemIndex} (source: ${response.data.source || 'unknown'})`);
+          const latestCode = response.data.code;
+          
+          // If we have new code, update state and editor
+          if (latestCode && editorRef.current) {
+            const currentValue = editorRef.current.getValue();
+            if (currentValue !== latestCode) {
+              console.log('Updating editor with latest code from server');
+              handleCodeChange(latestCode);
+              editorRef.current.setValue(latestCode);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not refresh latest code from server:', e);
+      }
+    };
+    
+    fetchLatestCodeFromServer();
+  }, [currentProblemIndex, assignmentId]);
+
   return (
     <div className="code-editor">
       <div className="editor-header">
@@ -1259,7 +1371,11 @@ const EditorSection = ({
             {showDescription && (
               <>
                 <div className="question-title">{currentProblem.title || ''}</div>
-                <div className="question-description">{currentProblem.description || ''}</div>
+                <div className="question-description">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentProblem.description || ''}
+                  </ReactMarkdown>
+                </div>
               </>
             )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, outputCode)}>
@@ -1326,7 +1442,11 @@ const EditorSection = ({
             {showDescription && (
               <>
                 <div className="question-title">{currentProblem.title || ''}</div>
-                <div className="question-description">{currentProblem.description || ''}</div>
+                <div className="question-description">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentProblem.description || ''}
+                  </ReactMarkdown>
+                </div>
               </>
             )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, fillCode)}>

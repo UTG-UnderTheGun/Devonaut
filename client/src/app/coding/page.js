@@ -124,6 +124,10 @@ export default function CodingPage() {
           setTitle(assignment.title);
           setDescription(assignment.description);
           
+          // Save the current problem index to localStorage with assignment ID
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, currentProblemIndex.toString());
+          console.log(`Saved current problem index ${currentProblemIndex} for assignment ${assignmentId} after fetch`);
+          
           // Force a chat reset only if this is the initial load, not a refresh
           if (!isRefresh) {
             await handleClearImport();
@@ -142,6 +146,17 @@ export default function CodingPage() {
       // Add window focus listener to refresh assignment data when user returns to the page
       const handleFocus = () => {
         console.log('Window focused, refreshing assignment data');
+        
+        // Get the current problem index from localStorage first, to ensure we stay on the same problem
+        const savedIndex = localStorage.getItem(`assignment-${assignmentId}-currentIndex`);
+        if (savedIndex !== null) {
+          const index = parseInt(savedIndex, 10);
+          if (!isNaN(index) && index >= 0) {
+            console.log(`Restoring saved problem index ${index} for assignment ${assignmentId} on window focus`);
+            setCurrentProblemIndex(index);
+          }
+        }
+        
         // Pass true to indicate this is a refresh, not an initial load
         fetchAssignment(true);
       };
@@ -537,6 +552,15 @@ export default function CodingPage() {
     return () => window.removeEventListener('code-reset', handleCodeReset);
   }, [currentProblemIndex]);
 
+  // Add effect to save current problem index whenever it changes
+  useEffect(() => {
+    const assignmentId = searchParams.get('assignment');
+    if (assignmentId) {
+      console.log(`Saving current problem index ${currentProblemIndex} for assignment ${assignmentId}`);
+      localStorage.setItem(`assignment-${assignmentId}-currentIndex`, currentProblemIndex.toString());
+    }
+  }, [currentProblemIndex, searchParams]);
+
   // Add new effect for console output updates
   useEffect(() => {
     if (consoleOutput) {
@@ -611,13 +635,29 @@ export default function CodingPage() {
 
   const handlePreviousProblem = () => {
     if (currentProblemIndex > 0) {
-      setCurrentProblemIndex(prev => prev - 1);
+      setCurrentProblemIndex(prev => {
+        const newIndex = prev - 1;
+        // Save the current problem index to localStorage with assignment ID
+        const assignmentId = searchParams.get('assignment');
+        if (assignmentId) {
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, newIndex.toString());
+        }
+        return newIndex;
+      });
     }
   };
 
   const handleNextProblem = () => {
     if (currentProblemIndex < problems.length - 1) {
-      setCurrentProblemIndex(prev => prev + 1);
+      setCurrentProblemIndex(prev => {
+        const newIndex = prev + 1;
+        // Save the current problem index to localStorage with assignment ID
+        const assignmentId = searchParams.get('assignment');
+        if (assignmentId) {
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, newIndex.toString());
+        }
+        return newIndex;
+      });
     }
   };
 
@@ -670,7 +710,8 @@ export default function CodingPage() {
     user_id,
     handleClearImport,
     isConsoleFolded,
-    setIsConsoleFolded
+    setIsConsoleFolded,
+    assignmentId: searchParams.get('assignment')
   };
 
   const consoleProps = {
