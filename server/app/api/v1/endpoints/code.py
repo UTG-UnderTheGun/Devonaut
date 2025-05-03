@@ -675,34 +675,52 @@ async def get_exercise_keystrokes(
         if not user.get("is_teacher", False):
             raise HTTPException(status_code=403, detail="Not authorized to view this data")
         
-        # Query to find the latest keystroke for each user/problem combination
+        # Build a more flexible query for the aggregation pipeline
+        match_query = {}
+        
+        # Check if there are any records with the specified fields before filtering
+        has_exercise = await request.app.mongodb["code_keystrokes"].count_documents({"exercise_id": exercise_id})
+        has_assignment = await request.app.mongodb["code_keystrokes"].count_documents({"assignment_id": assignment_id})
+        
+        # Only include fields in the query if they exist in the data
+        if has_assignment > 0:
+            match_query["assignment_id"] = assignment_id
+            print(f"DEBUG EXERCISE KEYSTROKES: Filtering by assignment_id={assignment_id}")
+        else:
+            print(f"DEBUG EXERCISE KEYSTROKES: No records found with assignment_id={assignment_id}")
+            
+        if has_exercise > 0:
+            match_query["exercise_id"] = exercise_id
+            print(f"DEBUG EXERCISE KEYSTROKES: Filtering by exercise_id={exercise_id}")
+        else:
+            # As a fallback, check if exercise_id matches problem_index
+            has_problem = await request.app.mongodb["code_keystrokes"].count_documents({"problem_index": int(exercise_id) if exercise_id.isdigit() else -1})
+            if has_problem > 0 and exercise_id.isdigit():
+                match_query["problem_index"] = int(exercise_id)
+                print(f"DEBUG EXERCISE KEYSTROKES: Filtering by problem_index={exercise_id} as fallback")
+            else:
+                print(f"DEBUG EXERCISE KEYSTROKES: No records found with exercise_id={exercise_id} or matching problem_index")
+        
+        # If we couldn't find any matching fields, return empty result
+        if not match_query:
+            print("DEBUG EXERCISE KEYSTROKES: No matching criteria found in any records")
+            return []
+            
+        # Get all users who have submitted keystrokes for this exercise
         pipeline = [
-            {
-                "$match": {
-                    "assignment_id": assignment_id,
-                    "exercise_id": exercise_id
-                }
-            },
-            {
-                "$sort": {
-                    "created_at": -1
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$user_id",
-                    "latest_keystroke": {"$first": "$$ROOT"}
-                }
-            },
-            {
-                "$replaceRoot": {
-                    "newRoot": "$latest_keystroke"
-                }
-            }
+            {"$match": match_query},
+            {"$group": {
+                "_id": "$user_id",
+                "username": {"$first": "$username"},
+                "keystrokes": {"$sum": 1},
+                "last_activity": {"$max": "$timestamp"}
+            }},
+            {"$sort": {"last_activity": -1}}
         ]
         
-        cursor = request.app.mongodb["keystrokes"].aggregate(pipeline)
-        keystrokes = await cursor.to_list(length=100)
+        print(f"DEBUG EXERCISE KEYSTROKES: Executing aggregation with query: {match_query}")
+        result = await request.app.mongodb["code_keystrokes"].aggregate(pipeline).to_list(length=100)
+        print(f"DEBUG EXERCISE KEYSTROKES: Found {len(result)} users with keystroke data")
         
         # Convert ObjectId to string in results
         for keystroke in keystrokes:
@@ -787,5 +805,260 @@ async def get_latest_code(
             "timestamp": datetime.utcnow()
         }
     except Exception as e:
-        # Return informative error
-        return {"error": str(e), "code": ""}
+        print(f"Error getting exercise keystrokes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving exercise keystroke data: {str(e)}")
+
+@router.get("/keystrokes/debug")
+async def debug_keystrokes(
+    request: Request,
+    user_id: str = None,
+    current_user=Depends(get_current_user),
+):
+    """
+    For debugging: Get information about keystroke collection data structure
+    """
+    try:
+        # Check if current user is admin or teacher
+        admin_user, admin_id = current_user
+        is_admin = admin_user.get("role") == "admin" or admin_user.get("role") == "teacher"
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="Only admins can access debug endpoints")
+        
+        # Query to use
+        query = {}
+        if user_id:
+            query["user_id"] = user_id
+            
+        # Check if collection exists
+        collections = await request.app.mongodb.list_collection_names()
+        has_collection = "code_keystrokes" in collections
+        
+        # Get count of total documents
+        count = 0
+        if has_collection:
+            count = await request.app.mongodb["code_keystrokes"].count_documents(query)
+            
+        # Get a sample document
+        sample_doc = None
+        if count > 0:
+            sample_cursor = request.app.mongodb["code_keystrokes"].find(query).limit(1)
+            sample_docs = await sample_cursor.to_list(length=1)
+            if sample_docs:
+                # Convert ObjectId to string
+                sample_doc = sample_docs[0]
+                if "_id" in sample_doc:
+                    sample_doc["_id"] = str(sample_doc["_id"])
+                # Convert datetime objects
+                for key, value in sample_doc.items():
+                    if isinstance(value, datetime):
+                        sample_doc[key] = value.isoformat()
+        
+        # Get distinct values for some important fields to help debug
+        available_fields = []
+        user_ids = []
+        assignment_ids = []
+        exercise_ids = []
+        problem_indices = []
+        
+        if has_collection:
+            available_fields = await request.app.mongodb["code_keystrokes"].find_one(query)
+            if available_fields:
+                available_fields = list(available_fields.keys())
+                
+            user_ids = await request.app.mongodb["code_keystrokes"].distinct("user_id", query)
+            assignment_ids = await request.app.mongodb["code_keystrokes"].distinct("assignment_id", query)
+            exercise_ids = await request.app.mongodb["code_keystrokes"].distinct("exercise_id", query)
+            problem_indices = await request.app.mongodb["code_keystrokes"].distinct("problem_index", query)
+        
+        # Compile the debug information
+        debug_info = {
+            "collection_exists": has_collection,
+            "total_documents": count,
+            "available_fields": available_fields,
+            "unique_user_ids": user_ids,
+            "unique_assignment_ids": assignment_ids,
+            "unique_exercise_ids": exercise_ids,
+            "unique_problem_indices": problem_indices,
+            "sample_document": sample_doc
+        }
+            
+        return debug_info
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting keystroke debug info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving keystroke debug info: {str(e)}")
+
+@router.get("/keystrokes-by-user/{user_id}")
+async def get_keystrokes_by_user(
+    request: Request,
+    user_id: str,
+    problem_index: int = None
+):
+    """
+    Direct access endpoint to get keystrokes for a specific user, for testing purposes
+    """
+    try:
+        print(f"DEBUG TEST: Getting keystrokes for user_id={user_id}, problem_index={problem_index}")
+        
+        # Build query for MongoDB
+        query = {"user_id": user_id}
+        
+        if problem_index is not None:
+            query["problem_index"] = problem_index
+            
+        # Get keystrokes from the database
+        cursor = request.app.mongodb["code_keystrokes"].find(query).sort("timestamp", 1).limit(100)
+        keystrokes = await cursor.to_list(length=100)
+        
+        print(f"DEBUG TEST: Found {len(keystrokes)} keystrokes with query: {query}")
+        
+        # Process the results
+        result = []
+        for keystroke in keystrokes:
+            # Convert ObjectId to string
+            if "_id" in keystroke:
+                keystroke["id"] = str(keystroke["_id"])
+                del keystroke["_id"]
+            
+            # Convert datetime objects to ISO strings
+            if "timestamp" in keystroke and isinstance(keystroke["timestamp"], datetime):
+                keystroke["timestamp"] = keystroke["timestamp"].isoformat()
+                
+            result.append(keystroke)
+            
+        return result
+    except Exception as e:
+        print(f"Error in test endpoint: {str(e)}")
+        return {"error": str(e)}
+
+@router.post("/seed-keystrokes")
+async def seed_keystrokes(
+    request: Request,
+    current_user=Depends(get_current_user),
+):
+    """
+    Seed the keystroke data from a sample data file for testing purposes
+    """
+    try:
+        # Check if current user is admin
+        admin_user, admin_id = current_user
+        is_admin = admin_user.get("role") == "admin" 
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="Only admins can seed data")
+        
+        # First check if collection exists, create it if not
+        collections = await request.app.mongodb.list_collection_names()
+        if "code_keystrokes" not in collections:
+            await request.app.mongodb.create_collection("code_keystrokes")
+            print("DEBUG SEED: Created code_keystrokes collection")
+        
+        # Check if we already have data
+        existing_count = await request.app.mongodb["code_keystrokes"].count_documents({})
+        
+        # If we have data, don't seed again unless forced
+        if existing_count > 0:
+            return {"success": False, "message": f"Collection already has {existing_count} documents. Seeding skipped."}
+        
+        # Sample data for testing (from the screenshot)
+        sample_data = [
+            {
+                "_id": {"$oid": "681402e6bbc57c2d3d29f101"},
+                "user_id": "6809e7a0ae6bed9c1447fe24",
+                "username": "b@b.com",
+                "code": "กหฟสวทกสวหฟกสวหฟก่\nฏ์ษศฆฤ่กสวห่ฟงกฆ\nฏหาวกาฟศ๋ฏษซฤฆ",
+                "problem_index": 0,
+                "timestamp": datetime.utcnow(),
+                "action_type": "keystroke",
+                "exercise_id": "1",
+                "test_type": "code"
+            },
+            {
+                "_id": {"$oid": "681404e6bbc57c2d3d29f12b"},
+                "user_id": "6809e7a0ae6bed9c1447fe24",
+                "username": "b@b.com",
+                "code": "wvaeeeadwads",
+                "problem_index": 1,
+                "timestamp": datetime.utcnow(),
+                "action_type": "keystroke",
+                "exercise_id": "2",
+                "test_type": "code"
+            }
+        ]
+        
+        # Insert sample data
+        await request.app.mongodb["code_keystrokes"].insert_many(sample_data)
+        
+        return {"success": True, "message": f"Inserted {len(sample_data)} documents into code_keystrokes collection"}
+    except Exception as e:
+        print(f"Error seeding keystroke data: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+@router.post("/import-keystrokes")
+async def import_keystrokes(
+    request: Request,
+    file_path: str,
+    current_user=Depends(get_current_user),
+):
+    """
+    Import keystroke data from a JSON file
+    """
+    try:
+        # Check if current user is admin
+        admin_user, admin_id = current_user
+        is_admin = admin_user.get("role") == "admin" 
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="Only admins can import data")
+        
+        # Check if the file exists
+        import os
+        if not os.path.exists(file_path):
+            return {"success": False, "error": f"File not found: {file_path}"}
+        
+        # Read the JSON file
+        import json
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        
+        # Ensure it's a list of objects
+        if not isinstance(data, list):
+            return {"success": False, "error": "JSON file should contain a list of objects"}
+        
+        # Process each entry to convert date strings to datetime objects
+        for entry in data:
+            if "timestamp" in entry and isinstance(entry["timestamp"], dict) and "$date" in entry["timestamp"]:
+                date_str = entry["timestamp"]["$date"]
+                entry["timestamp"] = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            
+            # Handle ObjectId for MongoDB
+            if "_id" in entry and isinstance(entry["_id"], dict) and "$oid" in entry["_id"]:
+                from bson import ObjectId
+                entry["_id"] = ObjectId(entry["_id"]["$oid"])
+        
+        # First check if collection exists, create it if not
+        collections = await request.app.mongodb.list_collection_names()
+        if "code_keystrokes" not in collections:
+            await request.app.mongodb.create_collection("code_keystrokes")
+            print(f"DEBUG IMPORT: Created code_keystrokes collection")
+        
+        # Check if we already have data
+        existing_count = await request.app.mongodb["code_keystrokes"].count_documents({})
+        print(f"DEBUG IMPORT: Collection already has {existing_count} documents")
+        
+        # Insert the data
+        result = await request.app.mongodb["code_keystrokes"].insert_many(data)
+        inserted_count = len(result.inserted_ids)
+        
+        return {
+            "success": True, 
+            "message": f"Imported {inserted_count} keystroke records from {file_path}",
+            "previous_count": existing_count,
+            "new_count": existing_count + inserted_count
+        }
+    except Exception as e:
+        print(f"Error importing keystroke data: {str(e)}")
+        return {"success": False, "error": str(e)}
+
