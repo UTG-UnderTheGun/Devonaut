@@ -79,11 +79,6 @@ const Header = () => {
       
       console.log(`Preparing to submit assignment ID: ${currentAssignmentId}`);
       
-      // Get current code from the editor
-      const currentCode = await importedCode || 
-                           localStorage.getItem(`code-${currentAssignmentId}`) || 
-                           '';
-      
       // Get answers from localStorage
       const answersString = localStorage.getItem('problem-answers');
       let answers = {};
@@ -144,37 +139,72 @@ const Header = () => {
           // Get code for this problem
           let problemCode = '';
           
-          // Try to get code from problem-answers using exerciseId
-          if (answers[exerciseId]) {
-            problemCode = answers[exerciseId];
-          } else {
-            // For output type problems, use the original problem code
-            if (problemType === 'output' || problemType === 'explain') {
-              problemCode = problem.code || problem.starterCode || '';
-            } else {
-              // For other types, get code from our standard storage location
+          // Process based on problem type
+          if (problemType === 'code' || problemType === 'coding') {
+            // Try multiple possible sources for code answers in the following order:
+            
+            // 1. Check for coding-specific keys in answers object
+            if (answers[`coding-${exerciseId}`]) {
+              problemCode = answers[`coding-${exerciseId}`];
+              console.log(`Found coding answer for exercise ${exerciseId} from coding-${exerciseId}`);
+            } 
+            // 2. Check numeric keys in answers object that match exerciseId
+            else if (answers[exerciseId] || answers[String(exerciseId)]) {
+              problemCode = answers[exerciseId] || answers[String(exerciseId)];
+              console.log(`Found coding answer for exercise ${exerciseId} from direct exerciseId key`);
+            }
+            // 3. Try to get code from problem-code-{index} format
+            else {
               const problemKey = `problem-code-${index}`;
               problemCode = localStorage.getItem(problemKey);
               
-              // If no code found, fall back to original problem code
+              if (problemCode) {
+                console.log(`Found code for exercise ${exerciseId} in localStorage key ${problemKey}`);
+              }
+              
+              // 4. If still not found, try alternate localStorage keys
+              if (!problemCode || problemCode.trim() === '') {
+                const alternateKeys = [
+                  `code-${problemType}-${index}`,
+                  `editor-code-${problemType}-${index}`,
+                  `editorCode-${index}`,
+                  `code-${exerciseId}`
+                ];
+                
+                for (const key of alternateKeys) {
+                  const storedCode = localStorage.getItem(key);
+                  if (storedCode && storedCode.trim() !== '') {
+                    problemCode = storedCode;
+                    console.log(`Found code for exercise ${exerciseId} in alternate key ${key}`);
+                    break;
+                  }
+                }
+              }
+              
+              // 5. If still no code, use original problem code as fallback
               if (!problemCode || problemCode.trim() === '') {
                 problemCode = problem.code || problem.starterCode || '';
+                if (problemCode) {
+                  console.log(`Using starter code for exercise ${exerciseId}`);
+                }
               }
             }
-          }
-          
-          // Handle different problem types appropriately
-          if (problemType === 'output' || problemType === 'explain') {
+            
+            // Store the code with the exercise ID as the key
+            if (problemCode && problemCode.trim() !== '') {
+              formattedAnswers[exerciseId] = problemCode;
+              console.log(`Setting coding answer for exercise ${exerciseId}: ${problemCode.substring(0, 30)}...`);
+            }
+          } 
+          else if (problemType === 'output' || problemType === 'explain') {
             // Get output answer
-            const outputAnswer = outputs[exerciseId] || outputs[index.toString()] || 
-                               outputs[index + 1] || outputs[(index + 1).toString()];
+            const outputAnswer = outputs[exerciseId] || outputs[index] || outputs[String(exerciseId)] || outputs[String(index)];
             if (outputAnswer) {
               formattedAnswers[exerciseId] = outputAnswer;
+              console.log(`Setting output answer for exercise ${exerciseId}`);
             }
-          } else if (problemType === 'code' || problemType === 'coding') {
-            // For code problems, use the actual code as the answer
-            formattedAnswers[exerciseId] = problemCode || answers[exerciseId] || '';
-          } else if (problemType === 'fill') {
+          } 
+          else if (problemType === 'fill') {
             // For fill exercises, get fill-specific answers
             const fillAnswers = {};
             Object.entries(answers).forEach(([key, value]) => {
@@ -187,25 +217,35 @@ const Header = () => {
             
             if (Object.keys(fillAnswers).length > 0) {
               formattedAnswers[exerciseId] = fillAnswers;
-            } else {
-              formattedAnswers[exerciseId] = answers[exerciseId] || '';
+              console.log(`Setting fill answers for exercise ${exerciseId}`);
             }
-          } else {
-            // Default answer handling
-            formattedAnswers[exerciseId] = answers[exerciseId] || '';
           }
         });
-      } else {
-        // If no saved problems, fall back to original answer gathering logic
-        // Process all answers and organize by exercise ID as the key
-        // First handle any direct exercises stored with numeric keys
+      } 
+      else {
+        // Fallback if no saved problems - try to construct from available answers
+        
+        // First process direct numeric keys (likely exercise IDs)
         Object.keys(answers).forEach(key => {
           if (!isNaN(Number(key))) {
             formattedAnswers[key] = answers[key];
+            console.log(`Setting answer for exercise ${key} from direct key`);
           }
         });
-  
-        // Handle blank answers (format: blank-exerciseId-index)
+        
+        // Process coding- prefixed answers
+        Object.keys(answers).forEach(key => {
+          if (key.startsWith('coding-')) {
+            const parts = key.split('-');
+            if (parts.length >= 2) {
+              const exerciseId = parts[1];
+              formattedAnswers[exerciseId] = answers[key];
+              console.log(`Setting coding answer for exercise ${exerciseId} from coding-${exerciseId}`);
+            }
+          }
+        });
+        
+        // Process blank- prefixed answers for fill exercises
         Object.keys(answers).forEach(key => {
           if (key.startsWith('blank-')) {
             const parts = key.split('-');
@@ -216,27 +256,33 @@ const Header = () => {
               }
               if (typeof formattedAnswers[exerciseId] === 'object') {
                 formattedAnswers[exerciseId][key] = answers[key];
+                console.log(`Setting blank answer for exercise ${exerciseId} from ${key}`);
               }
             }
           }
         });
         
-        // Handle coding answers - store them directly with the exercise ID
-        Object.keys(answers).forEach(key => {
-          if (key.startsWith('coding-')) {
-            const parts = key.split('-');
-            if (parts.length >= 2) {
-              const exerciseId = parts[1];
-              formattedAnswers[exerciseId] = answers[key];
-              console.log(`Setting coding answer for exercise ${exerciseId} from coding-${exerciseId}:`, answers[key]);
-            }
+        // Finally, add any output answers
+        Object.keys(outputs).forEach(key => {
+          if (!formattedAnswers[key]) {
+            formattedAnswers[key] = outputs[key];
+            console.log(`Setting output answer for exercise ${key}`);
           }
         });
-        
-        // Process output answers
-        Object.keys(outputs).forEach(key => {
-          formattedAnswers[key] = outputs[key];
-        });
+      }
+      
+      // Final check: verify if a current exercise ID exists and has an answer
+      if (currentExerciseId && !formattedAnswers[currentExerciseId]) {
+        // Try to get current editor code for this exercise
+        try {
+          const currentCode = localStorage.getItem(`problem-code-${savedProblems.findIndex(p => p.id === currentExerciseId)}`);
+          if (currentCode && currentCode.trim() !== '') {
+            formattedAnswers[currentExerciseId] = currentCode;
+            console.log(`Adding last-minute code for current exercise ${currentExerciseId}`);
+          }
+        } catch (e) {
+          console.warn('Failed to add last-minute code for current exercise', e);
+        }
       }
       
       // ตรวจสอบค่าคำตอบก่อนส่ง
