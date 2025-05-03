@@ -13,11 +13,13 @@
   --pending-color: #eab308;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --skeleton-base: #e2e8f0;
+  --skeleton-highlight: #f1f5f9;
 }
 
 /* Main Container */
 .student-assignment {
-  max-width: 1440px;
+  max-width: 1150px;
   margin: 0 auto;
   padding: 1.5rem;
   display: flex;
@@ -25,6 +27,41 @@
   gap: 1.5rem;
   background-color: var(--bg-color);
   min-height: 100vh;
+}
+
+/* Back to List Button - Improved Styling */
+.back-button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--bg-content);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.back-button:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.back-button-container {
+  padding: 1rem 1.5rem;
+  background-color: white;
+  border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  display: flex;
+  align-items: center;
 }
 
 /* Header Styles */
@@ -49,26 +86,6 @@
   gap: 1.5rem;
   font-size: 0.875rem;
   color: var(--text-secondary);
-}
-
-.btn-back {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.375rem;
-  background: var(--bg-content);
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background: var(--primary-light);
-  color: var(--primary-dark);
 }
 
 /* Student Info Panel */
@@ -242,10 +259,46 @@
 }
 
 .main-content-assignment {
+  max-width: 1150px;
+  margin: 20px auto;
+  padding: 0 1.5rem;
+}
+
+/* Table container */
+.table-container {
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  position: relative;
+}
+
+/* Coding container shown in screenshot */
+.coding-container {
+  width: 100%;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 0 20px;
+}
+
+/* Create assignment container shown in screenshot */
+.create-assignment-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* For the combined selector div.coding-container.create-assignment-container shown in the screenshot */
+.coding-container.create-assignment-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-height: 600px;
+  background-color: white;
 }
 
 /* Common Section Styles */
@@ -1157,4 +1210,131 @@
   line-height: 1.7;
   white-space: pre-wrap;
   margin-top: 0.5rem;
+}
+
+/* Skeleton Loading Styles */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.25rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.skeleton-header {
+  height: 2.5rem;
+  width: 40%;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-subheader {
+  height: 1.25rem;
+  width: 60%;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-info-panel {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.skeleton-info-title {
+  height: 1.5rem;
+  width: 30%;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1.25rem;
+}
+
+.skeleton-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton-label {
+  height: 0.75rem;
+  width: 60%;
+}
+
+.skeleton-value {
+  height: 1rem;
+  width: 80%;
+}
+
+.skeleton-tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-tab {
+  height: 2.5rem;
+  width: 8rem;
+  border-radius: 0.375rem;
+}
+
+.skeleton-content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 1.5rem;
+}
+
+.skeleton-main-content {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  height: 300px;
+}
+
+.skeleton-feedback {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  height: 300px;
+}
+
+.skeleton-feedback-title {
+  height: 1.5rem;
+  width: 40%;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-feedback-input {
+  height: 8rem;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-button {
+  height: 2.5rem;
+  width: 100%;
+  border-radius: 0.375rem;
 }
