@@ -365,19 +365,31 @@
 
 /* Add CSS for the table header and refresh button */
 .table-header {
-  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
 }
 
-.table-header h2 {
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.table-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
+}
+
+.table-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
 }
 
 .refresh-all-button {
