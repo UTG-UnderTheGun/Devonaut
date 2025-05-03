@@ -10,6 +10,8 @@ import './EditorSection.css';
 import { useCodeContext } from '@/app/context/CodeContext';
 import axios from 'axios';
 import _ from 'lodash';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Register Python language
 SyntaxHighlighter.registerLanguage('python', python);
@@ -64,9 +66,12 @@ const EditorSection = ({
   description,
   setDescription,
   setSelectedDescriptionTab,
+  selectedDescriptionTab,
+  user_id,
   handleClearImport,
   isConsoleFolded,
-  setIsConsoleFolded
+  setIsConsoleFolded,
+  assignmentId
 }) => {
   const [showEmptyState, setShowEmptyState] = useState(true);
   const [outputAnswers, setOutputAnswers] = useState({});
@@ -75,8 +80,9 @@ const EditorSection = ({
   const [isImport, setIsImport] = useState(false);
   const [isImported, setIsImported] = useState(false);
   const [lastKeystrokeTime, setLastKeystrokeTime] = useState(null);
-  const KEYSTROKE_DEBOUNCE_TIME = 1000; // 1 second
+  const KEYSTROKE_DEBOUNCE_TIME = 300; // Change from 1000 to 300 milliseconds for more responsive tracking
   const [contextMenu, setContextMenu] = useState(null);
+  const [textareaHeights, setTextareaHeights] = useState({});
 
   // This wrapper is used when StorageManager calls onImport.
   const handleImportWrapper = async (data) => {
@@ -232,72 +238,340 @@ const EditorSection = ({
     }
     
     // Now load code for the new problem
-    const loadProblemCode = () => {
+    const loadProblemCode = async () => {
       if (!problems || !problems[currentProblemIndex]) return;
       
       const currentProblem = problems[currentProblemIndex];
       const effectiveType = mapExerciseType(currentProblem.type || testType);
+      const questionNumber = currentProblemIndex + 1;
+      
+      console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType} (question #${questionNumber})`);
+      
+      let codeToSet = ''; // Variable to store the code we'll load
+      
+      // First try to load from server API if we have an assignment ID
+      if (assignmentId) {
+        try {
+          console.log(`Trying to fetch latest code from server for assignment ${assignmentId}, problem ${currentProblemIndex}`);
+          const response = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/get-latest-code`, 
+            { 
+              params: { 
+                assignment_id: assignmentId,
+                problem_index: currentProblemIndex,
+                exercise_id: currentProblem.id
+              },
+              withCredentials: true 
+            }
+          );
+          
+          if (response.data && response.data.code) {
+            console.log(`Found latest code from server for problem ${currentProblemIndex} (source: ${response.data.source || 'unknown'})`);
+            codeToSet = response.data.code;
+            handleCodeChange(codeToSet);
+            if (editorRef.current) {
+              editorRef.current.setValue(codeToSet);
+            }
+            
+            // Also store this code in localStorage for offline use
+            const key = `code-${effectiveType}-${currentProblemIndex}`;
+            localStorage.setItem(key, codeToSet);
+            
+            // Also update the problem-answers storage
+            try {
+              const answersString = localStorage.getItem('problem-answers');
+              let answers = {};
+              if (answersString) {
+                answers = JSON.parse(answersString);
+              }
+              answers[`coding-${questionNumber}`] = codeToSet;
+              answers[questionNumber] = codeToSet;
+              localStorage.setItem('problem-answers', JSON.stringify(answers));
+            } catch (e) {
+              console.warn('Could not update problem-answers with server code:', e);
+            }
+            
+            // Track this initial code load as a keystroke
+            setTimeout(() => {
+              if (codeToSet) {
+                let cursorPosition = null;
+                if (editorRef.current) {
+                  const model = editorRef.current.getModel();
+                  const selection = editorRef.current.getSelection();
+                  if (model && selection) {
+                    cursorPosition = {
+                      lineNumber: selection.positionLineNumber,
+                      column: selection.positionColumn
+                    };
+                  }
+                }
+                debouncedSaveKeystrokes(codeToSet, cursorPosition);
+              }
+            }, 500);
+            
+            return; // Found code, return early
+          }
+        } catch (e) {
+          console.warn('Could not load code from server:', e);
+        }
+      }
+      
+      // Try to load from problem-answers first for coding exercises (new format)
+      if (effectiveType === 'code' || effectiveType === 'coding') {
+        try {
+          const answersString = localStorage.getItem('problem-answers');
+          if (answersString) {
+            const answers = JSON.parse(answersString);
+            const codingKey = `coding-${questionNumber}`;
+            
+            if (answers[codingKey]) {
+              console.log(`Found saved coding answer for question #${questionNumber}`);
+              codeToSet = answers[codingKey];
+              handleCodeChange(codeToSet);
+              if (editorRef.current) {
+                editorRef.current.setValue(codeToSet);
+              }
+              
+              // Also track this initial code load as a keystroke
+              setTimeout(() => {
+                if (codeToSet) {
+                  let cursorPosition = null;
+                  if (editorRef.current) {
+                    const model = editorRef.current.getModel();
+                    const selection = editorRef.current.getSelection();
+                    if (model && selection) {
+                      cursorPosition = {
+                        lineNumber: selection.positionLineNumber,
+                        column: selection.positionColumn
+                      };
+                    }
+                  }
+                  
+                  debouncedSaveKeystrokes(codeToSet, cursorPosition);
+                }
+              }, 500); // Small delay to ensure editor is fully loaded
+              
+              return; // Found code, return early
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load coding answer from problem-answers:', e);
+        }
+      }
       
       // Try to load saved code specifically for this problem
       const key = `code-${effectiveType}-${currentProblemIndex}`;
       const savedCode = localStorage.getItem(key);
       
-      console.log(`Attempting to load code for problem ${currentProblemIndex} of type ${effectiveType}`);
       console.log(`Looking for key: ${key}`);
       
       if (savedCode) {
         console.log(`Found saved code for problem ${currentProblemIndex} from ${key}`);
-        handleCodeChange(savedCode);
+        codeToSet = savedCode;
+        handleCodeChange(codeToSet);
         if (editorRef.current) {
-          editorRef.current.setValue(savedCode);
+          editorRef.current.setValue(codeToSet);
         }
       } else if (currentProblem.code) {
         // If no saved code, use the problem's original code
         console.log(`Using original code for problem ${currentProblemIndex}`);
-        handleCodeChange(currentProblem.code);
+        codeToSet = currentProblem.code;
+        handleCodeChange(codeToSet);
         if (editorRef.current) {
-          editorRef.current.setValue(currentProblem.code);
+          editorRef.current.setValue(codeToSet);
         }
         // Save this code to localStorage for future
-        localStorage.setItem(key, currentProblem.code);
+        localStorage.setItem(key, codeToSet);
       } else if (currentProblem.starterCode) {
         // Fall back to starter code if no saved code and no original code
         console.log(`Using starter code for problem ${currentProblemIndex}`);
-        handleCodeChange(currentProblem.starterCode);
+        codeToSet = currentProblem.starterCode;
+        handleCodeChange(codeToSet);
         if (editorRef.current) {
-          editorRef.current.setValue(currentProblem.starterCode);
+          editorRef.current.setValue(codeToSet);
         }
         // Save this code to localStorage for future
-        localStorage.setItem(key, currentProblem.starterCode);
+        localStorage.setItem(key, codeToSet);
       }
+      
+      // Also track this initial code load as a keystroke
+      setTimeout(() => {
+        if (codeToSet) {
+          let cursorPosition = null;
+          if (editorRef.current) {
+            const model = editorRef.current.getModel();
+            const selection = editorRef.current.getSelection();
+            if (model && selection) {
+              cursorPosition = {
+                lineNumber: selection.positionLineNumber,
+                column: selection.positionColumn
+              };
+            }
+          }
+          
+          debouncedSaveKeystrokes(codeToSet, cursorPosition);
+        }
+      }, 500); // Small delay to ensure editor is fully loaded
     };
     
     loadProblemCode();
-  }, [currentProblemIndex, problems, testType]);
+  }, [currentProblemIndex, problems, testType, assignmentId]);
 
   // Create a debounced function to save keystrokes
   const debouncedSaveKeystrokes = useCallback(
     _.debounce(async (code, cursorPosition) => {
       try {
+        // Debug logs to verify function is called
+        console.log('DEBUG KEYSTROKE CLIENT: debouncedSaveKeystrokes triggered');
+        
+        // Get user ID from localStorage or sessionStorage
+        const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
+        console.log('DEBUG KEYSTROKE CLIENT: User ID:', userId);
+        
+        // Make sure problem index is a number to avoid validation errors
+        const problemIndex = Number(currentProblemIndex);
+        
+        // Get assignment ID - check both props and localStorage
+        const effectiveAssignmentId = assignmentId || localStorage.getItem('current-assignment-id') || '';
+        console.log('DEBUG KEYSTROKE CLIENT: Assignment ID:', effectiveAssignmentId);
+
+        // Check for previous code to calculate changes
+        const previousCode = localStorage.getItem(`keystrokes-last-${problemIndex}-${effectiveAssignmentId || 'local'}`);
+        
+        // Get exercise ID from the current problem
+        let exerciseId = '';
+        if (problems && problems[currentProblemIndex]) {
+          exerciseId = String(problems[currentProblemIndex].id || '');
+          console.log('DEBUG KEYSTROKE CLIENT: Exercise ID:', exerciseId);
+        }
+        
         const keystrokeData = {
           code: code,
-          problem_index: currentProblemIndex,
-          test_type: testType,
-          cursor_position: cursorPosition,
-          timestamp: new Date().toISOString()
+          problem_index: problemIndex,
+          exercise_id: exerciseId,
+          assignment_id: effectiveAssignmentId,
+          test_type: testType || 'code',
+          cursor_position: cursorPosition || {}
         };
+        
+        console.log('DEBUG KEYSTROKE CLIENT: Data being sent:', {
+          problem_index: keystrokeData.problem_index,
+          exercise_id: keystrokeData.exercise_id,
+          assignment_id: keystrokeData.assignment_id,
+          test_type: keystrokeData.test_type,
+          cursor_position: keystrokeData.cursor_position,
+          code_length: keystrokeData.code?.length || 0
+        });
+        
+        // Track what was changed (for better visualizing code evolution)
+        if (previousCode && previousCode !== code) {
+          // Find line numbers that changed
+          const prevLines = previousCode.split('\n');
+          const currLines = code.split('\n');
+          
+          // Simple approach to track changes
+          const changedLines = [];
+          const maxLines = Math.max(prevLines.length, currLines.length);
+          
+          for (let i = 0; i < maxLines; i++) {
+            const prevLine = i < prevLines.length ? prevLines[i] : null;
+            const currLine = i < currLines.length ? currLines[i] : null;
+            
+            if (prevLine !== currLine) {
+              changedLines.push({
+                line: i + 1,
+                previous: prevLine,
+                current: currLine
+              });
+            }
+          }
+          
+          // Add changed lines to keystroke data
+          keystrokeData.changes = changedLines;
+        }
+        
+        // Save current code as previous for next comparison
+        localStorage.setItem(`keystrokes-last-${problemIndex}-${effectiveAssignmentId || 'local'}`, code);
 
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`,
-          keystrokeData,
-          { withCredentials: true }
-        );
-        console.log('Keystrokes tracked successfully');
+        console.log('DEBUG KEYSTROKE CLIENT: Sending API request to track-keystrokes');
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/track-keystrokes`;
+        console.log('DEBUG KEYSTROKE CLIENT: API URL:', apiUrl);
+        
+        try {
+          // First try the dedicated keystroke API
+          const response = await axios.post(
+            apiUrl,
+            keystrokeData,
+            { withCredentials: true }
+          );
+          
+          // Check if response was successful
+          if (response.data && response.data.success) {
+            console.log('DEBUG KEYSTROKE CLIENT: Keystrokes tracked successfully', response.data);
+          } else {
+            console.warn('Keystroke tracking returned unsuccessful status');
+          }
+        } catch (keystrokeErr) {
+          console.error('Error using keystroke API, falling back to code_history API:', keystrokeErr);
+          
+          // Fall back to code_history API for keystroke tracking
+          try {
+            const historyData = {
+              code: code,
+              problem_index: problemIndex,
+              exercise_id: keystrokeData.exercise_id,
+              assignment_id: keystrokeData.assignment_id,
+              test_type: keystrokeData.test_type,
+              action_type: 'keystroke'
+            };
+            
+            const fallbackResponse = await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/save-code-history`,
+              historyData,
+              { withCredentials: true }
+            );
+            
+            if (fallbackResponse.data && fallbackResponse.data.success) {
+              console.log('DEBUG KEYSTROKE CLIENT: Used code_history API as fallback for keystroke tracking');
+            } else {
+              console.warn('Fallback keystroke tracking failed');
+            }
+          } catch (fallbackErr) {
+            console.error('Both keystroke APIs failed:', fallbackErr);
+          }
+        }
+        
+        // Store keystroke data locally regardless of API success/failure
+        try {
+          // Use problem index in the key to track keystrokes separately for each problem
+          const key = `keystrokes-${problemIndex}-${effectiveAssignmentId || 'local'}`;
+          const existingData = localStorage.getItem(key);
+          let keystrokeHistory = [];
+          
+          if (existingData) {
+            keystrokeHistory = JSON.parse(existingData);
+          }
+          
+          // Add new keystroke data with timestamp
+          keystrokeHistory.push({
+            ...keystrokeData,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Limit history size (optional, to prevent localStorage from getting too large)
+          if (keystrokeHistory.length > 500) {
+            keystrokeHistory = keystrokeHistory.slice(-500);
+          }
+          
+          localStorage.setItem(key, JSON.stringify(keystrokeHistory));
+        } catch (storageErr) {
+          console.warn('Error storing keystroke data locally:', storageErr);
+        }
       } catch (err) {
-        console.error('Error tracking keystrokes:', err);
+        console.error('Unexpected error in keystroke tracking:', err);
       }
     }, KEYSTROKE_DEBOUNCE_TIME),
-    [currentProblemIndex, testType]
+    [currentProblemIndex, testType, assignmentId, problems]
   );
 
   // Update the handleEditorChange function
@@ -315,6 +589,33 @@ const EditorSection = ({
     const key = `code-${currentType}-${currentProblemIndex}`;
     localStorage.setItem(key, value);
     console.log(`Saving code for problem ${currentProblemIndex} with key ${key}`);
+
+    // For coding exercises, store in answers as well with proper index (index+1)
+    if (currentType === 'code' || currentType === 'coding') {
+      try {
+        // Get existing answers
+        const answersString = localStorage.getItem('problem-answers');
+        let answers = {};
+        
+        if (answersString) {
+          answers = JSON.parse(answersString);
+        }
+        
+        // Store code with both formats
+        // Format 1: coding-{questionNumber} for our internal use
+        const questionNumber = currentProblemIndex + 1;
+        answers[`coding-${questionNumber}`] = value;
+        
+        // Format 2: question number directly as key for backend compatibility
+        answers[questionNumber] = value;
+        
+        // Save back to localStorage
+        localStorage.setItem('problem-answers', JSON.stringify(answers));
+        console.log(`Saving coding answer for question ${questionNumber} in both formats`);
+      } catch (e) {
+        console.warn('Could not save coding answer to problem-answers:', e);
+      }
+    }
 
     if (typeof handleCodeChange === 'function') {
       handleCodeChange(value);
@@ -335,10 +636,9 @@ const EditorSection = ({
 
     // Track keystrokes with debouncing
     const now = Date.now();
-    if (!lastKeystrokeTime || now - lastKeystrokeTime >= KEYSTROKE_DEBOUNCE_TIME) {
-      debouncedSaveKeystrokes(value, cursorPosition);
-      setLastKeystrokeTime(now);
-    }
+    // Always track keystrokes when editor changes, but use debouncing to limit API calls
+    debouncedSaveKeystrokes(value, cursorPosition);
+    setLastKeystrokeTime(now);
   };
 
   const handleResetAll = () => {
@@ -371,6 +671,7 @@ const EditorSection = ({
       /^problem-title-/,  // problem-title-*
       /^problem-description-/, // problem-description-*
       /^output-/,         // output-*
+      /^keystrokes-/,     // keystrokes-* (add this pattern to clean up keystroke data)
       /^editorCode$/,     // editorCode (exact match)
       /^problem-code$/,   // problem-code (exact match)
       /^problem-outputs$/,// problem-outputs (exact match)
@@ -537,12 +838,13 @@ const EditorSection = ({
     if (problems && problems.length > 0 && problems[currentProblemIndex] && testType === 'output') {
       const currentProblem = problems[currentProblemIndex];
       if (currentProblem.expectedOutput && currentProblem.expectedOutput.trim() !== '') {
+        const questionNumber = currentProblemIndex + 1;
         setOutputAnswers(prev => {
           const newOutputAnswers = { ...prev };
-          if (!newOutputAnswers[currentProblemIndex]) {
-            newOutputAnswers[currentProblemIndex] = currentProblem.expectedOutput;
+          if (!newOutputAnswers[questionNumber]) {
+            newOutputAnswers[questionNumber] = currentProblem.expectedOutput;
             localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
-            console.log(`Set output answer for problem ${currentProblemIndex} to: ${currentProblem.expectedOutput}`);
+            console.log(`Set output answer for problem ${questionNumber} to: ${currentProblem.expectedOutput}`);
           }
           return newOutputAnswers;
         });
@@ -558,9 +860,10 @@ const EditorSection = ({
       if (currentProblem.userAnswers && currentProblem.userAnswers.outputAnswer) {
         const savedOutputAnswer = currentProblem.userAnswers.outputAnswer;
         console.log(`Loading saved output answer for problem ${currentProblemIndex}:`, savedOutputAnswer);
-        // Update outputAnswers state and localStorage
+        // Update outputAnswers state and localStorage with index+1
+        const questionNumber = currentProblemIndex + 1;
         setOutputAnswers(prev => {
-          const newOutputAnswers = { ...prev, [currentProblemIndex]: savedOutputAnswer };
+          const newOutputAnswers = { ...prev, [questionNumber]: savedOutputAnswer };
           localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
           return newOutputAnswers;
         });
@@ -584,14 +887,37 @@ const EditorSection = ({
         { withCredentials: true }
       );
       
+      // Store context data to handle input requirements
+      window.lastResponseContext = {
+        needs_input: response.data.needs_input || false,
+        input_marker: response.data.input_marker || null
+      };
+      
       if (response.data.error) {
         setError(response.data.error);
         setOutput('');
         setConsoleOutput('');
       } else {
-        setOutput(response.data.output);
+        // Clean the output if needed before setting it
+        const cleanOutput = response.data.output;
+        setOutput(cleanOutput);
         setError('');
-        setConsoleOutput(response.data.output);
+        setConsoleOutput(cleanOutput);
+        
+        // Emit an event to update the terminal state directly
+        // This is useful for cases where the terminal is already open
+        if (response.data.needs_input || response.data.input_marker === "__INPUT_REQUIRED__") {
+          const outputEvent = new CustomEvent('console-output-updated', {
+            detail: {
+              output: cleanOutput,
+              context: {
+                needs_input: response.data.needs_input,
+                input_marker: response.data.input_marker
+              }
+            }
+          });
+          window.dispatchEvent(outputEvent);
+        }
       }
 
       // Save code history with problem index
@@ -599,6 +925,8 @@ const EditorSection = ({
         const historyData = {
           code: currentCode,
           problem_index: currentProblemIndex,
+          exercise_id: problems[currentProblemIndex]?.id,
+          assignment_id: assignmentId,
           test_type: testType,
           output: response.data.output || '',
           error: response.data.error || '',
@@ -650,10 +978,14 @@ const EditorSection = ({
         { withCredentials: true }
       );
 
+      // Get the question number (index+1) for consistency
+      const questionNumber = currentProblemIndex + 1;
+
       // Then save the submission history with the special is_submission flag
       const historyData = {
         code: code,
         problem_index: currentProblemIndex,
+        question_number: questionNumber, // Add question number for clarity
         test_type: testType,
         output: runResponse.data.output || '',
         error: runResponse.data.error || '',
@@ -669,6 +1001,32 @@ const EditorSection = ({
         { withCredentials: true }
       );
       console.log('Code submission history saved successfully');
+
+      // Also save to the problem-answers with proper indexing
+      if (testType === 'code' || testType === 'coding') {
+        try {
+          // Get existing answers
+          const answersString = localStorage.getItem('problem-answers');
+          let answers = {};
+          
+          if (answersString) {
+            answers = JSON.parse(answersString);
+          }
+          
+          // Store code in both formats for compatibility
+          // Format 1: coding-{questionNumber} for our new system
+          answers[`coding-${questionNumber}`] = code;
+          
+          // Format 2: direct question number as key for backend compatibility
+          answers[questionNumber] = code;
+          
+          // Save back to localStorage
+          localStorage.setItem('problem-answers', JSON.stringify(answers));
+          console.log(`Saved final coding answer for question ${questionNumber} in both formats`);
+        } catch (e) {
+          console.warn('Could not save final coding answer:', e);
+        }
+      }
     } catch (err) {
       console.error('Error saving code submission history:', err);
     }
@@ -772,6 +1130,76 @@ const EditorSection = ({
       handleCloseContextMenu();
     }
   };
+
+  // Store assignment ID in localStorage as soon as it's available
+  useEffect(() => {
+    if (assignmentId) {
+      localStorage.setItem('current-assignment-id', assignmentId);
+      console.log(`EditorSection: Assignment ID stored in localStorage: ${assignmentId}`);
+    }
+  }, [assignmentId]);
+
+  const countLines = (text) => {
+    if (!text) return 0;
+    return text.split('\n').length;
+  };
+
+  // Add a useEffect to reset the textarea height when switching problems
+  useEffect(() => {
+    const answerTextarea = document.querySelector('.output-input');
+    if (answerTextarea) {
+      // Set the height to the saved height or default height
+      const savedHeight = textareaHeights[currentProblemIndex + 1];
+      if (savedHeight) {
+        answerTextarea.style.height = savedHeight;
+      } else {
+        answerTextarea.style.height = '32px'; // Default height
+      }
+    }
+  }, [currentProblemIndex, textareaHeights]);
+
+  // Add effect for syncing code with server when navigating between problems
+  useEffect(() => {
+    const fetchLatestCodeFromServer = async () => {
+      if (!problems || !problems[currentProblemIndex] || !assignmentId) return;
+      
+      try {
+        const currentProblem = problems[currentProblemIndex];
+        console.log(`Refreshing latest code from server for problem ${currentProblemIndex} in assignment ${assignmentId}`);
+        
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/code/get-latest-code`, 
+          { 
+            params: { 
+              assignment_id: assignmentId,
+              problem_index: currentProblemIndex,
+              exercise_id: currentProblem.id
+            },
+            withCredentials: true 
+          }
+        );
+        
+        if (response.data && response.data.code) {
+          console.log(`Found latest code from server for problem ${currentProblemIndex} (source: ${response.data.source || 'unknown'})`);
+          const latestCode = response.data.code;
+          
+          // If we have new code, update state and editor
+          if (latestCode && editorRef.current) {
+            const currentValue = editorRef.current.getValue();
+            if (currentValue !== latestCode) {
+              console.log('Updating editor with latest code from server');
+              handleCodeChange(latestCode);
+              editorRef.current.setValue(latestCode);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not refresh latest code from server:', e);
+      }
+    };
+    
+    fetchLatestCodeFromServer();
+  }, [currentProblemIndex, assignmentId]);
 
   return (
     <div className="code-editor">
@@ -912,6 +1340,13 @@ const EditorSection = ({
       return <div className="error">เกิดข้อผิดพลาดในการโหลดโค้ด: {error.message}</div>;
     }
 
+    // Check if the Description tab is selected
+    const showDescription = selectedDescriptionTab !== 'Description';
+    
+    // Count lines in the description
+    const descriptionLines = countLines(currentProblem.description);
+    const isShortDescription = descriptionLines < 5;
+
     switch (effectiveTestType) {
       case 'code':
         console.log("Rendering code type");
@@ -932,9 +1367,17 @@ const EditorSection = ({
         console.log("Output code:", outputCode ? outputCode.substring(0, 50) + "..." : "empty");
         
         return (
-          <div className="output-question">
-            <div className="question-title">{currentProblem.title || ''}</div>
-            <div className="question-description">{currentProblem.description || ''}</div>
+          <div className={`output-question ${!showDescription ? 'no-description' : ''} ${isShortDescription ? 'short-description' : ''}`}>
+            {showDescription && (
+              <>
+                <div className="question-title">{currentProblem.title || ''}</div>
+                <div className="question-description">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentProblem.description || ''}
+                  </ReactMarkdown>
+                </div>
+              </>
+            )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, outputCode)}>
               <SyntaxHighlighter 
                 language="python" 
@@ -955,9 +1398,10 @@ const EditorSection = ({
               <textarea
                 placeholder="ใส่คำตอบของคุณ..."
                 className="output-input"
-                value={outputAnswers[currentProblemIndex] || ''}
+                value={outputAnswers[currentProblemIndex + 1] || ''}
                 onChange={(e) => {
-                  const newOutputAnswers = { ...outputAnswers, [currentProblemIndex]: e.target.value };
+                  const questionNumber = currentProblemIndex + 1;
+                  const newOutputAnswers = { ...outputAnswers, [questionNumber]: e.target.value };
                   setOutputAnswers(newOutputAnswers);
                   localStorage.setItem('problem-outputs', JSON.stringify(newOutputAnswers));
                 }}
@@ -965,6 +1409,13 @@ const EditorSection = ({
                 onInput={(e) => {
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
+                  
+                  // Save the current height for this problem
+                  const questionNumber = currentProblemIndex + 1;
+                  setTextareaHeights(prev => ({
+                    ...prev,
+                    [questionNumber]: e.target.style.height
+                  }));
                 }}
               />
             </div>
@@ -987,9 +1438,17 @@ const EditorSection = ({
           return <div className="error">เกิดข้อผิดพลาดในการแบ่งโค้ด: {error.message}</div>;
         }
         return (
-          <div className="fill-question">
-            <div className="question-title">{currentProblem.title || ''}</div>
-            <div className="question-description">{currentProblem.description || ''}</div>
+          <div className={`fill-question ${!showDescription ? 'no-description' : ''} ${isShortDescription ? 'short-description' : ''}`}>
+            {showDescription && (
+              <>
+                <div className="question-title">{currentProblem.title || ''}</div>
+                <div className="question-description">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentProblem.description || ''}
+                  </ReactMarkdown>
+                </div>
+              </>
+            )}
             <div className="code-display" onContextMenu={(e) => handleContextMenu(e, fillCode)}>
               <pre style={{ margin: 0, background: 'transparent', userSelect: 'text' }}>
                 {codeParts.map((part, index, array) => (
@@ -1017,7 +1476,11 @@ const EditorSection = ({
                         placeholder="เติมคำตอบ..."
                         value={answers[`blank-${currentProblemIndex + 1}-${index}`] || ''}
                         onChange={(e) => {
-                          const newAnswers = { ...answers, [`blank-${currentProblemIndex + 1}-${index}`]: e.target.value };
+                          const questionNumber = currentProblemIndex + 1;
+                          const newAnswers = { 
+                            ...answers, 
+                            [`blank-${questionNumber}-${index}`]: e.target.value 
+                          };
                           setAnswers(newAnswers);
                           localStorage.setItem('problem-answers', JSON.stringify(newAnswers));
                         }}

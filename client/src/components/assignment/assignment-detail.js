@@ -133,6 +133,26 @@ const AssignmentDetail = ({ assignmentId, onBack }) => {
     }));
   };
 
+  // Function to handle exercise type change
+  const handleExerciseTypeChange = (type) => {
+    // Make sure we preserve existing code content across different exercise types
+    const currentEx = assignment.exercises[currentExercise];
+    const updatedExercise = {
+      ...currentEx,
+      type: type,
+      // Make sure the code field is initialized properly
+      code: currentEx.code || ""
+    };
+    
+    const updatedExercises = [...assignment.exercises];
+    updatedExercises[currentExercise] = updatedExercise;
+    
+    setAssignment(prev => ({
+      ...prev,
+      exercises: updatedExercises
+    }));
+  };
+
   const handleAddExercise = () => {
     const newId = `exercise_${Date.now()}`;
     
@@ -560,6 +580,86 @@ def binary_search(arr, target):
                     placeholder="Enter test cases"
                   />
                 </div>
+
+
+                <div className="form-group">
+                  <div className="exercise-list-header">
+                    <label className="exercise-list-title">Exercises</label>
+                  </div>
+                  <div className="exercise-tabs">
+                    {assignment.exercises.map((exercise, index) => (
+                      <div
+                        key={index}
+                        className={`exercise-tab ${index === currentExercise ? 'active' : ''}`}
+                        onClick={() => setCurrentExercise(index)}
+                      >
+                        <span>{exercise.title.length > 15 ? exercise.title.substring(0, 15) + '...' : exercise.title}</span>
+                        <button
+                          className="remove-exercise"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExercise(index);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button className="add-exercise" onClick={handleAddExercise}>+</button>
+                  </div>
+                </div>
+
+                {currentExerciseData && (
+                  <>
+                    <div className="form-group">
+                      <label>Exercise Title</label>
+                      <input
+                        type="text"
+                        value={currentExerciseData.title}
+                        onChange={(e) => handleExerciseChange('title', e.target.value)}
+                        className="form-input"
+                        placeholder="Enter exercise title"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Exercise Description</label>
+                      <textarea
+                        value={currentExerciseData.description}
+                        onChange={(e) => handleExerciseChange('description', e.target.value)}
+                        className="form-textarea"
+                        rows="3"
+                        placeholder="Enter exercise description"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Points</label>
+                      <input
+                        type="number"
+                        value={currentExerciseData.points}
+                        onChange={(e) => handleExerciseChange('points', parseInt(e.target.value) || 0)}
+                        className="form-input"
+                        min="0"
+                        placeholder="Enter points for this exercise"
+                      />
+                    </div>
+
+                    {currentExerciseData.type === "coding" && (
+                      <div className="form-group">
+                        <label>Test Cases</label>
+                        <textarea
+                          value={currentExerciseData.test_cases || ""}
+                          onChange={(e) => handleExerciseChange('test_cases', e.target.value)}
+                          className="form-textarea"
+                          rows="3"
+                          placeholder="Enter test cases (e.g. assert sum([1,2,3]) == 6)"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
               </div>
             ) : (
               /* This is the settings view that appears when "Assign To" is clicked */
@@ -679,7 +779,7 @@ def binary_search(arr, target):
                     <button
                       key={type.id}
                       className={`code-type-button ${currentExerciseData?.type === type.id ? 'active' : ''}`}
-                      onClick={() => handleExerciseChange('type', type.id)}
+                      onClick={() => handleExerciseTypeChange(type.id)}
                     >
                       {type.label}
                     </button>
@@ -689,8 +789,16 @@ def binary_search(arr, target):
             </div>
             <div className="code-area-wrapper">
               <textarea
-                value={currentExerciseData?.starter_code || ""}
-                onChange={(e) => handleExerciseChange('starter_code', e.target.value)}
+                value={
+                  currentExerciseData?.type === 'coding'
+                    ? currentExerciseData?.starter_code || ""
+                    : currentExerciseData?.code || ""
+                }
+                onChange={(e) => 
+                  currentExerciseData?.type === 'coding'
+                    ? handleExerciseChange('starter_code', e.target.value)
+                    : handleExerciseChange('code', e.target.value)
+                }
                 className="code-area"
                 spellCheck="false"
                 placeholder={getPlaceholderForType(currentExerciseData?.type)}

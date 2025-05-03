@@ -5,7 +5,13 @@ import axios from 'axios';
 import './editor.css';
 import { useRouter } from 'next/navigation';
 
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+const MonacoEditor = dynamic(
+  () => import('@monaco-editor/react').then(mod => mod.default),
+  { 
+    ssr: false,
+    loading: () => <div className="monaco-editor-loading">Loading editor...</div>
+  }
+);
 
 export default function Editor({ isCodeQuestion, initialValue, onChange, problemIndex, testType }) {
   const router = useRouter();
@@ -27,17 +33,20 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
     }
 
     if (problemIndex !== undefined) {
+      // Generate a unique, consistent key for this problem
+      const problemKey = `problem-code-${problemIndex}`;
+      console.log(`Loading code for problem: ${problemKey}`);
+      
       // First try problem-specific code
-      const savedCode = localStorage.getItem(`problem-code-${problemIndex}`);
+      const savedCode = localStorage.getItem(problemKey);
       if (savedCode) {
+        console.log(`Found saved code for ${problemKey}:`, savedCode);
         setCode(savedCode);
       } else if (initialValue) {
+        console.log(`Setting initial value for ${problemKey}:`, initialValue);
         setCode(initialValue);
-        // Only store initial value if we're not in a reset state
-        const isImported = localStorage.getItem('is-imported') === 'true';
-        if (isImported) {
-          localStorage.setItem(`problem-code-${problemIndex}`, initialValue);
-        }
+        // Store initial value
+        localStorage.setItem(problemKey, initialValue);
       }
     } else {
       // Fallback for non-problem-specific code
@@ -48,12 +57,11 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
         setCode(initialValue);
       }
     }
-  }, [initialValue, problemIndex]);
+  }, [initialValue, problemIndex, setCode]);
 
   // Save code changes to localStorage - only store in ONE location to prevent duplicates
   useEffect(() => {
     if (code === undefined || code === null) return;
-    if (code === '# write code here') return;
     
     // Check if we're in a reset state
     const wasReset = localStorage.getItem('editor_reset_timestamp');
@@ -65,12 +73,25 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       }
     }
 
-    // Only store in problem-code-* format, not in both places
+    // Only store in problem-code-* format
     if (problemIndex !== undefined) {
-      localStorage.setItem(`problem-code-${problemIndex}`, code);
-      // Remove the old key format if it exists
-      localStorage.removeItem(`code-code-${problemIndex}`);
-      localStorage.removeItem(`code-${problemIndex}`);
+      const problemKey = `problem-code-${problemIndex}`;
+      console.log(`Saving code for ${problemKey}:`, code);
+      localStorage.setItem(problemKey, code);
+      
+      // Clean up old key formats
+      const oldKeys = [
+        `code-code-${problemIndex}`,
+        `code-${problemIndex}`,
+        `code-fill-${problemIndex}`
+      ];
+      
+      oldKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+          console.log(`Removing old key: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
     } else {
       localStorage.setItem('editorCode', code);
     }
@@ -100,24 +121,31 @@ export default function Editor({ isCodeQuestion, initialValue, onChange, problem
       
       // Clear problem-specific code if applicable
       if (problemIndex !== undefined) {
-        localStorage.removeItem(`problem-code-${problemIndex}`);
-        localStorage.removeItem(`code-code-${problemIndex}`);
-        localStorage.removeItem(`code-${problemIndex}`);
+        const problemKey = `problem-code-${problemIndex}`;
+        console.log(`Removing problem key: ${problemKey}`);
+        localStorage.removeItem(problemKey);
       }
       
       // Clear all problem-code-* items for complete reset
-      for (let i = localStorage.length - 1; i >= 0; i--) {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (
             key.startsWith('problem-code-') || 
             key.startsWith('code-code-') ||
+            key.startsWith('code-fill-') ||
             key === 'problem-code' ||
             key === 'editorCode'
         )) {
-          console.log("Editor.js removing key:", key);
-          localStorage.removeItem(key);
+          keysToRemove.push(key);
         }
       }
+      
+      // Remove keys separately to avoid indexing issues while iterating
+      keysToRemove.forEach(key => {
+        console.log("Editor.js removing key:", key);
+        localStorage.removeItem(key);
+      });
 
       // Force another editor refresh after a small delay
       setTimeout(() => {

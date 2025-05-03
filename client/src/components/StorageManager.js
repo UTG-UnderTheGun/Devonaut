@@ -212,55 +212,85 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
           }
         }
         
-        // Filter answers for this specific problem
-        const problemAnswers = {};
-        Object.keys(allAnswers).forEach(key => {
-          if (key.includes(`-${index + 1}-`) || key.includes(`-${index}-`)) {
-            problemAnswers[key] = allAnswers[key];
+        // Structure answers according to the AssignmentSubmission schema
+        // with exercise ID as the key in a Dict[int, Any] format
+        const exerciseId = problem.id || index + 1;
+        const answer = {};
+        
+        // Build answer data based on problem type
+        if (problemType === 'fill') {
+          // Get all blank answers for this exercise
+          const exerciseBlanks = {};
+          Object.entries(allAnswers).forEach(([key, value]) => {
+            if (key.startsWith(`blank-${exerciseId}-`) || 
+                key.startsWith(`blank-${index}-`) ||
+                key.startsWith(`blank-${index + 1}-`)) {
+              exerciseBlanks[key] = value;
+            }
+          });
+          
+          // If there are blanks, add them to the answer
+          if (Object.keys(exerciseBlanks).length > 0) {
+            Object.assign(answer, exerciseBlanks);
           }
-        });
-
-        // Create export object based on problem type
-        const baseExport = {
-          id: index + 1,
+        } else if (problemType === 'output' || problemType === 'explain') {
+          // Get output answer
+          const outputAnswer = allOutputs[index] || allOutputs[index.toString()] || 
+                              allOutputs[exerciseId] || allOutputs[exerciseId.toString()];
+          if (outputAnswer) {
+            // For output-type problems, the answer is the output string
+            return {
+              id: exerciseId,
+              title: problem.title || '',
+              description: problem.description || '',
+              code: currentCode,
+              type: problemType,
+              answers: {
+                [exerciseId]: outputAnswer
+              }
+            };
+          }
+        } else if (problemType === 'code' || problemType === 'coding') {
+          // For code problems, the answer is the code itself
+          // Store it directly with the exercise ID as shown in the schema example
+          const codeAnswer = currentCode;
+          console.log(`Exporting code for problem ${index} (ID: ${exerciseId}): ${codeAnswer.substring(0, 30)}...`);
+          
+          return {
+            id: exerciseId,
+            title: problem.title || '',
+            description: problem.description || '',
+            code: currentCode,
+            type: problemType === 'coding' ? 'code' : problemType, // Normalize type
+            answers: {
+              [exerciseId]: codeAnswer // เก็บค่าโดยใช้ ID เป็นคีย์
+            }
+          };
+        }
+        
+        // If we have a specific answer structure from above, return it
+        if (Object.keys(answer).length > 0) {
+          return {
+            id: exerciseId,
+            title: problem.title || '',
+            description: problem.description || '',
+            code: currentCode,
+            type: problemType,
+            answers: {
+              [exerciseId]: answer
+            }
+          };
+        }
+        
+        // Default export object with empty answers
+        return {
+          id: exerciseId,
           title: problem.title || '',
           description: problem.description || '',
           code: currentCode,
           type: problemType,
-          userAnswers: {} // Start with empty object
+          answers: {}
         };
-
-        // Add type-specific data
-        switch (problemType) {
-          case 'fill':
-            if (Object.keys(problemAnswers).length > 0) {
-              baseExport.userAnswers.fillAnswers = problemAnswers;
-            }
-            break;
-          case 'output':
-          case 'explain':
-            // Check both direct index and string index for output answers
-            const outputAnswer = allOutputs[index] || allOutputs[index.toString()];
-            if (outputAnswer) {
-              console.log(`Found output answer for problem ${index}:`, outputAnswer);
-              baseExport.userAnswers.outputAnswer = outputAnswer;
-            }
-            break;
-          case 'code':
-            // Always include the code as an answer for code type problems
-            if (currentCode && currentCode.trim() !== '') {
-              baseExport.userAnswers.codeAnswer = currentCode;
-            }
-            // Check both direct index and string index for output answers
-            const codeOutputAnswer = allOutputs[index] || allOutputs[index.toString()];
-            if (codeOutputAnswer) {
-              baseExport.userAnswers.outputAnswer = codeOutputAnswer;
-            }
-            break;
-        }
-
-        console.log(`Exporting problem ${index}:`, baseExport);
-        return baseExport;
       });
       
       // Convert to JSON and create download
@@ -307,21 +337,16 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
       // Set the imported flag
       localStorage.setItem('is-imported', 'true');
 
-      // Prepare to collect all answers and outputs
-      const allAnswers = {};
-      const allOutputs = {};
+      // Prepare to collect answers in the schema-compatible format
+      const schemaAnswers = {};
       
-      // Process the imported data to extract answers and outputs
+      // Process the imported data to extract answers in the correct format
       if (Array.isArray(data)) {
-        // Map exercise types more carefully - only convert if needed
         data.forEach((item, index) => {
-          // Only convert types that need conversion
+          // Normalize exercise type
           if (item.type === 'coding' && item.type !== 'code') {
             console.log(`Converting exercise ${index + 1} type from 'coding' to 'code'`);
             item.type = 'code';
-          } else if (item.type === 'explain' && item.type !== 'output') {
-            console.log(`Converting exercise ${index + 1} type from 'explain' to 'output'`);
-            item.type = 'output';
           }
           
           // Store title and description in localStorage for each problem
@@ -340,25 +365,52 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
             console.log(`Stored code for problem ${index} with key ${codeKey}`);
           }
 
-          // Save user answers if they exist
-          if (item.userAnswers) {
-            Object.keys(item.userAnswers).forEach(key => {
-              allAnswers[key] = item.userAnswers[key];
+          // Store answers in the schema-compatible format
+          const exerciseId = item.id || (index + 1).toString();
+          
+          // Process answers from the answers object if it exists
+          if (item.answers && typeof item.answers === 'object') {
+            // If answers follows the schema format (Dict[int, Any])
+            Object.entries(item.answers).forEach(([answerKey, answerValue]) => {
+              schemaAnswers[answerKey] = answerValue;
             });
           }
           
-          // Save output answers if they exist
-          if (item.outputAnswer) {
-            allOutputs[index] = item.outputAnswer;
-          }
-          
-          // For backward compatibility
-          if (!item.answers) {
-            item.answers = {};
+          // Also check legacy format in userAnswers
+          if (item.userAnswers) {
+            if (item.type === 'output' || item.type === 'explain') {
+              if (item.userAnswers.outputAnswer) {
+                schemaAnswers[exerciseId] = item.userAnswers.outputAnswer;
+              }
+            } else if (item.type === 'code' || item.type === 'coding') {
+              if (item.userAnswers.codeAnswer) {
+                schemaAnswers[exerciseId] = item.userAnswers.codeAnswer;
+              } else if (item.code) {
+                // Fallback to using the problem code
+                schemaAnswers[exerciseId] = item.code;
+              }
+            } else if (item.type === 'fill') {
+              if (item.userAnswers.fillAnswers) {
+                // For fill exercises, store the individual blank answers
+                Object.entries(item.userAnswers.fillAnswers).forEach(([blankKey, blankValue]) => {
+                  // Make sure the blank key is in the format blank-exerciseId-index
+                  if (!blankKey.startsWith(`blank-${exerciseId}-`)) {
+                    // Reformat to ensure it's properly associated with the exercise
+                    const blankIndex = blankKey.split('-').pop();
+                    schemaAnswers[`blank-${exerciseId}-${blankIndex}`] = blankValue;
+                  } else {
+                    schemaAnswers[blankKey] = blankValue;
+                  }
+                });
+              }
+            }
           }
         });
       } else {
-        // Single problem case
+        // Single problem case - handle the same way
+        const exerciseId = data.id || '1';
+        const index = 0;
+        
         if (data.title) {
           localStorage.setItem('problem-title-0', data.title);
         }
@@ -374,28 +426,37 @@ const StorageManager = ({ onImport, currentProblemIndex, testType }) => {
           console.log(`Stored code for single problem with key ${codeKey}`);
         }
 
-        if (data.userAnswers) {
-          Object.keys(data.userAnswers).forEach(key => {
-            allAnswers[key] = data.userAnswers[key];
+        // Process answers from the schema-compatible format if present
+        if (data.answers && typeof data.answers === 'object') {
+          Object.entries(data.answers).forEach(([answerKey, answerValue]) => {
+            schemaAnswers[answerKey] = answerValue;
           });
         }
         
-        if (data.outputAnswer) {
-          allOutputs[0] = data.outputAnswer;
-        }
-        
-        if (!data.answers) {
-          data.answers = {};
+        // Also check legacy format in userAnswers
+        if (data.userAnswers) {
+          if (data.type === 'output' || data.type === 'explain') {
+            if (data.userAnswers.outputAnswer) {
+              schemaAnswers[exerciseId] = data.userAnswers.outputAnswer;
+            }
+          } else if (data.type === 'code' || data.type === 'coding') {
+            // For coding exercises, store the code directly with the exercise ID
+            if (data.userAnswers.codeAnswer) {
+              schemaAnswers[exerciseId] = data.userAnswers.codeAnswer;
+              console.log(`Storing code answer for exercise ${exerciseId}: ${data.userAnswers.codeAnswer.substring(0, 30)}...`);
+            } else if (data.code) {
+              // Fallback to using the problem code
+              schemaAnswers[exerciseId] = data.code;
+              console.log(`Using problem code for exercise ${exerciseId}: ${data.code.substring(0, 30)}...`);
+            }
+          }
         }
       }
       
-      // Save all collected answers and outputs to localStorage
-      if (Object.keys(allAnswers).length > 0) {
-        localStorage.setItem('problem-answers', JSON.stringify(allAnswers));
-      }
-      
-      if (Object.keys(allOutputs).length > 0) {
-        localStorage.setItem('problem-outputs', JSON.stringify(allOutputs));
+      // Save the schema-compatible answers to localStorage
+      if (Object.keys(schemaAnswers).length > 0) {
+        localStorage.setItem('problem-answers', JSON.stringify(schemaAnswers));
+        console.log("Stored schema-compatible answers:", schemaAnswers);
       }
 
       if (typeof onImport === 'function') {

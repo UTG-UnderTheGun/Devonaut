@@ -11,23 +11,65 @@ const Terminal = () => {
   const [displayedOutput, setDisplayedOutput] = useState('');
   const [isWaitingForInput, setIsWaitingForInput] = useState(false);
   const [userInput, setUserInput] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
   const terminalRef = useRef(null);
   const inputRef = useRef(null);
+  const cursorRef = useRef(null);
 
   const hasError = Boolean(error);
+
+  // Update cursor position when input changes
+  useEffect(() => {
+    if (cursorRef.current && inputRef.current) {
+      // Calculate position based on text measurement
+      const textMeasure = document.createElement('span');
+      textMeasure.style.visibility = 'hidden';
+      textMeasure.style.position = 'absolute';
+      textMeasure.style.whiteSpace = 'pre';
+      
+      // Get all relevant font properties for accurate measurement
+      const inputStyle = window.getComputedStyle(inputRef.current);
+      textMeasure.style.font = inputStyle.font;
+      textMeasure.style.fontSize = inputStyle.fontSize;
+      textMeasure.style.fontFamily = inputStyle.fontFamily;
+      textMeasure.style.letterSpacing = inputStyle.letterSpacing;
+      textMeasure.style.fontWeight = inputStyle.fontWeight;
+      
+      textMeasure.textContent = userInput;
+      document.body.appendChild(textMeasure);
+      
+      // Get the prompt width
+      const promptWidth = document.querySelector('.terminal-prompt')?.offsetWidth || 0;
+      
+      // Position cursor after text plus prompt width
+      const textWidth = textMeasure.offsetWidth;
+      // Add a larger offset to move cursor more to the right
+      const cursorOffset = 6; // Increased from 4 to 8 pixels
+      setCursorPosition(promptWidth + textWidth + cursorOffset);
+      
+      // Clean up
+      document.body.removeChild(textMeasure);
+    }
+  }, [userInput]);
 
   // Update displayed output when output or error changes
   useEffect(() => {
     const newOutput = error || output || '';
+    
+    // Always set the displayed output directly - no need to clean
     setDisplayedOutput(newOutput);
     
-    // Check if output ends with input prompt
-    if (!error && newOutput.endsWith('__INPUT_REQUIRED__')) {
+    // Check if we need input based on context data
+    const contextData = window.lastResponseContext || {};
+    if (!error && (contextData.needs_input || contextData.input_marker === "__INPUT_REQUIRED__")) {
       setIsWaitingForInput(true);
-      setDisplayedOutput(newOutput.replace('__INPUT_REQUIRED__', ''));
-      // Focus the input field
       if (inputRef.current) {
-        setTimeout(() => inputRef.current.focus(), 50);
+        setTimeout(() => {
+          // Add null check inside the callback
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 50);
       }
     } else {
       setIsWaitingForInput(false);
@@ -37,16 +79,21 @@ const Terminal = () => {
   // Listen for console output updates
   useEffect(() => {
     const handleOutputUpdate = (event) => {
-      const { output: newOutput } = event.detail;
+      const { output: newOutput, context } = event.detail;
+      
+      // Set output without any cleaning needed
       setDisplayedOutput(newOutput);
       
-      // Check if output ends with input prompt
-      if (newOutput.endsWith('__INPUT_REQUIRED__')) {
+      // Check if we need input based on context
+      if (context && (context.needs_input || context.input_marker === "__INPUT_REQUIRED__")) {
         setIsWaitingForInput(true);
-        setDisplayedOutput(newOutput.replace('__INPUT_REQUIRED__', ''));
-        // Focus the input field
         if (inputRef.current) {
-          setTimeout(() => inputRef.current.focus(), 50);
+          setTimeout(() => {
+            // Add null check inside the callback
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }, 50);
         }
       } else {
         setIsWaitingForInput(false);
@@ -147,8 +194,8 @@ const Terminal = () => {
       const input = userInput;
       setUserInput('');
       
-      // Update the displayed output to include the user's input
-      setDisplayedOutput(prevOutput => prevOutput + input);
+      // Update the displayed output to include the user's input with prompt
+      setDisplayedOutput(prevOutput => prevOutput + '$ ' + input + '\n');
       
       // Send the input to the server
       const response = await axios.post(
@@ -157,19 +204,30 @@ const Terminal = () => {
         { withCredentials: true }
       );
       
+      // Store response context for later use
+      window.lastResponseContext = {
+        needs_input: response.data.needs_input || false,
+        input_marker: response.data.input_marker || null
+      };
+      
       // Process the response
       if (response.data.error) {
         setError(response.data.error);
         setIsWaitingForInput(false);
       } else if (response.data.output) {
-        if (response.data.output.endsWith('__INPUT_REQUIRED__')) {
+        // Check if there's an input marker or needs_input flag
+        if (response.data.needs_input || response.data.input_marker === "__INPUT_REQUIRED__") {
           // Still waiting for more input
-          const newOutput = response.data.output.replace('__INPUT_REQUIRED__', '');
-          setOutput(newOutput);
-          setDisplayedOutput(newOutput);
+          setOutput(response.data.output);
+          setDisplayedOutput(response.data.output);
           setIsWaitingForInput(true);
           if (inputRef.current) {
-            setTimeout(() => inputRef.current.focus(), 50);
+            setTimeout(() => {
+              // Add null check inside the callback
+              if (inputRef.current) {
+                inputRef.current.focus();
+              }
+            }, 50);
           }
         } else {
           // Processing complete
@@ -183,6 +241,13 @@ const Terminal = () => {
       setError('Error connecting to the server');
       setIsWaitingForInput(false);
     }
+  };
+
+  // Clean output by removing any unwanted markers
+  const cleanOutput = (output) => {
+    if (!output) return '';
+    // Remove any __INPUT_REQUIRED__ markers that might have slipped through
+    return output.replace(/__INPUT_REQUIRED__/g, '');
   };
 
   // Format error message for better display
@@ -208,32 +273,37 @@ const Terminal = () => {
       onContextMenu={handleContextMenu}
     >
       <pre style={{ 
-        color: hasError ? 'red' : 'dark', 
-        marginLeft: '.1rem', 
-        marginTop: '.1rem',
+        color: hasError ? 'red' : 'inherit', 
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word'
       }}>
-        {formatErrorMessage(displayedOutput)}
+        {formatErrorMessage(cleanOutput(displayedOutput))}
+        
+        {/* Inline input area that appears when waiting for input */}
+        {isWaitingForInput && (
+          <form onSubmit={handleInputSubmit} className="terminal-input-container" style={{ position: 'relative' }}>
+            <span className="terminal-prompt">$</span>
+            <input
+              type="text"
+              ref={inputRef}
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              className="terminal-input"
+              placeholder="Type here..."
+              autoFocus
+            />
+            {/* Custom block cursor that follows text position */}
+            <div 
+              ref={cursorRef}
+              className="terminal-block-cursor"
+              style={{ left: `${cursorPosition}px` }}
+            />
+            <button type="submit" className="terminal-input-submit">
+              Enter
+            </button>
+          </form>
+        )}
       </pre>
-      
-      {/* Input area that appears when waiting for input */}
-      {isWaitingForInput && (
-        <form onSubmit={handleInputSubmit} className="terminal-input-container">
-          <input
-            type="text"
-            ref={inputRef}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            className="terminal-input"
-            placeholder="Type here..."
-            autoFocus
-          />
-          <button type="submit" className="terminal-input-submit">
-            Enter
-          </button>
-        </form>
-      )}
       
       {contextMenu.visible && contextMenu.text && (
         <div

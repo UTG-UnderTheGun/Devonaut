@@ -332,6 +332,8 @@ class CodeHistory(BaseModel):
     user_id: Optional[str] = None  # Will be set by the server
     username: Optional[str] = None  # Store the username for easier identification
     problem_index: Optional[int] = None
+    exercise_id: Optional[str] = None  # Added to track specific exercise
+    assignment_id: Optional[str] = None  # Added to track specific assignment
     test_type: Optional[str] = None
     code: str  # Only required field from client
     output: Optional[str] = None
@@ -347,6 +349,8 @@ class CodeHistory(BaseModel):
                 "user_id": "user123",
                 "username": "johndoe",
                 "problem_index": 1,
+                "exercise_id": "exercise123",
+                "assignment_id": "assignment456",
                 "test_type": "code",
                 "code": "print('Hello, world!')",
                 "output": "Hello, world!",
@@ -366,7 +370,85 @@ class SkillLevel(BaseModel):
 class KeystrokeData(BaseModel):
     code: str
     problem_index: int
+    exercise_id: Optional[str] = None  # Added to track specific exercise
+    assignment_id: Optional[str] = None  # Added to track specific assignment
     test_type: str
     cursor_position: Optional[dict] = None
     timestamp: Optional[datetime] = None
     user_id: Optional[str] = None
+    changes: Optional[List[Dict[str, Any]]] = None  # Track what lines changed
+    
+    class Config:
+        # Allow extra fields to be flexible with client data
+        extra = "allow"
+        
+        schema_extra = {
+            "example": {
+                "code": "print('Hello world')",
+                "problem_index": 1,
+                "exercise_id": "exercise123",
+                "assignment_id": "assignment456",
+                "test_type": "code",
+                "cursor_position": {"lineNumber": 1, "column": 5},
+                "timestamp": "2023-03-03T12:00:00",
+                "user_id": "user123",
+                "changes": [
+                    {
+                        "line": 1,
+                        "previous": "print('Hello')",
+                        "current": "print('Hello world')"
+                    }
+                ]
+            }
+        }
+
+
+class ChatMessage(BaseModel):
+    role: str  # "student" or "assistant"
+    content: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "role": "student",
+                "content": "1+1 ได้เท่าไหร่",
+                "timestamp": "2025-05-03T10:30:00"
+            }
+        }
+
+
+class ChatHistory(BaseModel):
+    id: str = Field(default_factory=lambda: str(datetime.now().timestamp()))
+    user_id: str
+    username: Optional[str] = None
+    assignment_id: str
+    exercise_id: str
+    messages: List[ChatMessage] = []
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": "1715123456.789",
+                "user_id": "student123",
+                "username": "John Doe",
+                "assignment_id": "assign123",
+                "exercise_id": "1",
+                "messages": [
+                    {
+                        "role": "student",
+                        "content": "1+1 ได้เท่าไหร่",
+                        "timestamp": "2025-05-03T10:30:00"
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "1+1 ได้เท่ากับ 2 ครับ",
+                        "timestamp": "2025-05-03T10:30:10"
+                    }
+                ],
+                "created_at": "2025-05-03T10:30:00",
+                "updated_at": "2025-05-03T10:30:10"
+            }
+        }

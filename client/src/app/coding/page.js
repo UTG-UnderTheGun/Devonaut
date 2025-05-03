@@ -29,7 +29,7 @@ export default function CodingPage() {
   const router = useRouter();
 
   const [user_id, setUser_id] = useState(null);
-  const [code, setCode] = useState("# write code here");
+  const [code, setCode] = useState("");
   const [title, setTitle] = useState("solution.py");
   const [description, setDescription] = useState("");
   const [isConsoleFolded, setIsConsoleFolded] = useState(false);
@@ -59,7 +59,7 @@ export default function CodingPage() {
   useEffect(() => {
     const assignmentId = searchParams.get('assignment');
     if (assignmentId) {
-      const fetchAssignment = async () => {
+      const fetchAssignment = async (isRefresh = false) => {
         try {
           const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
           const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
@@ -117,14 +117,21 @@ export default function CodingPage() {
           console.log("Mapped assignment problems:", assignmentProblems);
 
           // Import the problems
-          await handleImport(assignmentProblems, true);
+          // forceReset should be false if this is a refresh to maintain the current problem
+          await handleImport(assignmentProblems, !isRefresh);
           
           // Set the title and description from the assignment
           setTitle(assignment.title);
           setDescription(assignment.description);
           
-          // Force a chat reset since this is a new assignment
-          await handleClearImport();
+          // Save the current problem index to localStorage with assignment ID
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, currentProblemIndex.toString());
+          console.log(`Saved current problem index ${currentProblemIndex} for assignment ${assignmentId} after fetch`);
+          
+          // Force a chat reset only if this is the initial load, not a refresh
+          if (!isRefresh) {
+            await handleClearImport();
+          }
           
         } catch (error) {
           console.error('Error loading assignment:', error);
@@ -133,9 +140,34 @@ export default function CodingPage() {
         }
       };
 
-      fetchAssignment();
+      // Initial load - not a refresh
+      fetchAssignment(false);
+      
+      // Add window focus listener to refresh assignment data when user returns to the page
+      const handleFocus = () => {
+        console.log('Window focused, refreshing assignment data');
+        
+        // Get the current problem index from localStorage first, to ensure we stay on the same problem
+        const savedIndex = localStorage.getItem(`assignment-${assignmentId}-currentIndex`);
+        if (savedIndex !== null) {
+          const index = parseInt(savedIndex, 10);
+          if (!isNaN(index) && index >= 0) {
+            console.log(`Restoring saved problem index ${index} for assignment ${assignmentId} on window focus`);
+            setCurrentProblemIndex(index);
+          }
+        }
+        
+        // Pass true to indicate this is a refresh, not an initial load
+        fetchAssignment(true);
+      };
+      
+      window.addEventListener('focus', handleFocus);
+      
+      return () => {
+        window.removeEventListener('focus', handleFocus);
+      };
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Complete clearing of conversation history and interface state
   const handleClearImport = async () => {
@@ -197,8 +229,37 @@ export default function CodingPage() {
         description: problem.description || '',
         starterCode: problem.starterCode || problem.code || ''
       }));
+      
       setProblems(validData);
-      setCurrentProblemIndex(0);
+      
+      // Get the assignment ID, we'll use this to store the current problem index
+      const assignmentId = searchParams.get('assignment');
+      
+      if (assignmentId) {
+        // Don't reset to the first problem if this is a refresh of an existing assignment
+        // Check if we have a saved problem index for this assignment
+        const savedIndex = localStorage.getItem(`assignment-${assignmentId}-currentIndex`);
+        if (savedIndex !== null && !forceReset) {
+          // If we have a saved index and this is not a forced reset (new import),
+          // restore the saved problem index
+          const index = parseInt(savedIndex, 10);
+          if (!isNaN(index) && index >= 0 && index < validData.length) {
+            console.log(`Restoring saved problem index ${index} for assignment ${assignmentId}`);
+            setCurrentProblemIndex(index);
+          } else {
+            // Index is invalid, reset to 0
+            console.log(`Invalid saved index ${savedIndex}, resetting to 0`);
+            setCurrentProblemIndex(0);
+          }
+        } else {
+          // No saved index or forced reset, set to 0
+          console.log(`Setting problem index to 0 for assignment ${assignmentId}`);
+          setCurrentProblemIndex(0);
+        }
+      } else {
+        // No assignment ID, reset to 0
+        setCurrentProblemIndex(0);
+      }
 
       // Upload exercises data for quota tracking if user_id is available.
       if (user_id) {
@@ -329,9 +390,16 @@ export default function CodingPage() {
         console.log(`Problem changed to index ${currentProblemIndex}, id ${currentProblemId}`);
         const problemChangeEvent = new CustomEvent('problem-changed', { detail: { problemId: currentProblemId } });
         window.dispatchEvent(problemChangeEvent);
+        
+        // Save current problem index with assignment ID
+        const assignmentId = searchParams.get('assignment');
+        if (assignmentId) {
+          console.log(`Saving problem index ${currentProblemIndex} for assignment ${assignmentId}`);
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, String(currentProblemIndex));
+        }
       }
     }
-  }, [currentProblemIndex, problems]);
+  }, [currentProblemIndex, problems, searchParams]);
 
   // Initialize user ID
   useEffect(() => {
@@ -484,6 +552,15 @@ export default function CodingPage() {
     return () => window.removeEventListener('code-reset', handleCodeReset);
   }, [currentProblemIndex]);
 
+  // Add effect to save current problem index whenever it changes
+  useEffect(() => {
+    const assignmentId = searchParams.get('assignment');
+    if (assignmentId) {
+      console.log(`Saving current problem index ${currentProblemIndex} for assignment ${assignmentId}`);
+      localStorage.setItem(`assignment-${assignmentId}-currentIndex`, currentProblemIndex.toString());
+    }
+  }, [currentProblemIndex, searchParams]);
+
   // Add new effect for console output updates
   useEffect(() => {
     if (consoleOutput) {
@@ -558,13 +635,29 @@ export default function CodingPage() {
 
   const handlePreviousProblem = () => {
     if (currentProblemIndex > 0) {
-      setCurrentProblemIndex(prev => prev - 1);
+      setCurrentProblemIndex(prev => {
+        const newIndex = prev - 1;
+        // Save the current problem index to localStorage with assignment ID
+        const assignmentId = searchParams.get('assignment');
+        if (assignmentId) {
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, newIndex.toString());
+        }
+        return newIndex;
+      });
     }
   };
 
   const handleNextProblem = () => {
     if (currentProblemIndex < problems.length - 1) {
-      setCurrentProblemIndex(prev => prev + 1);
+      setCurrentProblemIndex(prev => {
+        const newIndex = prev + 1;
+        // Save the current problem index to localStorage with assignment ID
+        const assignmentId = searchParams.get('assignment');
+        if (assignmentId) {
+          localStorage.setItem(`assignment-${assignmentId}-currentIndex`, newIndex.toString());
+        }
+        return newIndex;
+      });
     }
   };
 
@@ -582,8 +675,8 @@ export default function CodingPage() {
     testType,
     selectedDescriptionTab,
     setSelectedDescriptionTab,
-    title,
-    description,
+    title: problems[currentProblemIndex]?.title || title,
+    description: problems[currentProblemIndex]?.description || description,
     handleTitleChange,
     handleDescriptionChange,
     user_id,
@@ -613,10 +706,12 @@ export default function CodingPage() {
     description,
     setDescription,
     setSelectedDescriptionTab,
+    selectedDescriptionTab,
     user_id,
     handleClearImport,
     isConsoleFolded,
-    setIsConsoleFolded
+    setIsConsoleFolded,
+    assignmentId: searchParams.get('assignment')
   };
 
   const consoleProps = {

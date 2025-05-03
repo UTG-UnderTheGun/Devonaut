@@ -119,6 +119,9 @@ allowed_origins = [
     "http://localhost:3000",  # Development
     "https://localhost:3000", # Development with HTTPS
     "http://127.0.0.1:3000",  # Alternative development URL
+    "http://localhost:8000",  # Allow API server
+    "http://localhost",       # Allow any localhost
+    "*"                       # Allow all origins in development mode
 ]
 
 # In production, add your domain
@@ -134,7 +137,7 @@ if environment == "production":
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins if not debug_mode else ["*"],  # Allow all origins in debug mode
+    allow_origins=["*"],  # Allow all origins in any mode
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -154,13 +157,74 @@ async def cors_health_check():
     return {"status": "ok", "cors": "enabled"}
 
 # Include all the API routes
+logger.info("Registering API routes")
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(code.router, prefix="/code", tags=["api"])
-app.include_router(ai.router, prefix="/ai", tags=["ai"])
+logger.info("Registering AI router with prefix /ai")
+app.include_router(ai.router, prefix="/ai", tags=["ai"])  # ใช้ /ai เพื่อให้ตรงกับที่ client เรียกใช้
 app.include_router(test.router, prefix="/test", tags=["test"])
 app.include_router(teacher.router, prefix="/teacher", tags=["teacher"])
 app.include_router(assignment.router, prefix="/assignments", tags=["assignments"])
+
+# เพิ่ม endpoint สำหรับทดสอบการเข้าถึง
+@app.get("/ai/test")
+async def test_ai_direct():
+    """Test AI route accessibility directly"""
+    return {"status": "ok", "message": "Direct AI test route is working"}
+
+# เพิ่ม endpoint สำหรับ chat history simple ที่ root level
+@app.get("/ai/chat-history-simple")
+async def chat_history_simple_direct(
+    user_id: str = None,
+    assignment_id: str = None,
+    exercise_id: str = None
+):
+    """Direct endpoint for chat history at root level"""
+    # Forward to the actual handler in ai router
+    from app.api.v1.endpoints.ai import get_chat_history_simple
+    return await get_chat_history_simple(user_id, assignment_id, exercise_id)
+
+# Log all registered routes for debugging
+@app.on_event("startup")
+async def log_routes():
+    """Log all registered routes on startup"""
+    routes = []
+    for route in app.routes:
+        routes.append({"path": route.path, "name": route.name, "methods": route.methods})
+    
+    logger.info(f"Registered routes: {routes}")
+
+# Add test endpoints
+@app.get("/api/v1/routes")
+async def list_routes():
+    """List all registered routes"""
+    routes = []
+    for route in app.routes:
+        routes.append({
+            "path": route.path, 
+            "name": route.name, 
+            "methods": list(route.methods) if route.methods else []
+        })
+    return {"routes": routes}
+
+@app.get("/api/v1/ai/test")
+async def test_ai_route():
+    """Test AI route accessibility"""
+    return {"status": "ok", "message": "AI route is accessible at root level"}
+
+# Add better error handling
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    """Custom 404 handler with request details"""
+    return {
+        "error": "Not Found",
+        "status_code": 404,
+        "path": request.url.path,
+        "method": request.method,
+        "headers": dict(request.headers),
+        "available_routes": [route.path for route in app.routes]
+    }
 
 
 if __name__ == "__main__":
