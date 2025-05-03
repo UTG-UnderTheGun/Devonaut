@@ -1,6 +1,6 @@
 // student-assignment.js
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './student-assignment.css';
 
@@ -343,6 +343,9 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [exercises, setExercises] = useState([]);
   const [answers, setAnswers] = useState({});
   const [codingActivity, setCodingActivity] = useState({});
+  const [checkedCodeHistory, setCheckedCodeHistory] = useState(false);
+  const userIdRef = useRef(studentId);
+  const [mongoUserIdRef, setMongoUserIdRef] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -391,9 +394,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         if (userLookupResponse.ok) {
           const userData = await userLookupResponse.json();
           mongoUserId = userData.user_id; // Use the MongoDB user_id for submission lookup
+          setMongoUserIdRef(userData.user_id); // Store MongoDB user ID in ref
           console.log(`Mapped student_id ${studentId} to MongoDB user_id ${mongoUserId}`);
         } else {
           // If lookup fails, continue with the original studentId
+          setMongoUserIdRef(studentId); // Store student ID as fallback
           console.warn(`Could not find user with student_id ${studentId}, using ID as-is`);
         }
       } catch (userLookupError) {
@@ -460,32 +465,53 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           // Process timeline data into coding activity format
           const activity = {};
           
+          // First initialize all exercises with empty arrays
           if (assignmentData.exercises && assignmentData.exercises.length > 0) {
-            // Create empty arrays for each exercise to ensure we always have some structure
             assignmentData.exercises.forEach(exercise => {
               activity[exercise.id] = [];
+              // Also initialize with string versions of ID to handle different ID types
+              activity[String(exercise.id)] = [];
             });
             
-            // Then process and fill with actual data
+            // Log all available keystroke data for debugging
+            console.log("TIMELINE DATA DUMP - ALL ENTRIES:", timelineData.map(item => ({
+              problem_index: item.problem_index,
+              exercise_id: item.exercise_id,
+              timestamp: item.timestamp && item.timestamp.substring(0, 19)
+            })));
+            
+            // Process each exercise
             assignmentData.exercises.forEach(exercise => {
-              // Add better debug output
               console.log(`Processing timeline data for exercise ${exercise.id} (${typeof exercise.id})`);
               
-              // Filter timeline entries for this exercise - handle various formats of IDs
-              const exerciseTimeline = timelineData.filter(item => {
-                // Check problem_index match first
-                const problemIndexMatch = 
-                  (item.problem_index === exercise.id) || 
-                  (item.problem_index !== null && parseInt(item.problem_index) === parseInt(exercise.id)) ||
-                  (String(item.problem_index) === String(exercise.id));
+              // Make a more flexible matcher function
+              const matchesExercise = (item) => {
+                const exerciseId = exercise.id;
+                const strExerciseId = String(exerciseId);
+                const itemProblemIndex = item.problem_index !== undefined ? item.problem_index : null;
+                const itemExerciseId = item.exercise_id !== undefined ? item.exercise_id : null;
                 
-                // Check exercise_id match as fallback
-                const exerciseIdMatch = item.exercise_id && 
-                  (item.exercise_id === exercise.id || 
-                   String(item.exercise_id) === String(exercise.id));
-                   
-                return problemIndexMatch || exerciseIdMatch;
-              });
+                // Try all possible matching combinations
+                return (
+                  // Direct match on problem_index
+                  itemProblemIndex === exerciseId ||
+                  // String match on problem_index
+                  String(itemProblemIndex) === strExerciseId ||
+                  // Number match if problem_index is numeric string
+                  (typeof itemProblemIndex === 'string' && !isNaN(parseInt(itemProblemIndex)) && 
+                   parseInt(itemProblemIndex) === exerciseId) ||
+                  // Direct match on exercise_id
+                  itemExerciseId === exerciseId ||
+                  // String match on exercise_id
+                  String(itemExerciseId) === strExerciseId ||
+                  // Number match if exercise_id is numeric string
+                  (typeof itemExerciseId === 'string' && !isNaN(parseInt(itemExerciseId)) && 
+                   parseInt(itemExerciseId) === exerciseId)
+                );
+              };
+              
+              // Filter timeline entries for this exercise using our flexible matcher
+              const exerciseTimeline = timelineData.filter(matchesExercise);
               
               console.log(`Found ${exerciseTimeline.length} timeline entries for exercise ${exercise.id}`);
               
@@ -493,28 +519,32 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 // Log some sample data
                 console.log("Sample timeline entry:", exerciseTimeline[0]);
                 
-                // Map to the format expected by the UI
-                activity[exercise.id] = exerciseTimeline.map((item, index) => ({
-                  id: index + 1,
+              // Map to the format expected by the UI
+                const timelineEntries = exerciseTimeline.map((item, index) => ({
+                id: index + 1,
                   timestamp: item.timestamp || new Date().toISOString(),
                   action: item.action_type || 'keystroke',
                   exerciseId: exercise.id,
                   code: item.code || '',
-                  changes: item.changes || null // Include changes for diff visualization
+                  changes: item.changes || null
                 }));
-                console.log(`Processed ${exerciseTimeline.length} timeline entries for exercise ${exercise.id}`);
+                
+                // Sort entries by timestamp
+                timelineEntries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                // Store timeline under both string and number keys to ensure it's found
+                activity[exercise.id] = timelineEntries;
+                activity[String(exercise.id)] = timelineEntries;
+                
+                console.log(`Processed ${timelineEntries.length} timeline entries for exercise ${exercise.id}`);
               }
             });
             
             setCodingActivity(activity);
-            console.log("Processed keystroke timeline into coding activity:", activity);
-            
-            // Check if we have at least some data
-            const hasData = Object.values(activity).some(arr => arr.length > 0);
-            if (!hasData) {
-              console.log("No keystroke timeline data found for any exercise, falling back to code history");
-              await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
-            }
+            console.log("FINAL ACTIVITY STRUCTURE:", Object.keys(activity).map(key => ({
+              key: key,
+              entries: activity[key] ? activity[key].length : 0
+            })));
           }
         } else {
           // If timeline API fails, try to fetch individual keystroke data
@@ -565,17 +595,17 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                       id: index + 1,
                       timestamp: item.timestamp,
                       action: item.action_type || 'keystroke',
-                      exerciseId: exercise.id,
-                      code: item.code || ''
-                    }));
+                exerciseId: exercise.id,
+                code: item.code || ''
+              }));
                     console.log(`Processed ${exerciseKeystrokes.length} keystrokes for exercise ${exercise.id}`);
                   } else {
                     console.log(`No keystrokes found for exercise ${exercise.id}`);
                     activity[exercise.id] = [];
                   }
-                });
+            });
                 
-                setCodingActivity(activity);
+            setCodingActivity(activity);
                 console.log("Processed raw keystrokes into coding activity:", activity);
                 
                 // Check if we have at least some data
@@ -584,8 +614,8 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   console.log("No keystroke data found for any exercise, falling back to code history");
                   await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
                 }
-              }
-            } else {
+          }
+        } else {
               // If raw keystrokes API fails too, fall back to code history
               console.log("Raw keystrokes API failed, falling back to code history");
               await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
@@ -662,34 +692,34 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         console.error("Error fetching keystroke analytics:", keystrokeAnalyticsError);
         
         // Fallback to old analytics API
-        try {
-          const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
+      try {
+        const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (keystrokeResponse.ok) {
+          const keystrokeData = await keystrokeResponse.json();
           
-          if (keystrokeResponse.ok) {
-            const keystrokeData = await keystrokeResponse.json();
-            
-            // Transform the data into the format expected by the UI
-            const formattedKeystrokeData = keystrokeData.map(item => ({
-              day: item.day,
-              count: item.count,
-              action_type: item.action_type,
-              problem_index: item.problem_index,
-              exercise_id: item.exercise_id
-            }));
-            
-            setKeystrokeHistory(formattedKeystrokeData);
-            console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
-          } else {
-            console.warn("Failed to fetch keystroke history, using mock data");
-            setKeystrokeHistory(mockKeystrokeHistory);
-          }
-        } catch (keystrokeError) {
-          console.error("Error fetching keystroke history:", keystrokeError);
-          setKeystrokeHistory(mockKeystrokeHistory);
+          // Transform the data into the format expected by the UI
+          const formattedKeystrokeData = keystrokeData.map(item => ({
+            day: item.day,
+            count: item.count,
+            action_type: item.action_type,
+            problem_index: item.problem_index,
+            exercise_id: item.exercise_id
+          }));
+          
+          setKeystrokeHistory(formattedKeystrokeData);
+          console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
+        } else {
+          console.warn("Failed to fetch keystroke history, using mock data");
+      setKeystrokeHistory(mockKeystrokeHistory);
+        }
+      } catch (keystrokeError) {
+        console.error("Error fetching keystroke history:", keystrokeError);
+        setKeystrokeHistory(mockKeystrokeHistory);
         }
       }
       
@@ -728,7 +758,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           console.log("AI chat history loaded successfully:", chatHistories);
         } else {
           console.warn("No exercises found, using mock AI chat history");
-          setAiChatHistory(mockAiChatHistory);
+      setAiChatHistory(mockAiChatHistory);
         }
       } catch (chatError) {
         console.error("Error fetching AI chat history:", chatError);
@@ -834,6 +864,14 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       }
     }
   }, [studentId, assignmentId]);
+  
+  // Add effect to automatically refresh timeline data when tab changes to timeline
+  useEffect(() => {
+    if (activeTab === 'timeline' && mongoUserIdRef) {
+      console.log('Timeline tab selected, refreshing timeline data...');
+      refreshTimelineData();
+    }
+  }, [activeTab, mongoUserIdRef]);
   
   // Update localStorage when exercises change
   useEffect(() => {
@@ -1029,36 +1067,218 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
   // Add a utility function to normalize ID lookups
   const getActivityForExercise = (exerciseId) => {
-    if (!exerciseId || !codingActivity) return [];
+    if (!exerciseId || !codingActivity) {
+      console.log(`No activity data available - exerciseId: ${exerciseId}, codingActivity exists: ${!!codingActivity}`);
+      return [];
+    }
+    
+    console.log(`Looking for activity for exercise ${exerciseId} (${typeof exerciseId})`);
+    console.log(`Available activity keys: ${Object.keys(codingActivity).join(', ')}`);
+    
+    // Try all possible matching methods
     
     // Direct lookup first
     if (codingActivity[exerciseId] && codingActivity[exerciseId].length > 0) {
+      console.log(`Found ${codingActivity[exerciseId].length} entries with direct match on key: ${exerciseId}`);
       return codingActivity[exerciseId];
     }
     
     // Try string conversion
     const strId = String(exerciseId);
     if (codingActivity[strId] && codingActivity[strId].length > 0) {
+      console.log(`Found ${codingActivity[strId].length} entries with string key: ${strId}`);
       return codingActivity[strId];
     }
     
     // Try numeric conversion if possible
     const numId = parseInt(exerciseId);
-    if (!isNaN(numId) && codingActivity[numId] && codingActivity[numId].length > 0) {
-      return codingActivity[numId];
+    if (!isNaN(numId)) {
+      if (codingActivity[numId] && codingActivity[numId].length > 0) {
+        console.log(`Found ${codingActivity[numId].length} entries with numeric key: ${numId}`);
+        return codingActivity[numId];
+      }
+      
+      // Check for zero-based index (problem_index might be 0-based while exercise IDs are 1-based)
+      const zeroBasedIndex = numId - 1;
+      if (zeroBasedIndex >= 0 && codingActivity[zeroBasedIndex] && codingActivity[zeroBasedIndex].length > 0) {
+        console.log(`Found ${codingActivity[zeroBasedIndex].length} entries with zero-based index: ${zeroBasedIndex}`);
+        return codingActivity[zeroBasedIndex];
+      }
     }
     
-    // Look through all keys for a string match
-    const matchingKey = Object.keys(codingActivity).find(key => String(key) === strId);
-    if (matchingKey && codingActivity[matchingKey].length > 0) {
-      return codingActivity[matchingKey];
+    // Look for keys that might be strings with the same value
+    for (const key of Object.keys(codingActivity)) {
+      // Compare as strings
+      if (String(key) === strId && codingActivity[key].length > 0) {
+        console.log(`Found ${codingActivity[key].length} entries with string comparison on key: ${key}`);
+        return codingActivity[key];
+      }
+      
+      // Compare numerically if both are numbers
+      const keyNum = parseInt(key);
+      if (!isNaN(keyNum) && !isNaN(numId) && keyNum === numId && codingActivity[key].length > 0) {
+        console.log(`Found ${codingActivity[key].length} entries with numeric comparison on key: ${key}`);
+        return codingActivity[key];
+      }
+      
+      // Check for zero-based index match (when problem_index in DB is 0-based)
+      if (!isNaN(keyNum) && !isNaN(numId) && keyNum === numId - 1 && codingActivity[key].length > 0) {
+        console.log(`Found ${codingActivity[key].length} entries with zero-based index match: key=${key}, exercise=${numId}`);
+        return codingActivity[key];
+      }
     }
     
-    console.log(`No activity found for exercise ${exerciseId}`);
+    // Last resort: check if any of the timeline items have matching exerciseId property
+    for (const key of Object.keys(codingActivity)) {
+      const entries = codingActivity[key];
+      if (entries && entries.length > 0) {
+        const matchingEntries = entries.filter(entry => 
+          entry.exerciseId === exerciseId || 
+          String(entry.exerciseId) === strId || 
+          (entry.exerciseId !== undefined && !isNaN(parseInt(entry.exerciseId)) && parseInt(entry.exerciseId) === numId)
+        );
+        
+        if (matchingEntries.length > 0) {
+          console.log(`Found ${matchingEntries.length} entries by checking exerciseId property inside entries`);
+          return matchingEntries;
+        }
+      }
+    }
+    
+    console.log(`No activity found for exercise ${exerciseId} after trying all lookup methods`);
     return [];
   };
 
   const timelineMarkers = generateTimelineMarkers();
+
+  // Add a specific function to refresh the timeline data
+  const refreshTimelineData = () => {
+    // Define API base URL
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const userId = mongoUserIdRef || studentId;
+    
+    console.log(`Manually refreshing timeline data for user ${userId}, assignment ${assignmentId}`);
+    
+    // Fetch fresh timeline data
+    fetch(`${API_BASE}/code/keystrokes/${userId}/${assignmentId}/timeline`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error(`Failed to fetch timeline: ${response.status}`);
+      }
+    })
+    .then(timelineData => {
+      console.log(`Refreshed timeline data, found ${timelineData.length} entries`);
+      
+      // Debug the actual data to see problem_index values
+      if (timelineData.length > 0) {
+        console.log("Sample entry problem_index:", timelineData[0].problem_index);
+        console.log("Sample entry exercise_id:", timelineData[0].exercise_id);
+      }
+      
+      // Process into coding activity format (simplified version)
+      const activity = {};
+      
+      // Initialize all exercises with empty arrays
+      if (exercises && exercises.length > 0) {
+        exercises.forEach(exercise => {
+          activity[exercise.id] = [];
+          activity[String(exercise.id)] = [];
+          
+          // Also initialize zero-based index arrays for problem_index data
+          const zeroBasedIndex = parseInt(exercise.id) - 1;
+          if (!isNaN(zeroBasedIndex) && zeroBasedIndex >= 0) {
+            activity[zeroBasedIndex] = [];
+            activity[String(zeroBasedIndex)] = [];
+          }
+        });
+      }
+      
+      // Process each entry in the timeline data
+      timelineData.forEach(item => {
+        const problemIndex = item.problem_index;
+        const exerciseId = item.exercise_id;
+        
+        console.log(`Processing entry: problem_index=${problemIndex}, exercise_id=${exerciseId}`);
+        
+        // Try to match to exercises
+        exercises.forEach(exercise => {
+          const exerciseNumber = parseInt(exercise.id);
+          const zeroBasedIndex = exerciseNumber - 1;
+          
+          // Check for direct match
+          const directMatch = 
+            (problemIndex !== undefined && (problemIndex === exercise.id || String(problemIndex) === String(exercise.id))) ||
+            (exerciseId !== undefined && (exerciseId === exercise.id || String(exerciseId) === String(exercise.id)));
+          
+          // Check for zero-based problem_index match
+          const zeroBasedMatch = 
+            (problemIndex !== undefined && (
+              problemIndex === zeroBasedIndex || 
+              String(problemIndex) === String(zeroBasedIndex)
+            ));
+            
+          if (directMatch || zeroBasedMatch) {
+            // Add to both string and number versions of the ID
+            const entry = {
+              id: (activity[exercise.id].length || 0) + 1,
+              timestamp: item.timestamp || new Date().toISOString(),
+              action: item.action_type || 'keystroke',
+              exerciseId: exercise.id,
+              code: item.code || '',
+              changes: item.changes || null
+            };
+            
+            // Add to appropriate keys
+            activity[exercise.id].push(entry);
+            activity[String(exercise.id)].push(entry);
+            
+            // If we matched using zero-based index, also store in that key
+            if (zeroBasedMatch) {
+              if (!activity[zeroBasedIndex]) activity[zeroBasedIndex] = [];
+              if (!activity[String(zeroBasedIndex)]) activity[String(zeroBasedIndex)] = [];
+              
+              activity[zeroBasedIndex].push(entry);
+              activity[String(zeroBasedIndex)].push(entry);
+              
+              console.log(`Added entry to zero-based index ${zeroBasedIndex} for exercise ${exercise.id}`);
+            }
+            
+            console.log(`Added entry for exercise ${exercise.id}${zeroBasedMatch ? ` (matched zero-based index ${zeroBasedIndex})` : ''}`);
+          }
+        });
+      });
+      
+      // Sort all entries by timestamp
+      Object.keys(activity).forEach(key => {
+        if (activity[key] && activity[key].length > 0) {
+          activity[key].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        }
+      });
+      
+      // Debug what we've processed
+      console.log("Processed activity keys:", Object.keys(activity).map(key => {
+        return {
+          key,
+          entries: activity[key] ? activity[key].length : 0
+        };
+      }));
+      
+      // Update state with fresh data
+      setCodingActivity(activity);
+      console.log(`Timeline refresh complete, processed ${Object.keys(activity).length} exercise keys`);
+    })
+    .catch(error => {
+      console.error("Error refreshing timeline:", error);
+      // Fall back to code history if timeline fetch fails
+      fetchCodeHistory(API_BASE, userId, assignmentId, exercises);
+    });
+  };
 
   if (error && !assignment) {
     return <div className="error-container">Error: {error}</div>;
@@ -1371,41 +1591,98 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   const currentExerciseId = exercises[currentExerciseIndex].id;
                   const activity = getActivityForExercise(currentExerciseId);
                   
+                  // Log details about the activity we found
+                  console.log(`Timeline data for exercise ${currentExerciseId}: ${activity ? activity.length : 0} entries`);
                   if (activity && activity.length > 0) {
+                    console.log("First activity entry:", {
+                      timestamp: activity[0].timestamp,
+                      action: activity[0].action,
+                      code: activity[0].code ? activity[0].code.substring(0, 30) + "..." : null
+                    });
+                  }
+                  
+                  // Try to directly access the data using all possible key formats
+                  let directActivity = null;
+                  if (codingActivity[currentExerciseId]?.length > 0) {
+                    directActivity = codingActivity[currentExerciseId];
+                    console.log(`Direct access found ${directActivity.length} entries`);
+                  } else if (codingActivity[String(currentExerciseId)]?.length > 0) {
+                    directActivity = codingActivity[String(currentExerciseId)];
+                    console.log(`String key access found ${directActivity.length} entries`);
+                  } else if (!isNaN(parseInt(currentExerciseId)) && 
+                            codingActivity[parseInt(currentExerciseId)]?.length > 0) {
+                    directActivity = codingActivity[parseInt(currentExerciseId)];
+                    console.log(`Numeric key access found ${directActivity.length} entries`);
+                  }
+                  
+                  // Use either the activity from the getter function or direct access
+                  const effectiveActivity = 
+                    (activity && activity.length > 0) ? activity : 
+                    (directActivity && directActivity.length > 0) ? directActivity : 
+                    [];
+                  
+                  if (effectiveActivity.length > 0) {
+                    // Calculate a safe timeline position
+                    const safePosition = Math.min(timelinePosition, effectiveActivity.length - 1);
+                    
                     return (
-                      <>
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max={activity.length - 1} 
-                          value={timelinePosition >= activity.length ? activity.length - 1 : timelinePosition} 
-                          onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
-                          className="timeline-slider"
-                        />
-                        <div className="timeline-markers">
-                          {activity.map((item, idx) => (
+                  <>
+                <input 
+                  type="range" 
+                  min="0" 
+                          max={effectiveActivity.length - 1} 
+                          value={safePosition}
+                  onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
+                  className="timeline-slider"
+                />
+                <div className="timeline-markers">
+                          {effectiveActivity.map((item, idx) => (
                             <div 
                               key={idx}
-                              className={`timeline-marker ${item.action} ${idx === timelinePosition ? 'active' : ''}`}
-                              style={{left: `${(idx / (activity.length - 1)) * 100}%`}}
-                              onClick={() => setTimelinePosition(idx)}
+                              className={`timeline-marker ${item.action} ${idx === safePosition ? 'active' : ''}`}
+                              style={{left: `${(idx / (effectiveActivity.length - 1)) * 100}%`}}
+                      onClick={() => setTimelinePosition(idx)}
                               title={`${new Date(item.timestamp).toLocaleTimeString()} - ${item.action}`}
-                            >
-                              <span className="marker-tooltip">
+                    >
+                      <span className="marker-tooltip">
                                 {new Date(item.timestamp).toLocaleTimeString()}
-                                <br/>
+                        <br/>
                                 {item.action}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                  </>
                     );
                   } else {
+                    // Force fetch code history if we have no timeline data
+                    if (!checkedCodeHistory) {
+                      console.log("No timeline data found, checking code history...");
+                      setCheckedCodeHistory(true);
+                      // Try to load code history on next render
+                      setTimeout(() => {
+                        fetchCodeHistory(
+                          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000', 
+                          mongoUserIdRef || studentId,  
+                          assignmentId, 
+                          exercises
+                        );
+                      }, 100);
+                    }
+                    
                     return (
                       <div className="empty-state">
                         <p>No timeline data available for this exercise</p>
                         <p className="debug-info">Exercise ID: {currentExerciseId}</p>
+                        
+                        <button 
+                          className="refresh-button"
+                          onClick={() => {
+                            refreshTimelineData();
+                          }}
+                        >
+                          Refresh Timeline Data
+                        </button>
                       </div>
                     );
                   }
@@ -1419,9 +1696,9 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 if (activity && activity.length > 0 && timelinePosition < activity.length) {
                   const currentItem = activity[timelinePosition];
                   return (
-                    <>
-                      <div className="timeline-info">
-                        <div className="current-position-info">
+                <>
+              <div className="timeline-info">
+                <div className="current-position-info">
                           <span>Time: {new Date(currentItem.timestamp).toLocaleTimeString()}</span>
                           <span>Action: {currentItem.action}</span>
                         </div>
@@ -1441,16 +1718,26 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                           >
                             Next Change
                           </button>
+                          <button 
+                            onClick={refreshTimelineData}
+                            className="refresh-button"
+                          >
+                            Refresh
+                          </button>
                         </div>
-                      </div>
+              </div>
 
-                      <div className="code-display">
-                        <pre>
-                          <code>
-                            {currentItem.code || exercises[currentExerciseIndex].code || "// No code available"}
-                          </code>
-                        </pre>
-                      </div>
+              <div className="code-display">
+                <pre>
+                  <code>
+                    {currentItem.code ? 
+                      // Handle newlines in the code properly
+                      currentItem.code.split('\\n').join('\n') :
+                      (exercises[currentExerciseIndex].code || "// No code available")
+                    }
+                  </code>
+                </pre>
+              </div>
                       
                       {/* Display code changes if available */}
                       {timelinePosition > 0 && (
