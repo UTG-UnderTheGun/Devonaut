@@ -5,9 +5,11 @@ import "./stats.css"
 
 const Stats = ({ stats, onStatClick }) => {
   const [statsWithCounts, setStatsWithCounts] = useState(stats);
+  const [loading, setLoading] = useState(true); // Add loading state
   
   useEffect(() => {
     const fetchStatsData = async () => {
+      setLoading(true); // Set loading to true when fetching
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       
       try {
@@ -16,8 +18,12 @@ const Stats = ({ stats, onStatClick }) => {
           let count = 0;
           
           try {
+            // For sections, always use static value 2
+            if (stat.id === 'sections') {
+              count = 2;
+            }
             // Different endpoints based on the stat id
-            if (stat.id === 'students') {
+            else if (stat.id === 'students') {
               const response = await fetch(`${API_BASE}/users/students`, {
                 credentials: 'include',
               });
@@ -71,15 +77,6 @@ const Stats = ({ stats, onStatClick }) => {
                 count = pendingCount;
               }
             }
-            else if (stat.id === 'sections') {
-              const response = await fetch(`${API_BASE}/sections/`, {
-                credentials: 'include',
-              });
-              if (response.ok) {
-                const data = await response.json();
-                count = data.length || 0;
-              }
-            }
           } catch (error) {
             console.error(`Error fetching count for ${stat.id}:`, error);
           }
@@ -93,11 +90,22 @@ const Stats = ({ stats, onStatClick }) => {
         setStatsWithCounts(updatedStats);
       } catch (error) {
         console.error('Error fetching stats data:', error);
+      } finally {
+        setLoading(false); // Set loading to false when done
       }
     };
     
     fetchStatsData();
   }, [stats]);
+  
+  // Loading indicator component
+  const LoadingIndicator = () => (
+    <span className="stats-loading-indicator">
+      <span className="loading-dot"></span>
+      <span className="loading-dot"></span>
+      <span className="loading-dot"></span>
+    </span>
+  );
   
   return (
     <div className="stats-container">
@@ -109,7 +117,10 @@ const Stats = ({ stats, onStatClick }) => {
             onClick={() => onStatClick(stat.id)}
           >
             <h3 className="stat-title">{stat.title}</h3>
-            <p className="stat-value">{stat.value !== undefined ? stat.value : (stat.count || 0)}</p>
+            <p className="stat-value">
+              {loading ? <LoadingIndicator /> : 
+                (stat.value !== undefined ? stat.value : (stat.count || 0))}
+            </p>
           </div>
         ))}
       </div>
