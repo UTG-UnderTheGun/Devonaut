@@ -525,6 +525,58 @@ async def get_students_by_section(current_user: dict = Depends(get_current_user)
             detail=f"Failed to fetch students by section: {str(e)}"
         )
 
+@router.get("/sections", response_model=List[Dict],
+    summary="Get students grouped by section",
+    description="Returns a list of students grouped by their sections")
+async def get_sections(current_user: dict = Depends(get_current_user)):
+    try:
+        user, user_id = current_user
+        
+        # Verify the user is a teacher
+        if user.get("role") != "teacher":
+            raise HTTPException(
+                status_code=403,
+                detail="Only teachers can access this endpoint"
+            )
+
+        # Get all students grouped by section
+        pipeline = [
+            {"$match": {"role": "student"}},
+            {"$group": {
+                "_id": "$section",
+                "students": {
+                    "$push": {
+                        "id": "$student_id",
+                        "name": "$name",
+                        "email": "$email",
+                        "section": "$section",
+                        "skill_level": "$skill_level"
+                    }
+                }
+            }}
+        ]
+        
+        sections = list(collection.aggregate(pipeline))
+        
+        # Format the data for frontend
+        formatted_sections = []
+        for section in sections:
+            section_data = {
+                "id": section["_id"] or "Unassigned",
+                "name": section["_id"] or "Unassigned",
+                "totalStudents": len(section["students"]),
+                "students": section["students"]
+            }
+            formatted_sections.append(section_data)
+
+        return formatted_sections
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch sections: {str(e)}"
+        )
+
 @router.get("/student-lookup/{student_id}", response_model=UserResponse)
 async def get_user_by_student_id_endpoint(
     student_id: str,

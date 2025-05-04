@@ -1122,7 +1122,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   }, [exercises, codingActivity]);
 
   const handleBack = () => {
-    router.push('/teacher/dashboard');
+    if (onBack) {
+      onBack();
+    } else {
+      router.push('/teacher/dashboard');
+    }
   };
 
   const handleScoreChange = (e) => {
@@ -1190,6 +1194,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       }));
 
       alert('Grade submitted successfully!');
+      
+      // Call the callback function to update parent component
+      if (typeof onSubmissionUpdate === 'function') {
+        onSubmissionUpdate();
+      }
     } catch (err) {
       console.error("Error submitting grade:", err);
       alert(`Failed to submit grade: ${err.message}`);
@@ -1500,13 +1509,22 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   }
 
   if (!assignment || !submission) {
-    return null;
+    return <AssignmentSkeleton />;
   }
 
   return (
-    <div className="student-assignment">
+    <div className="student-assignment coding-container create-assignment-container">
+      <div className="back-button-container">
+        <button 
+          className="back-button"
+          onClick={handleBack}
+        >
+          ← Back to List
+        </button>
+      </div>
+
       <div className="assignment-header">
-        <h1>{assignment.title}</h1>
+        <h1 className="assignment-title">{assignment.title}</h1>
         <div className="assignment-meta">
           <span>Chapter: {assignment.chapter}</span>
           <span>Due: {formatDateTime(assignment.dueDate)}</span>
@@ -1514,7 +1532,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         </div>
       </div>
 
-      <div className="student-info-panel">
+      <div className="student-info-panel table-container">
         <div className="student-details">
           <h3>Student Information</h3>
           <div className="info-grid">
@@ -1587,7 +1605,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       </div>
 
       <div className="content-grid">
-        <div className="main-content-assignment">
+        <div className="main-content-assignment table-container">
           {activeTab === 'exercises' && (
             <div className="exercise-section">
               <div className="exercise-navigation">
@@ -2373,7 +2391,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           )}
         </div>
 
-        <div className="feedback-container">
+        <div className="feedback-container table-container">
           <h3>Grading & Feedback</h3>
           
           {submission.status !== 'graded' ? (
