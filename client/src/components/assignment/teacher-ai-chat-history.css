@@ -1,0 +1,161 @@
+.ai-chat-history {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.ai-chat-history h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.ai-chat-history .chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.chat-message {
+  padding: 12px;
+  border-radius: 8px;
+  max-width: 85%;
+}
+
+.chat-message.student, 
+.chat-message.user {
+  align-self: flex-start;
+  background-color: #f0f0f0;
+  border-bottom-left-radius: 0;
+}
+
+.chat-message.assistant {
+  align-self: flex-end;
+  background-color: #e3f2fd;
+  border-bottom-right-radius: 0;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.message-sender {
+  font-weight: bold;
+}
+
+.message-time {
+  color: #666;
+}
+
+.message-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #666;
+}
+
+.error-message {
+  color: #d32f2f;
+  padding: 16px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.no-history {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+/* Styles for all students view */
+.ai-chat-history.all-students {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.student-chat-section {
+  margin-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 16px;
+}
+
+.student-chat-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1rem;
+  color: #444;
+}
+
+/* Debug info styling */
+.debug-info {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: left;
+  color: #333;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: monospace;
+}
+
+.debug-info p {
+  margin: 6px 0;
+}
+
+.debug-info details {
+  margin: 8px 0;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.debug-info summary {
+  padding: 8px;
+  background-color: #e9ecef;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.debug-info pre {
+  margin: 0;
+  padding: 8px;
+  max-height: 200px;
+  overflow: auto;
+  background-color: #fff;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+.debug-info button {
+  margin-top: 10px;
+  padding: 6px 12px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+} 

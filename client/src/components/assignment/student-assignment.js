@@ -216,9 +216,7 @@ const mockAiChatHistory = {
       timestamp: '2024-02-20T10:40:15',
       role: 'ai',
       content: 'ในบรรทัดแรก x + y * 2 จะคำนวณ y * 2 ก่อน แล้วค่อยบวกกับ x ส่วนบรรทัดที่สอง (x + y) * 2 จะคำนวณในวงเล็บก่อน แล้วค่อยคูณ 2'
-    }
-  ],
-  3: [
+    },
     {
       id: 7,
       timestamp: '2024-02-20T10:45:00',
@@ -228,6 +226,20 @@ const mockAiChatHistory = {
     {
       id: 8,
       timestamp: '2024-02-20T10:45:10',
+      role: 'ai',
+      content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
+    }
+  ],
+  3: [
+    {
+      id: 9,
+      timestamp: '2024-02-20T10:50:00',
+      role: 'student',
+      content: 'การคำนวณค่าเฉลี่ยต้องเริ่มต้น total ด้วยอะไรครับ?'
+    },
+    {
+      id: 10,
+      timestamp: '2024-02-20T10:50:10',
       role: 'ai',
       content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
     }
@@ -326,55 +338,10 @@ const mockCodingActivity = {
   ]
 };
 
-// Skeleton loading component
-const AssignmentSkeleton = () => {
-  return (
-    <div className="student-assignment coding-container create-assignment-container skeleton-assignment">
-      <div className="back-button-container">
-        <div className="back-button">← Back to List</div>
-      </div>
-      
-      <div className="skeleton skeleton-header"></div>
-      <div className="skeleton skeleton-subheader"></div>
-      
-      <div className="skeleton-info-panel">
-        <div className="skeleton skeleton-info-title"></div>
-        <div className="skeleton-info-grid">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="skeleton-info-item">
-              <div className="skeleton skeleton-label"></div>
-              <div className="skeleton skeleton-value"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      <div className="skeleton-tab-nav">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="skeleton skeleton-tab"></div>
-        ))}
-      </div>
-      
-      <div className="skeleton-content">
-        <div className="skeleton-main-content">
-          <div className="skeleton" style={{ height: '1.5rem', width: '30%', marginBottom: '1rem' }}></div>
-          <div className="skeleton" style={{ height: '1rem', width: '100%', marginBottom: '0.5rem' }}></div>
-          <div className="skeleton" style={{ height: '1rem', width: '90%', marginBottom: '0.5rem' }}></div>
-          <div className="skeleton" style={{ height: '1rem', width: '95%', marginBottom: '0.5rem' }}></div>
-          <div className="skeleton" style={{ height: '8rem', width: '100%', marginTop: '1.5rem' }}></div>
-        </div>
-        
-        <div className="skeleton-feedback">
-          <div className="skeleton skeleton-feedback-title"></div>
-          <div className="skeleton skeleton-feedback-input"></div>
-          <div className="skeleton skeleton-button"></div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Replace mockAiChatHistory with empty initial state
+const initialAiChatHistory = {};
 
-const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate }) => {
+const StudentAssignment = ({ studentId, assignmentId }) => {
   const router = useRouter();
   const [assignment, setAssignment] = useState(null);
   const [submission, setSubmission] = useState(null);
@@ -773,60 +740,260 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
       
       // Fetch AI chat history
       try {
-        // Create an object to store chat histories by exercise
-        const chatHistories = {};
+        // Create query parameters
+        const params = new URLSearchParams();
+        params.append('user_id', mongoUserId);
+        params.append('assignment_id', assignmentId);
         
-        // Fetch chat history for each exercise
-        if (exercises.length > 0) {
-          for (const exercise of exercises) {
-            const chatResponse = await fetch(`${API_BASE}/ai/conversations?user_id=${mongoUserId}&exercise_id=${exercise.id}&assignment_id=${assignmentId}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
+        // Fetch chat history from API
+        const chatHistoryResponse = await fetch(`${API_BASE}/ai/chat-history?${params.toString()}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (chatHistoryResponse.ok) {
+          const chatHistoryData = await chatHistoryResponse.json();
+          console.log("Raw chat history data:", chatHistoryData);
+          
+          // Process chat histories by exercise
+          const chatHistories = {};
+          
+          if (chatHistoryData.histories && chatHistoryData.histories.length > 0) {
+            // Create lookup map for exercise IDs for faster matching later
+            const exerciseIdMap = {};
+            if (exercises && exercises.length > 0) {
+              exercises.forEach(exercise => {
+                // Store ID in multiple formats
+                const id = exercise.id;
+                const idStr = String(id);
+                const idNum = !isNaN(parseInt(id)) ? parseInt(id) : null;
+                
+                exerciseIdMap[id] = true;
+                exerciseIdMap[idStr] = true;
+                if (idNum !== null) exerciseIdMap[idNum] = true;
+                if (idNum !== null && idNum > 0) exerciseIdMap[idNum - 1] = true; // For zero-based index
+              });
+            }
+            
+            // Group messages by exercise ID
+            chatHistoryData.histories.forEach(history => {
+              // Store chat history under multiple key formats to ensure matching
+              const exerciseId = history.exercise_id;
+              const exerciseIdStr = String(exerciseId);
+              const exerciseIdNum = !isNaN(parseInt(exerciseId)) ? parseInt(exerciseId) : null;
+              
+              // Create entries for different formats of the same ID
+              if (!chatHistories[exerciseId]) chatHistories[exerciseId] = [];
+              if (!chatHistories[exerciseIdStr]) chatHistories[exerciseIdStr] = [];
+              if (exerciseIdNum !== null && !chatHistories[exerciseIdNum]) chatHistories[exerciseIdNum] = [];
+              
+              // Format messages
+              if (history.messages && history.messages.length > 0) {
+                // Create formatted messages
+                const formattedMessages = history.messages.map((message, idx) => ({
+                  id: `${history.id || history._id || idx}-${idx}`,
+                  timestamp: message.timestamp || new Date().toISOString(),
+                  role: message.role === 'user' ? 'student' : message.role,
+                  content: message.content || ''
+                }));
+                
+                // Sort messages by timestamp
+                formattedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                // Add to all ID formats
+                chatHistories[exerciseId] = formattedMessages;
+                chatHistories[exerciseIdStr] = formattedMessages;
+                if (exerciseIdNum !== null) chatHistories[exerciseIdNum] = formattedMessages;
+              }
             });
             
-            if (chatResponse.ok) {
-              const chatData = await chatResponse.json();
+            // Log found and missing IDs for debugging
+            if (exercises && exercises.length > 0) {
+              const foundIds = new Set(Object.keys(chatHistories));
+              console.log("Found chat histories for IDs:", Array.from(foundIds));
               
-              if (chatData.messages && chatData.messages.length > 0) {
-                // Transform to the format expected by the UI
-                chatHistories[exercise.id] = chatData.messages.map((msg, index) => ({
-                  id: index + 1,
-                  timestamp: msg.timestamp || new Date().toISOString(),
-                  role: msg.role === 'user' ? 'student' : 'ai',
-                  content: msg.content
-                }));
-              } else {
-                chatHistories[exercise.id] = [];
-              }
+              exercises.forEach(exercise => {
+                const id = exercise.id;
+                const idStr = String(id);
+                const idNum = !isNaN(parseInt(id)) ? parseInt(id) : null;
+                
+                if (!foundIds.has(id) && !foundIds.has(idStr) && 
+                    (idNum === null || !foundIds.has(idNum)) &&
+                    (idNum === null || idNum <= 0 || !foundIds.has(idNum - 1))) {
+                  console.log(`No chat history found for exercise ${id}`);
+                }
+              });
             }
+            
+            setAiChatHistory(chatHistories);
+            console.log("AI chat history loaded successfully:", chatHistories);
+          } else {
+            console.log("No chat history found for this student and assignment, trying direct endpoint");
+            await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
           }
-          
-          setAiChatHistory(chatHistories);
-          console.log("AI chat history loaded successfully:", chatHistories);
         } else {
-          console.warn("No exercises found, using mock AI chat history");
-      setAiChatHistory(mockAiChatHistory);
+          console.warn("Failed to fetch AI chat history, trying direct endpoint");
+          await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
         }
       } catch (chatError) {
         console.error("Error fetching AI chat history:", chatError);
-        setAiChatHistory(mockAiChatHistory);
+        await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
       }
       
     } catch (err) {
       setError(err.message);
       console.error('Error fetching assignment data:', err);
       
-      // Fallback to mock data
+      // Fallback to mock data - remove mock chat history
       setAssignment(mockAssignment);
       setSubmission(mockSubmission);
       setCodeHistory(mockCodeHistory);
       setKeystrokeHistory(mockKeystrokeHistory);
-      setAiChatHistory(mockAiChatHistory);
+      setAiChatHistory({}); // Use empty instead of mock
       setExercises(mockExercises);
       setAnswers(mockAnswers);
       setCodingActivity(mockCodingActivity);
     }
+  };
+  
+  // Helper function to fetch chat history from direct endpoint
+  const fetchDirectChatHistory = async (apiBase, userId, assignmentId) => {
+    console.log("Fetching chat history from simple endpoint");
+    
+    try {
+      // สร้าง URL สำหรับ endpoint ใหม่
+      const url = new URL(`${apiBase}/ai/chat-history-simple`);
+      
+      // ใช้ URLSearchParams สำหรับสร้าง query parameters
+      url.searchParams.append('user_id', userId);
+      url.searchParams.append('assignment_id', assignmentId);
+      
+      console.log(`Attempting to fetch chat history from: ${url}`);
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Chat history response from simple endpoint:", data);
+        
+        // ตรวจสอบว่ามีข้อมูลหรือไม่
+        if (data.success && data.results && data.results.length > 0) {
+          console.log(`Found ${data.results.length} chat history records`);
+          
+          // สร้าง map ของข้อมูลแชทตาม exercise_id
+          const chatHistories = {};
+          
+          data.results.forEach(history => {
+            // Skip if no exercise_id or messages
+            if (!history.exercise_id || !history.messages || history.messages.length === 0) {
+              console.log(`Skipping chat history ${history._id} - missing exercise_id or messages`);
+              return;
+            }
+            
+            console.log(`Processing history for exercise_id: ${history.exercise_id}`);
+            
+            // Store under all possible key formats
+            const exerciseId = history.exercise_id;
+            const keysToUse = [
+              exerciseId,                  // Original format
+              String(exerciseId),          // String format
+              parseInt(exerciseId) || null // Number format if applicable
+            ].filter(k => k !== null && k !== undefined);
+            
+            // Format messages
+            const formattedMessages = history.messages.map((msg, idx) => ({
+              id: `${history._id || idx}-${idx}`,
+              timestamp: msg.timestamp || new Date().toISOString(),
+              role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
+              content: msg.content || ''
+            }));
+            
+            // Sort messages by timestamp
+            formattedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            // Store messages under each key format
+            keysToUse.forEach(key => {
+              chatHistories[key] = formattedMessages;
+            });
+            
+            console.log(`Stored ${formattedMessages.length} messages for exercise ${exerciseId}`);
+          });
+          
+          // Log final chat history structure for debugging
+          console.log("Available exercise IDs in chat history:", Object.keys(chatHistories));
+          setAiChatHistory(chatHistories);
+        } else {
+          console.log("No chat history found in response");
+          setAiChatHistory({});
+        }
+      } else {
+        console.warn(`Failed to fetch chat history: ${response.status} ${response.statusText}`);
+        setAiChatHistory({});
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+      setAiChatHistory({});
+    }
+  };
+  
+  // Add helper function to process chat history data regardless of source
+  const processChatHistoryData = (histories) => {
+    if (!histories || histories.length === 0) {
+      console.log("No histories to process");
+      setAiChatHistory({});
+      return;
+    }
+    
+    console.log(`Processing ${histories.length} histories from data`);
+    
+    const chatHistories = {};
+    
+    histories.forEach(history => {
+      const exerciseId = history.exercise_id;
+      
+      // Skip if no exercise_id
+      if (!exerciseId) {
+        console.log("Skipping history with no exercise_id");
+        return;
+      }
+      
+      // Store under all possible key formats
+      const keysToUse = [
+        exerciseId,                   // Original format
+        String(exerciseId),           // String format
+        parseInt(exerciseId) || null,  // Number format
+      ];
+      
+      // Filter out null/undefined values
+      const validKeys = keysToUse.filter(k => k !== null && k !== undefined);
+      
+      // Format messages
+      if (history.messages && history.messages.length > 0) {
+        // Create formatted messages
+        const formattedMessages = history.messages.map((message, idx) => ({
+          id: `${history._id || idx}-${idx}`,
+          timestamp: message.timestamp || new Date().toISOString(),
+          role: message.role === 'user' || message.role === 'student' ? 'student' : message.role,
+          content: message.content || ''
+        }));
+        
+        // Sort messages by timestamp
+        formattedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        // Store under all valid keys
+        validKeys.forEach(key => {
+          chatHistories[key] = formattedMessages;
+        });
+      }
+    });
+    
+    console.log("Processed chat histories:", chatHistories);
+    setAiChatHistory(chatHistories);
   };
   
   // Helper function to fetch code history as fallback
@@ -1913,26 +2080,243 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
               <h3>AI Chat History - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
               
               <div className="chat-container">
-                {exercises[currentExerciseIndex] && 
-                 aiChatHistory[exercises[currentExerciseIndex].id] ? (
-                  aiChatHistory[exercises[currentExerciseIndex].id].map((message) => (
-                  <div key={message.id} className={`chat-message ${message.role}`}>
-                    <div className="message-header">
-                      <span className="message-sender">
-                        {message.role === 'student' ? 'Student' : 'AI Assistant'}
-                      </span>
-                      <span className="message-time">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div className="message-content">
-                      {message.content}
-                    </div>
-                  </div>
-                  ))
-                ) : (
-                  <div className="empty-state">No AI chat history available for this exercise</div>
-                )}
+                {exercises[currentExerciseIndex] && (() => {
+                  const currentExercise = exercises[currentExerciseIndex];
+                  const exerciseId = currentExercise.id;
+                  
+                  // Try multiple formats of the ID to find chat history
+                  let chatMessages = null;
+                  
+                  // Try exact match first
+                  if (aiChatHistory[exerciseId] && aiChatHistory[exerciseId].length > 0) {
+                    chatMessages = aiChatHistory[exerciseId];
+                  }
+                  // Try string format
+                  else if (aiChatHistory[String(exerciseId)] && aiChatHistory[String(exerciseId)].length > 0) {
+                    chatMessages = aiChatHistory[String(exerciseId)];
+                  }
+                  // Try numeric format if possible
+                  else if (!isNaN(parseInt(exerciseId)) && 
+                           aiChatHistory[parseInt(exerciseId)] && 
+                           aiChatHistory[parseInt(exerciseId)].length > 0) {
+                    chatMessages = aiChatHistory[parseInt(exerciseId)];
+                  }
+                  // Try zero-based index as a last resort
+                  else if (!isNaN(parseInt(exerciseId)) && 
+                           aiChatHistory[parseInt(exerciseId) - 1] && 
+                           aiChatHistory[parseInt(exerciseId) - 1].length > 0) {
+                    chatMessages = aiChatHistory[parseInt(exerciseId) - 1];
+                  }
+                  
+                  // Try to find a match across all history keys
+                  if (!chatMessages) {
+                    for (const key in aiChatHistory) {
+                      if (aiChatHistory[key] && aiChatHistory[key].length > 0 &&
+                          (key === String(exerciseId) || 
+                           (!isNaN(parseInt(key)) && !isNaN(parseInt(exerciseId)) && parseInt(key) === parseInt(exerciseId)) ||
+                           (!isNaN(parseInt(key)) && !isNaN(parseInt(exerciseId)) && parseInt(key) === parseInt(exerciseId) - 1))) {
+                        chatMessages = aiChatHistory[key];
+                        break;
+                      }
+                    }
+                  }
+                
+                  if (chatMessages && chatMessages.length > 0) {
+                    return chatMessages.map((message) => (
+                      <div key={message.id} className={`chat-message ${message.role}`}>
+                        <div className="message-header">
+                          <span className="message-sender">
+                            {message.role === 'student' || message.role === 'user' ? 'Student' : 'AI Assistant'}
+                          </span>
+                          <span className="message-time">
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="message-content">
+                          {message.content}
+                        </div>
+                      </div>
+                    ));
+                  } else {
+                    return (
+                      <div className="empty-state">
+                        <p>No AI chat history available for this exercise</p>
+                        <div className="debug-info">
+                          <p>Exercise ID: {exerciseId} (type: {typeof exerciseId})</p>
+                          <p>Available exercise IDs in chat history: {Object.keys(aiChatHistory).join(", ")}</p>
+                          <details>
+                            <summary>Check data types</summary>
+                            <p>Exercise ID type: {typeof exerciseId}</p>
+                            <p>Chat history keys types: {Object.keys(aiChatHistory).map(key => `${key}(${typeof key})`).join(", ")}</p>
+                          </details>
+                          <div className="debug-buttons">
+                            <button onClick={() => {
+                              // ดึงข้อมูลแชทใหม่โดยตรงจาก API
+                              const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                              const userId = mongoUserIdRef || studentId;
+                              
+                              console.log(`Retry: Fetching chat history for user ${userId}, assignment ${assignmentId}, exercise ${exerciseId}`);
+                              
+                              // แสดง URL และพารามิเตอร์ที่ใช้
+                              const urlStr = `${API_BASE}/ai/chat-history-simple?user_id=${encodeURIComponent(userId)}&assignment_id=${encodeURIComponent(assignmentId)}&exercise_id=${encodeURIComponent(exerciseId)}`;
+                              console.log(`API URL: ${urlStr}`);
+                              
+                              // ใช้ fetch พร้อม timeout
+                              const controller = new AbortController();
+                              const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                              
+                              fetch(urlStr, {
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                signal: controller.signal
+                              })
+                              .then(response => {
+                                clearTimeout(timeout);
+                                if (!response.ok) {
+                                  throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+                                }
+                                return response.json();
+                              })
+                              .then(data => {
+                                console.log("Chat history response:", data);
+                                
+                                if (data.success && data.results && data.results.length > 0) {
+                                  // ดึงข้อมูลเฉพาะ exercise ที่ต้องการ
+                                  const relevantHistories = data.results.filter(h => 
+                                    h.exercise_id && (
+                                      String(h.exercise_id) === String(exerciseId) ||
+                                      (parseInt(h.exercise_id) === parseInt(exerciseId) && !isNaN(parseInt(exerciseId)))
+                                    )
+                                  );
+                                  
+                                  if (relevantHistories.length > 0) {
+                                    // สร้าง chat history ใหม่
+                                    const newHistory = {};
+                                    
+                                    // Process all matching histories
+                                    relevantHistories.forEach(history => {
+                                      const messages = history.messages || [];
+                                      
+                                      // Format messages
+                                      const formattedMessages = messages.map((msg, idx) => ({
+                                        id: `manual-${idx}`,
+                                        timestamp: msg.timestamp || new Date().toISOString(),
+                                        role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
+                                        content: msg.content || ''
+                                      }));
+                                      
+                                      // Store under all common key formats
+                                      newHistory[history.exercise_id] = formattedMessages;
+                                      newHistory[String(history.exercise_id)] = formattedMessages;
+                                      
+                                      if (!isNaN(parseInt(history.exercise_id))) {
+                                        newHistory[parseInt(history.exercise_id)] = formattedMessages;
+                                      }
+                                    });
+                                    
+                                    // Update state with all found chat histories
+                                    setAiChatHistory(newHistory);
+                                    console.log("Updated chat history state:", newHistory);
+                                  } else {
+                                    console.log(`No exact match for exercise ID ${exerciseId}. Showing all chat histories.`);
+                                    
+                                    // Create a combined history with all messages
+                                    const combinedHistory = {};
+                                    
+                                    // Process all histories
+                                    data.results.forEach(history => {
+                                      if (!history.exercise_id || !history.messages) return;
+                                      
+                                      const formattedMessages = history.messages.map((msg, idx) => ({
+                                        id: `all-${history.exercise_id}-${idx}`,
+                                        timestamp: msg.timestamp || new Date().toISOString(),
+                                        role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
+                                        content: msg.content || ''
+                                      }));
+                                      
+                                      // Store under all formats
+                                      combinedHistory[history.exercise_id] = formattedMessages;
+                                      combinedHistory[String(history.exercise_id)] = formattedMessages;
+                                      
+                                      if (!isNaN(parseInt(history.exercise_id))) {
+                                        combinedHistory[parseInt(history.exercise_id)] = formattedMessages;
+                                      }
+                                      
+                                      // Also store under current exercise ID to make it visible
+                                      combinedHistory[exerciseId] = formattedMessages;
+                                      combinedHistory[String(exerciseId)] = formattedMessages;
+                                      if (!isNaN(parseInt(exerciseId))) {
+                                        combinedHistory[parseInt(exerciseId)] = formattedMessages;
+                                      }
+                                    });
+                                    
+                                    setAiChatHistory(combinedHistory);
+                                    console.log("Updated with combined chat history:", combinedHistory);
+                                  }
+                                } else {
+                                  console.error("No chat history found in response");
+                                }
+                              })
+                              .catch(error => {
+                                clearTimeout(timeout);
+                                console.error("Error fetching chat history:", error);
+                              });
+                            }}>
+                              Retry with string conversion
+                            </button>
+                            
+                            <button onClick={() => {
+                              // ทดสอบการเชื่อมต่อกับ API
+                              const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                              console.log("Testing API connection to:", API_BASE);
+                              
+                              // ทดสอบ endpoint โดยตรงที่ root URL
+                              fetch(`${API_BASE}/health-check`, {
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' },
+                                mode: 'cors',  // ระบุ CORS mode ชัดเจน
+                              })
+                              .then(response => response.json())
+                              .then(data => {
+                                console.log("Health check response:", data);
+                                alert(`API Health check: ${JSON.stringify(data)}`);
+                              })
+                              .catch(error => {
+                                console.error("Error testing API:", error);
+                                alert(`Error testing API: ${error.message}`);
+                              });
+                            }}>
+                              Test API Connection
+                            </button>
+                            
+                            <button onClick={() => {
+                              // ทดสอบ AI API endpoint โดยตรง
+                              const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                              console.log("Testing AI API endpoint:", API_BASE);
+                              
+                              fetch(`${API_BASE}/ai/test`, {
+                                method: 'GET',
+                                mode: 'cors',  // ระบุ CORS mode ชัดเจน
+                              })
+                              .then(response => response.json())
+                              .then(data => {
+                                console.log("AI API test result:", data);
+                                alert(`AI API test result: ${JSON.stringify(data)}`);
+                              })
+                              .catch(error => {
+                                console.error("Error testing AI API:", error);
+                                alert(`Error testing AI API: ${error.message}`);
+                              });
+                            }}>
+                              Test AI API
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
             </div>
           )}
@@ -1981,7 +2365,7 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
                   </div>
                   <div className="activity-summary">
                     <div className="summary-item">
-                      <label>Total Code Runs</label>
+                      <label>Total Code Runs</label>  
                       <span>{codeHistory.filter(h => h.action_type === 'run').length}</span>
                     </div>
                     <div className="summary-item">
