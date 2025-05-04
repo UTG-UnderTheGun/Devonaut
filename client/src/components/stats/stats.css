@@ -81,3 +81,43 @@
   .stat-card.highlighted .stat-value {
     color: #7C3AED;
   }
+
+  /* Add loading animation styles for the stats cards */
+  .stats-loading-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .loading-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+    opacity: 0.6;
+    animation: loading-dot-blink 1.4s infinite ease-in-out both;
+  }
+
+  .loading-dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .loading-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .loading-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes loading-dot-blink {
+    0%, 80%, 100% {
+      transform: scale(0.5);
+      opacity: 0.4;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }

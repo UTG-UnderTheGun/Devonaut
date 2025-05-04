@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Stats from '@/components/stats/stats.js';
 import StudentTable from '@/components/tables/student-table.js';
 import AssignmentTable from '@/components/tables/assignment-table.js';
@@ -49,9 +49,26 @@ const TeacherDashboard = () => {
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [assignmentColors, setAssignmentColors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false); // Separate loading state for search
   const [error, setError] = useState(null);
   const [isReloading, setIsReloading] = useState(false);
   const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
+
+  // Debounced search handler
+  const debouncedSearch = useCallback((term) => {
+    setSearchLoading(true);
+    setSearchTerm(term);
+    // Use short timeout for search operations
+    setTimeout(() => setSearchLoading(false), 300);
+  }, []);
+  
+  // Section change handler
+  const handleSectionChange = useCallback((section) => {
+    setSearchLoading(true);
+    setSelectedSection(section);
+    setCurrentPage(1); // Reset to first page when changing section
+    setTimeout(() => setSearchLoading(false), 300);
+  }, []);
 
   // Load saved assignment colors from localStorage on component mount
   useEffect(() => {
@@ -502,7 +519,12 @@ const TeacherDashboard = () => {
 
   // Fetch data from the API based on active view
   useEffect(() => {
-    if (activeView === 'students' && user && user.role === 'teacher') {
+    if (!user || user.role !== 'teacher') return;
+    
+    // Always set loading state to true when switching views
+    setLoading(true);
+    
+    if (activeView === 'students') {
       fetchStudents();
     } else if (activeView === 'assignments') {
       fetchAssignments();
@@ -511,7 +533,7 @@ const TeacherDashboard = () => {
     } else if (activeView === 'sections') {
       fetchSections();
     }
-  }, [activeView]);
+  }, [activeView, user]);
 
 
   // If we're loading auth or data, show skeleton
@@ -535,6 +557,10 @@ const TeacherDashboard = () => {
     setSortConfig({ key: null, direction: 'asc' });
     setSearchTerm('');
     setSelectedAssignment(null);
+    // Set loading state immediately to show skeleton
+    setLoading(true);
+    // Reset search loading state
+    setSearchLoading(false);
   };
 
   const handleSort = (key) => {
@@ -592,23 +618,34 @@ const TeacherDashboard = () => {
 
   const getSortedAndFilteredData = () => {
     const data = getViewData();
-    let filtered = data;
+    let filtered = [...data]; // Create a copy to avoid mutating the original data
 
-    if (searchTerm) {
-      filtered = data.filter(item => {
-        const searchableText = getSearchableText(item);
-        return searchableText.toLowerCase().includes(searchTerm.toLowerCase());
-      });
-    }
-
+    // Apply section filter first if applicable
     if (selectedSection !== 'all' && (activeView === 'students' || activeView === 'pending')) {
       filtered = filtered.filter(item => item.section === selectedSection);
     }
 
+    // Then apply search term filter if needed
+    if (searchTerm && searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(item => {
+        const searchableText = getSearchableText(item).toLowerCase();
+        return searchableText.includes(term);
+      });
+    }
+
+    // Finally apply sorting
     if (sortConfig.key) {
       filtered.sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+        
+        // Handle string comparison properly
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+        
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
@@ -644,7 +681,7 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={loading}
+            loading={searchLoading}
           />
         );
       case 'assignments':
@@ -653,15 +690,16 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={loading}
+            loading={searchLoading}
             showCreateButton={false}
+            searchTerm={searchTerm}
           />
         );
       case 'pending':
         return (
           <PendingAssignments 
             data={currentData}
-            loading={loading}
+            loading={searchLoading}
             onAssignmentSelect={handleAssignmentSelect}
           />
         );
@@ -671,7 +709,7 @@ const TeacherDashboard = () => {
             data={currentData}
             sortConfig={sortConfig}
             onSort={handleSort}
-            loading={loading}
+            loading={searchLoading}
           />
         );
       default:
@@ -689,7 +727,8 @@ const TeacherDashboard = () => {
       );
     }
     
-    if (loading && !isCreatingAssignment && !isReloading) {
+    // Only show skeleton on initial/major loading, not for search/filter operations
+    if (loading && !isCreatingAssignment && !isReloading && !searchLoading) {
       return <DashboardSkeleton />;
     }
 
@@ -728,8 +767,8 @@ const TeacherDashboard = () => {
             activeView={activeView}
             searchTerm={searchTerm}
             selectedSection={selectedSection}
-            onSearchChange={setSearchTerm}
-            onSectionChange={setSelectedSection}
+            onSearchChange={debouncedSearch}
+            onSectionChange={handleSectionChange}
           />
           
           {error && <div className="error-message">{error}</div>}
@@ -767,3 +806,4 @@ const TeacherDashboard = () => {
 };
 
 export default TeacherDashboard;
+

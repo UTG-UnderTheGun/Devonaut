@@ -341,7 +341,72 @@ const mockCodingActivity = {
 // Replace mockAiChatHistory with empty initial state
 const initialAiChatHistory = {};
 
-const StudentAssignment = ({ studentId, assignmentId }) => {
+// Skeleton loading component
+const AssignmentSkeleton = () => {
+  return (
+    <div className="student-assignment coding-container create-assignment-container">
+      <div className="back-button-container">
+        <div className="back-button">← Back to List</div>
+      </div>
+      
+      <div className="skeleton-loading">
+        {/* Assignment header skeleton */}
+        <div className="skeleton skeleton-header" style={{ height: '2rem', width: '60%', marginBottom: '1rem' }}></div>
+        <div className="skeleton skeleton-meta" style={{ height: '1rem', width: '80%', marginBottom: '1.5rem' }}></div>
+        
+        {/* Student info panel skeleton */}
+        <div className="skeleton-info-panel" style={{ 
+          background: 'white', 
+          borderRadius: '0.5rem', 
+          padding: '1.5rem', 
+          marginBottom: '1.5rem' 
+        }}>
+          <div className="skeleton" style={{ height: '1.5rem', width: '30%', marginBottom: '1rem' }}></div>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', 
+            gap: '1.25rem' 
+          }}>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="skeleton" style={{ height: '0.75rem', width: '60%' }}></div>
+                <div className="skeleton" style={{ height: '1rem', width: '80%' }}></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Tabs skeleton */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="skeleton" style={{ height: '2.5rem', width: '8rem', borderRadius: '0.375rem' }}></div>
+          ))}
+        </div>
+        
+        {/* Content skeleton */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 350px', 
+          gap: '1.5rem' 
+        }}>
+          <div className="skeleton" style={{ 
+            background: 'white', 
+            borderRadius: '0.5rem', 
+            height: '400px' 
+          }}></div>
+          
+          <div className="skeleton" style={{ 
+            background: 'white', 
+            borderRadius: '0.5rem', 
+            height: '400px' 
+          }}></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate }) => {
   const router = useRouter();
   const [assignment, setAssignment] = useState(null);
   const [submission, setSubmission] = useState(null);
@@ -747,11 +812,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         
         // Fetch chat history from API
         const chatHistoryResponse = await fetch(`${API_BASE}/ai/chat-history?${params.toString()}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            });
+            
         if (chatHistoryResponse.ok) {
           const chatHistoryData = await chatHistoryResponse.json();
           console.log("Raw chat history data:", chatHistoryData);
@@ -824,11 +889,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   console.log(`No chat history found for exercise ${id}`);
                 }
               });
-            }
-            
-            setAiChatHistory(chatHistories);
-            console.log("AI chat history loaded successfully:", chatHistories);
-          } else {
+          }
+          
+          setAiChatHistory(chatHistories);
+          console.log("AI chat history loaded successfully:", chatHistories);
+        } else {
             console.log("No chat history found for this student and assignment, trying direct endpoint");
             await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
           }
@@ -1125,7 +1190,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
     if (onBack) {
       onBack();
     } else {
-      router.push('/teacher/dashboard');
+    router.push('/teacher/dashboard');
     }
   };
 
@@ -2123,19 +2188,19 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 
                   if (chatMessages && chatMessages.length > 0) {
                     return chatMessages.map((message) => (
-                      <div key={message.id} className={`chat-message ${message.role}`}>
-                        <div className="message-header">
-                          <span className="message-sender">
+                  <div key={message.id} className={`chat-message ${message.role}`}>
+                    <div className="message-header">
+                      <span className="message-sender">
                             {message.role === 'student' || message.role === 'user' ? 'Student' : 'AI Assistant'}
-                          </span>
-                          <span className="message-time">
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <div className="message-content">
-                          {message.content}
-                        </div>
-                      </div>
+                      </span>
+                      <span className="message-time">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="message-content">
+                      {message.content}
+                    </div>
+                  </div>
                     ));
                   } else {
                     return (
@@ -2365,7 +2430,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   </div>
                   <div className="activity-summary">
                     <div className="summary-item">
-                      <label>Total Code Runs</label>  
+                      <label>Total Code Runs</label>
                       <span>{codeHistory.filter(h => h.action_type === 'run').length}</span>
                     </div>
                     <div className="summary-item">

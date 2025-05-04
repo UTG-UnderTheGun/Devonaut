@@ -48,76 +48,20 @@ const SectionDetail = ({ section }) => {
   }, [showModal]);
 
   useEffect(() => {
+    // Just use the students from the section if available, don't fetch
     const getStudentsFromSection = () => {
       const sectionCopy = section ? {...section} : null;
       
-      if (sectionCopy && sectionCopy.students && Array.isArray(sectionCopy.students) && sectionCopy.students.length > 0) {
+      if (sectionCopy && sectionCopy.students && Array.isArray(sectionCopy.students)) {
         setStudents(sectionCopy.students);
       } else {
+        // If no students, just use empty array instead of fetching
         setStudents([]);
-        
-        if (sectionCopy && sectionCopy.id) {
-          fetchStudentsBySection(sectionCopy.id);
-        }
       }
     };
     
     getStudentsFromSection();
   }, [section]);
-  
-  useEffect(() => {
-    // Keep empty useEffect for future use if needed
-  }, [section, students]);
-
-  const fetchStudentsBySection = async (sectionId) => {
-    try {
-      setLoading(true);
-      
-      const endpoint = `${API_BASE}/users/sections`;
-      
-      const response = await axios.get(endpoint, {
-        withCredentials: true
-      });
-      
-      if (!Array.isArray(response.data)) {
-        setStudents([]);
-        return;
-      }
-      
-      const sectionsData = response.data;
-      
-      let targetSection = sectionsData.find(s => s.id === sectionId) ||
-                          sectionsData.find(s => String(s.id) === String(sectionId)) ||
-                          sectionsData.find(s => s.id === Number(sectionId));
-                          
-      if (!targetSection) {
-        const matchedStudents = [];
-        sectionsData.forEach(section => {
-          if (section.students && Array.isArray(section.students)) {
-            const students = section.students.filter(s => String(s.section) === String(sectionId));
-            if (students.length > 0) {
-              matchedStudents.push(...students);
-            }
-          }
-        });
-        
-        if (matchedStudents.length > 0) {
-          setStudents(matchedStudents);
-          return;
-        }
-      }
-      
-      if (targetSection && targetSection.students && Array.isArray(targetSection.students)) {
-        setStudents(targetSection.students);
-      } else {
-        setStudents([]);
-      }
-    } catch (error) {
-      setStudents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRowClick = (student) => {
     setSelectedStudent(student);
@@ -126,11 +70,12 @@ const SectionDetail = ({ section }) => {
 
   if (!section) return null;
 
+  // Use static values
   const totalStudents = section.totalStudents || students.length || 0;
-  // Use static pending count of 2 as requested
+  // Always use static pending count of 2
   const pendingCount = 2;
-  // Calculate a reasonable total score based on students
-  const totalScore = students.reduce((sum, student) => sum + (student.score || 0), 0) || 75;
+  // Static total score
+  const totalScore = 75;
 
   const EmptyState = () => (
     <div className="empty-state">
