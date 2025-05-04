@@ -120,8 +120,7 @@ allowed_origins = [
     "https://localhost:3000", # Development with HTTPS
     "http://127.0.0.1:3000",  # Alternative development URL
     "http://localhost:8000",  # Allow API server
-    "http://localhost",       # Allow any localhost
-    "*"                       # Allow all origins in development mode
+    "http://localhost"       # Allow any localhost
 ]
 
 # In production, add your domain
@@ -137,7 +136,7 @@ if environment == "production":
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in any mode
+    allow_origins=allowed_origins,  # Use the defined allowed_origins list instead of "*"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
