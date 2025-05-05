@@ -401,3 +401,54 @@ class KeystrokeData(BaseModel):
                 ]
             }
         }
+
+
+class ChatMessage(BaseModel):
+    role: str  # "student" or "assistant"
+    content: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "role": "student",
+                "content": "1+1 ได้เท่าไหร่",
+                "timestamp": "2025-05-03T10:30:00"
+            }
+        }
+
+
+class ChatHistory(BaseModel):
+    id: str = Field(default_factory=lambda: str(datetime.now().timestamp()))
+    user_id: str
+    username: Optional[str] = None
+    assignment_id: str
+    exercise_id: str
+    messages: List[ChatMessage] = []
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": "1715123456.789",
+                "user_id": "student123",
+                "username": "John Doe",
+                "assignment_id": "assign123",
+                "exercise_id": "1",
+                "messages": [
+                    {
+                        "role": "student",
+                        "content": "1+1 ได้เท่าไหร่",
+                        "timestamp": "2025-05-03T10:30:00"
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "1+1 ได้เท่ากับ 2 ครับ",
+                        "timestamp": "2025-05-03T10:30:10"
+                    }
+                ],
+                "created_at": "2025-05-03T10:30:00",
+                "updated_at": "2025-05-03T10:30:10"
+            }
+        }

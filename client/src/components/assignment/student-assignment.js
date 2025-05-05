@@ -1,6 +1,6 @@
 // student-assignment.js
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './student-assignment.css';
 
@@ -216,9 +216,7 @@ const mockAiChatHistory = {
       timestamp: '2024-02-20T10:40:15',
       role: 'ai',
       content: 'ในบรรทัดแรก x + y * 2 จะคำนวณ y * 2 ก่อน แล้วค่อยบวกกับ x ส่วนบรรทัดที่สอง (x + y) * 2 จะคำนวณในวงเล็บก่อน แล้วค่อยคูณ 2'
-    }
-  ],
-  3: [
+    },
     {
       id: 7,
       timestamp: '2024-02-20T10:45:00',
@@ -228,6 +226,20 @@ const mockAiChatHistory = {
     {
       id: 8,
       timestamp: '2024-02-20T10:45:10',
+      role: 'ai',
+      content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
+    }
+  ],
+  3: [
+    {
+      id: 9,
+      timestamp: '2024-02-20T10:50:00',
+      role: 'student',
+      content: 'การคำนวณค่าเฉลี่ยต้องเริ่มต้น total ด้วยอะไรครับ?'
+    },
+    {
+      id: 10,
+      timestamp: '2024-02-20T10:50:10',
       role: 'ai',
       content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
     }
@@ -326,7 +338,75 @@ const mockCodingActivity = {
   ]
 };
 
-const StudentAssignment = ({ studentId, assignmentId }) => {
+// Replace mockAiChatHistory with empty initial state
+const initialAiChatHistory = {};
+
+// Skeleton loading component
+const AssignmentSkeleton = () => {
+  return (
+    <div className="student-assignment coding-container create-assignment-container">
+      <div className="back-button-container">
+        <div className="back-button">← Back to List</div>
+      </div>
+      
+      <div className="skeleton-loading">
+        {/* Assignment header skeleton */}
+        <div className="skeleton skeleton-header" style={{ height: '2rem', width: '60%', marginBottom: '1rem' }}></div>
+        <div className="skeleton skeleton-meta" style={{ height: '1rem', width: '80%', marginBottom: '1.5rem' }}></div>
+        
+        {/* Student info panel skeleton */}
+        <div className="skeleton-info-panel" style={{ 
+          background: 'white', 
+          borderRadius: '0.5rem', 
+          padding: '1.5rem', 
+          marginBottom: '1.5rem' 
+        }}>
+          <div className="skeleton" style={{ height: '1.5rem', width: '30%', marginBottom: '1rem' }}></div>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', 
+            gap: '1.25rem' 
+          }}>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="skeleton" style={{ height: '0.75rem', width: '60%' }}></div>
+                <div className="skeleton" style={{ height: '1rem', width: '80%' }}></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Tabs skeleton */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="skeleton" style={{ height: '2.5rem', width: '8rem', borderRadius: '0.375rem' }}></div>
+          ))}
+        </div>
+        
+        {/* Content skeleton */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 350px', 
+          gap: '1.5rem' 
+        }}>
+          <div className="skeleton" style={{ 
+            background: 'white', 
+            borderRadius: '0.5rem', 
+            height: '400px' 
+          }}></div>
+          
+          <div className="skeleton" style={{ 
+            background: 'white', 
+            borderRadius: '0.5rem', 
+            height: '400px' 
+          }}></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate }) => {
   const router = useRouter();
   const [assignment, setAssignment] = useState(null);
   const [submission, setSubmission] = useState(null);
@@ -343,6 +423,9 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   const [exercises, setExercises] = useState([]);
   const [answers, setAnswers] = useState({});
   const [codingActivity, setCodingActivity] = useState({});
+  const [checkedCodeHistory, setCheckedCodeHistory] = useState(false);
+  const userIdRef = useRef(studentId);
+  const [mongoUserIdRef, setMongoUserIdRef] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -391,9 +474,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         if (userLookupResponse.ok) {
           const userData = await userLookupResponse.json();
           mongoUserId = userData.user_id; // Use the MongoDB user_id for submission lookup
+          setMongoUserIdRef(userData.user_id); // Store MongoDB user ID in ref
           console.log(`Mapped student_id ${studentId} to MongoDB user_id ${mongoUserId}`);
         } else {
           // If lookup fails, continue with the original studentId
+          setMongoUserIdRef(studentId); // Store student ID as fallback
           console.warn(`Could not find user with student_id ${studentId}, using ID as-is`);
         }
       } catch (userLookupError) {
@@ -460,32 +545,53 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           // Process timeline data into coding activity format
           const activity = {};
           
+          // First initialize all exercises with empty arrays
           if (assignmentData.exercises && assignmentData.exercises.length > 0) {
-            // Create empty arrays for each exercise to ensure we always have some structure
             assignmentData.exercises.forEach(exercise => {
               activity[exercise.id] = [];
+              // Also initialize with string versions of ID to handle different ID types
+              activity[String(exercise.id)] = [];
             });
             
-            // Then process and fill with actual data
+            // Log all available keystroke data for debugging
+            console.log("TIMELINE DATA DUMP - ALL ENTRIES:", timelineData.map(item => ({
+              problem_index: item.problem_index,
+              exercise_id: item.exercise_id,
+              timestamp: item.timestamp && item.timestamp.substring(0, 19)
+            })));
+            
+            // Process each exercise
             assignmentData.exercises.forEach(exercise => {
-              // Add better debug output
               console.log(`Processing timeline data for exercise ${exercise.id} (${typeof exercise.id})`);
               
-              // Filter timeline entries for this exercise - handle various formats of IDs
-              const exerciseTimeline = timelineData.filter(item => {
-                // Check problem_index match first
-                const problemIndexMatch = 
-                  (item.problem_index === exercise.id) || 
-                  (item.problem_index !== null && parseInt(item.problem_index) === parseInt(exercise.id)) ||
-                  (String(item.problem_index) === String(exercise.id));
+              // Make a more flexible matcher function
+              const matchesExercise = (item) => {
+                const exerciseId = exercise.id;
+                const strExerciseId = String(exerciseId);
+                const itemProblemIndex = item.problem_index !== undefined ? item.problem_index : null;
+                const itemExerciseId = item.exercise_id !== undefined ? item.exercise_id : null;
                 
-                // Check exercise_id match as fallback
-                const exerciseIdMatch = item.exercise_id && 
-                  (item.exercise_id === exercise.id || 
-                   String(item.exercise_id) === String(exercise.id));
-                   
-                return problemIndexMatch || exerciseIdMatch;
-              });
+                // Try all possible matching combinations
+                return (
+                  // Direct match on problem_index
+                  itemProblemIndex === exerciseId ||
+                  // String match on problem_index
+                  String(itemProblemIndex) === strExerciseId ||
+                  // Number match if problem_index is numeric string
+                  (typeof itemProblemIndex === 'string' && !isNaN(parseInt(itemProblemIndex)) && 
+                   parseInt(itemProblemIndex) === exerciseId) ||
+                  // Direct match on exercise_id
+                  itemExerciseId === exerciseId ||
+                  // String match on exercise_id
+                  String(itemExerciseId) === strExerciseId ||
+                  // Number match if exercise_id is numeric string
+                  (typeof itemExerciseId === 'string' && !isNaN(parseInt(itemExerciseId)) && 
+                   parseInt(itemExerciseId) === exerciseId)
+                );
+              };
+              
+              // Filter timeline entries for this exercise using our flexible matcher
+              const exerciseTimeline = timelineData.filter(matchesExercise);
               
               console.log(`Found ${exerciseTimeline.length} timeline entries for exercise ${exercise.id}`);
               
@@ -493,28 +599,32 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 // Log some sample data
                 console.log("Sample timeline entry:", exerciseTimeline[0]);
                 
-                // Map to the format expected by the UI
-                activity[exercise.id] = exerciseTimeline.map((item, index) => ({
-                  id: index + 1,
+              // Map to the format expected by the UI
+                const timelineEntries = exerciseTimeline.map((item, index) => ({
+                id: index + 1,
                   timestamp: item.timestamp || new Date().toISOString(),
                   action: item.action_type || 'keystroke',
                   exerciseId: exercise.id,
                   code: item.code || '',
-                  changes: item.changes || null // Include changes for diff visualization
+                  changes: item.changes || null
                 }));
-                console.log(`Processed ${exerciseTimeline.length} timeline entries for exercise ${exercise.id}`);
+                
+                // Sort entries by timestamp
+                timelineEntries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                // Store timeline under both string and number keys to ensure it's found
+                activity[exercise.id] = timelineEntries;
+                activity[String(exercise.id)] = timelineEntries;
+                
+                console.log(`Processed ${timelineEntries.length} timeline entries for exercise ${exercise.id}`);
               }
             });
             
             setCodingActivity(activity);
-            console.log("Processed keystroke timeline into coding activity:", activity);
-            
-            // Check if we have at least some data
-            const hasData = Object.values(activity).some(arr => arr.length > 0);
-            if (!hasData) {
-              console.log("No keystroke timeline data found for any exercise, falling back to code history");
-              await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
-            }
+            console.log("FINAL ACTIVITY STRUCTURE:", Object.keys(activity).map(key => ({
+              key: key,
+              entries: activity[key] ? activity[key].length : 0
+            })));
           }
         } else {
           // If timeline API fails, try to fetch individual keystroke data
@@ -565,17 +675,17 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                       id: index + 1,
                       timestamp: item.timestamp,
                       action: item.action_type || 'keystroke',
-                      exerciseId: exercise.id,
-                      code: item.code || ''
-                    }));
+                exerciseId: exercise.id,
+                code: item.code || ''
+              }));
                     console.log(`Processed ${exerciseKeystrokes.length} keystrokes for exercise ${exercise.id}`);
                   } else {
                     console.log(`No keystrokes found for exercise ${exercise.id}`);
                     activity[exercise.id] = [];
                   }
-                });
+            });
                 
-                setCodingActivity(activity);
+            setCodingActivity(activity);
                 console.log("Processed raw keystrokes into coding activity:", activity);
                 
                 // Check if we have at least some data
@@ -584,8 +694,8 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   console.log("No keystroke data found for any exercise, falling back to code history");
                   await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
                 }
-              }
-            } else {
+          }
+        } else {
               // If raw keystrokes API fails too, fall back to code history
               console.log("Raw keystrokes API failed, falling back to code history");
               await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
@@ -662,93 +772,293 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         console.error("Error fetching keystroke analytics:", keystrokeAnalyticsError);
         
         // Fallback to old analytics API
-        try {
-          const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
+      try {
+        const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        
+        if (keystrokeResponse.ok) {
+          const keystrokeData = await keystrokeResponse.json();
           
-          if (keystrokeResponse.ok) {
-            const keystrokeData = await keystrokeResponse.json();
-            
-            // Transform the data into the format expected by the UI
-            const formattedKeystrokeData = keystrokeData.map(item => ({
-              day: item.day,
-              count: item.count,
-              action_type: item.action_type,
-              problem_index: item.problem_index,
-              exercise_id: item.exercise_id
-            }));
-            
-            setKeystrokeHistory(formattedKeystrokeData);
-            console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
-          } else {
-            console.warn("Failed to fetch keystroke history, using mock data");
-            setKeystrokeHistory(mockKeystrokeHistory);
-          }
-        } catch (keystrokeError) {
-          console.error("Error fetching keystroke history:", keystrokeError);
-          setKeystrokeHistory(mockKeystrokeHistory);
+          // Transform the data into the format expected by the UI
+          const formattedKeystrokeData = keystrokeData.map(item => ({
+            day: item.day,
+            count: item.count,
+            action_type: item.action_type,
+            problem_index: item.problem_index,
+            exercise_id: item.exercise_id
+          }));
+          
+          setKeystrokeHistory(formattedKeystrokeData);
+          console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
+        } else {
+          console.warn("Failed to fetch keystroke history, using mock data");
+      setKeystrokeHistory(mockKeystrokeHistory);
+        }
+      } catch (keystrokeError) {
+        console.error("Error fetching keystroke history:", keystrokeError);
+        setKeystrokeHistory(mockKeystrokeHistory);
         }
       }
       
       // Fetch AI chat history
       try {
-        // Create an object to store chat histories by exercise
-        const chatHistories = {};
+        // Create query parameters
+        const params = new URLSearchParams();
+        params.append('user_id', mongoUserId);
+        params.append('assignment_id', assignmentId);
         
-        // Fetch chat history for each exercise
-        if (exercises.length > 0) {
-          for (const exercise of exercises) {
-            const chatResponse = await fetch(`${API_BASE}/ai/conversations?user_id=${mongoUserId}&exercise_id=${exercise.id}&assignment_id=${assignmentId}`, {
+        // Fetch chat history from API
+        const chatHistoryResponse = await fetch(`${API_BASE}/ai/chat-history?${params.toString()}`, {
               method: 'GET',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
             });
             
-            if (chatResponse.ok) {
-              const chatData = await chatResponse.json();
-              
-              if (chatData.messages && chatData.messages.length > 0) {
-                // Transform to the format expected by the UI
-                chatHistories[exercise.id] = chatData.messages.map((msg, index) => ({
-                  id: index + 1,
-                  timestamp: msg.timestamp || new Date().toISOString(),
-                  role: msg.role === 'user' ? 'student' : 'ai',
-                  content: msg.content
-                }));
-              } else {
-                chatHistories[exercise.id] = [];
-              }
+        if (chatHistoryResponse.ok) {
+          const chatHistoryData = await chatHistoryResponse.json();
+          console.log("Raw chat history data:", chatHistoryData);
+          
+          // Process chat histories by exercise
+          const chatHistories = {};
+          
+          if (chatHistoryData.histories && chatHistoryData.histories.length > 0) {
+            // Create lookup map for exercise IDs for faster matching later
+            const exerciseIdMap = {};
+            if (exercises && exercises.length > 0) {
+              exercises.forEach(exercise => {
+                // Store ID in multiple formats
+                const id = exercise.id;
+                const idStr = String(id);
+                const idNum = !isNaN(parseInt(id)) ? parseInt(id) : null;
+                
+                exerciseIdMap[id] = true;
+                exerciseIdMap[idStr] = true;
+                if (idNum !== null) exerciseIdMap[idNum] = true;
+                if (idNum !== null && idNum > 0) exerciseIdMap[idNum - 1] = true; // For zero-based index
+              });
             }
+            
+            // Group messages by exercise ID
+            chatHistoryData.histories.forEach(history => {
+              // Store chat history under multiple key formats to ensure matching
+              const exerciseId = history.exercise_id;
+              const exerciseIdStr = String(exerciseId);
+              const exerciseIdNum = !isNaN(parseInt(exerciseId)) ? parseInt(exerciseId) : null;
+              
+              // Create entries for different formats of the same ID
+              if (!chatHistories[exerciseId]) chatHistories[exerciseId] = [];
+              if (!chatHistories[exerciseIdStr]) chatHistories[exerciseIdStr] = [];
+              if (exerciseIdNum !== null && !chatHistories[exerciseIdNum]) chatHistories[exerciseIdNum] = [];
+              
+              // Format messages
+              if (history.messages && history.messages.length > 0) {
+                // Create formatted messages
+                const formattedMessages = history.messages.map((message, idx) => ({
+                  id: `${history.id || history._id || idx}-${idx}`,
+                  timestamp: message.timestamp || new Date().toISOString(),
+                  role: message.role === 'user' ? 'student' : message.role,
+                  content: message.content || ''
+                }));
+                
+                // Sort messages by timestamp
+                formattedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                // Add to all ID formats
+                chatHistories[exerciseId] = formattedMessages;
+                chatHistories[exerciseIdStr] = formattedMessages;
+                if (exerciseIdNum !== null) chatHistories[exerciseIdNum] = formattedMessages;
+              }
+            });
+            
+            // Log found and missing IDs for debugging
+            if (exercises && exercises.length > 0) {
+              const foundIds = new Set(Object.keys(chatHistories));
+              console.log("Found chat histories for IDs:", Array.from(foundIds));
+              
+              exercises.forEach(exercise => {
+                const id = exercise.id;
+                const idStr = String(id);
+                const idNum = !isNaN(parseInt(id)) ? parseInt(id) : null;
+                
+                if (!foundIds.has(id) && !foundIds.has(idStr) && 
+                    (idNum === null || !foundIds.has(idNum)) &&
+                    (idNum === null || idNum <= 0 || !foundIds.has(idNum - 1))) {
+                  console.log(`No chat history found for exercise ${id}`);
+                }
+              });
           }
           
           setAiChatHistory(chatHistories);
           console.log("AI chat history loaded successfully:", chatHistories);
         } else {
-          console.warn("No exercises found, using mock AI chat history");
-          setAiChatHistory(mockAiChatHistory);
+            console.log("No chat history found for this student and assignment, trying direct endpoint");
+            await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
+          }
+        } else {
+          console.warn("Failed to fetch AI chat history, trying direct endpoint");
+          await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
         }
       } catch (chatError) {
         console.error("Error fetching AI chat history:", chatError);
-        setAiChatHistory(mockAiChatHistory);
+        await fetchDirectChatHistory(API_BASE, mongoUserId, assignmentId);
       }
       
     } catch (err) {
       setError(err.message);
       console.error('Error fetching assignment data:', err);
       
-      // Fallback to mock data
+      // Fallback to mock data - remove mock chat history
       setAssignment(mockAssignment);
       setSubmission(mockSubmission);
       setCodeHistory(mockCodeHistory);
       setKeystrokeHistory(mockKeystrokeHistory);
-      setAiChatHistory(mockAiChatHistory);
+      setAiChatHistory({}); // Use empty instead of mock
       setExercises(mockExercises);
       setAnswers(mockAnswers);
       setCodingActivity(mockCodingActivity);
     }
+  };
+  
+  // Helper function to fetch chat history from direct endpoint
+  const fetchDirectChatHistory = async (apiBase, userId, assignmentId) => {
+    console.log("Fetching chat history from simple endpoint");
+    
+    try {
+      // สร้าง URL สำหรับ endpoint ใหม่
+      const url = new URL(`${apiBase}/ai/chat-history-simple`);
+      
+      // ใช้ URLSearchParams สำหรับสร้าง query parameters
+      url.searchParams.append('user_id', userId);
+      url.searchParams.append('assignment_id', assignmentId);
+      
+      console.log(`Attempting to fetch chat history from: ${url}`);
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Chat history response from simple endpoint:", data);
+        
+        // ตรวจสอบว่ามีข้อมูลหรือไม่
+        if (data.success && data.results && data.results.length > 0) {
+          console.log(`Found ${data.results.length} chat history records`);
+          
+          // สร้าง map ของข้อมูลแชทตาม exercise_id
+          const chatHistories = {};
+          
+          data.results.forEach(history => {
+            // Skip if no exercise_id or messages
+            if (!history.exercise_id || !history.messages || history.messages.length === 0) {
+              console.log(`Skipping chat history ${history._id} - missing exercise_id or messages`);
+              return;
+            }
+            
+            console.log(`Processing history for exercise_id: ${history.exercise_id}`);
+            
+            // Store under all possible key formats
+            const exerciseId = history.exercise_id;
+            const keysToUse = [
+              exerciseId,                  // Original format
+              String(exerciseId),          // String format
+              parseInt(exerciseId) || null // Number format if applicable
+            ].filter(k => k !== null && k !== undefined);
+            
+            // Format messages
+            const formattedMessages = history.messages.map((msg, idx) => ({
+              id: `${history._id || idx}-${idx}`,
+              timestamp: msg.timestamp || new Date().toISOString(),
+              role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
+              content: msg.content || ''
+            }));
+            
+            // Sort messages by timestamp
+            formattedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            // Store messages under each key format
+            keysToUse.forEach(key => {
+              chatHistories[key] = formattedMessages;
+            });
+            
+            console.log(`Stored ${formattedMessages.length} messages for exercise ${exerciseId}`);
+          });
+          
+          // Log final chat history structure for debugging
+          console.log("Available exercise IDs in chat history:", Object.keys(chatHistories));
+          setAiChatHistory(chatHistories);
+        } else {
+          console.log("No chat history found in response");
+          setAiChatHistory({});
+        }
+      } else {
+        console.warn(`Failed to fetch chat history: ${response.status} ${response.statusText}`);
+        setAiChatHistory({});
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+      setAiChatHistory({});
+    }
+  };
+  
+  // Add helper function to process chat history data regardless of source
+  const processChatHistoryData = (histories) => {
+    if (!histories || histories.length === 0) {
+      console.log("No histories to process");
+      setAiChatHistory({});
+      return;
+    }
+    
+    console.log(`Processing ${histories.length} histories from data`);
+    
+    const chatHistories = {};
+    
+    histories.forEach(history => {
+      const exerciseId = history.exercise_id;
+      
+      // Skip if no exercise_id
+      if (!exerciseId) {
+        console.log("Skipping history with no exercise_id");
+        return;
+      }
+      
+      // Store under all possible key formats
+      const keysToUse = [
+        exerciseId,                   // Original format
+        String(exerciseId),           // String format
+        parseInt(exerciseId) || null,  // Number format
+      ];
+      
+      // Filter out null/undefined values
+      const validKeys = keysToUse.filter(k => k !== null && k !== undefined);
+      
+      // Format messages
+      if (history.messages && history.messages.length > 0) {
+        // Create formatted messages
+        const formattedMessages = history.messages.map((message, idx) => ({
+          id: `${history._id || idx}-${idx}`,
+          timestamp: message.timestamp || new Date().toISOString(),
+          role: message.role === 'user' || message.role === 'student' ? 'student' : message.role,
+          content: message.content || ''
+        }));
+        
+        // Sort messages by timestamp
+        formattedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        // Store under all valid keys
+        validKeys.forEach(key => {
+          chatHistories[key] = formattedMessages;
+        });
+      }
+    });
+    
+    console.log("Processed chat histories:", chatHistories);
+    setAiChatHistory(chatHistories);
   };
   
   // Helper function to fetch code history as fallback
@@ -835,6 +1145,14 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
     }
   }, [studentId, assignmentId]);
   
+  // Add effect to automatically refresh timeline data when tab changes to timeline
+  useEffect(() => {
+    if (activeTab === 'timeline' && mongoUserIdRef) {
+      console.log('Timeline tab selected, refreshing timeline data...');
+      refreshTimelineData();
+    }
+  }, [activeTab, mongoUserIdRef]);
+  
   // Update localStorage when exercises change
   useEffect(() => {
     if (exercises.length > 0 && currentExerciseIndex < exercises.length) {
@@ -869,7 +1187,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
   }, [exercises, codingActivity]);
 
   const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
     router.push('/teacher/dashboard');
+    }
   };
 
   const handleScoreChange = (e) => {
@@ -937,6 +1259,11 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       }));
 
       alert('Grade submitted successfully!');
+      
+      // Call the callback function to update parent component
+      if (typeof onSubmissionUpdate === 'function') {
+        onSubmissionUpdate();
+      }
     } catch (err) {
       console.error("Error submitting grade:", err);
       alert(`Failed to submit grade: ${err.message}`);
@@ -1029,49 +1356,240 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
 
   // Add a utility function to normalize ID lookups
   const getActivityForExercise = (exerciseId) => {
-    if (!exerciseId || !codingActivity) return [];
+    if (!exerciseId || !codingActivity) {
+      console.log(`No activity data available - exerciseId: ${exerciseId}, codingActivity exists: ${!!codingActivity}`);
+      return [];
+    }
+    
+    console.log(`Looking for activity for exercise ${exerciseId} (${typeof exerciseId})`);
+    console.log(`Available activity keys: ${Object.keys(codingActivity).join(', ')}`);
+    
+    // Try all possible matching methods
     
     // Direct lookup first
     if (codingActivity[exerciseId] && codingActivity[exerciseId].length > 0) {
+      console.log(`Found ${codingActivity[exerciseId].length} entries with direct match on key: ${exerciseId}`);
       return codingActivity[exerciseId];
     }
     
     // Try string conversion
     const strId = String(exerciseId);
     if (codingActivity[strId] && codingActivity[strId].length > 0) {
+      console.log(`Found ${codingActivity[strId].length} entries with string key: ${strId}`);
       return codingActivity[strId];
     }
     
     // Try numeric conversion if possible
     const numId = parseInt(exerciseId);
-    if (!isNaN(numId) && codingActivity[numId] && codingActivity[numId].length > 0) {
-      return codingActivity[numId];
+    if (!isNaN(numId)) {
+      if (codingActivity[numId] && codingActivity[numId].length > 0) {
+        console.log(`Found ${codingActivity[numId].length} entries with numeric key: ${numId}`);
+        return codingActivity[numId];
+      }
+      
+      // Check for zero-based index (problem_index might be 0-based while exercise IDs are 1-based)
+      const zeroBasedIndex = numId - 1;
+      if (zeroBasedIndex >= 0 && codingActivity[zeroBasedIndex] && codingActivity[zeroBasedIndex].length > 0) {
+        console.log(`Found ${codingActivity[zeroBasedIndex].length} entries with zero-based index: ${zeroBasedIndex}`);
+        return codingActivity[zeroBasedIndex];
+      }
     }
     
-    // Look through all keys for a string match
-    const matchingKey = Object.keys(codingActivity).find(key => String(key) === strId);
-    if (matchingKey && codingActivity[matchingKey].length > 0) {
-      return codingActivity[matchingKey];
+    // Look for keys that might be strings with the same value
+    for (const key of Object.keys(codingActivity)) {
+      // Compare as strings
+      if (String(key) === strId && codingActivity[key].length > 0) {
+        console.log(`Found ${codingActivity[key].length} entries with string comparison on key: ${key}`);
+        return codingActivity[key];
+      }
+      
+      // Compare numerically if both are numbers
+      const keyNum = parseInt(key);
+      if (!isNaN(keyNum) && !isNaN(numId) && keyNum === numId && codingActivity[key].length > 0) {
+        console.log(`Found ${codingActivity[key].length} entries with numeric comparison on key: ${key}`);
+        return codingActivity[key];
+      }
+      
+      // Check for zero-based index match (when problem_index in DB is 0-based)
+      if (!isNaN(keyNum) && !isNaN(numId) && keyNum === numId - 1 && codingActivity[key].length > 0) {
+        console.log(`Found ${codingActivity[key].length} entries with zero-based index match: key=${key}, exercise=${numId}`);
+        return codingActivity[key];
+      }
     }
     
-    console.log(`No activity found for exercise ${exerciseId}`);
+    // Last resort: check if any of the timeline items have matching exerciseId property
+    for (const key of Object.keys(codingActivity)) {
+      const entries = codingActivity[key];
+      if (entries && entries.length > 0) {
+        const matchingEntries = entries.filter(entry => 
+          entry.exerciseId === exerciseId || 
+          String(entry.exerciseId) === strId || 
+          (entry.exerciseId !== undefined && !isNaN(parseInt(entry.exerciseId)) && parseInt(entry.exerciseId) === numId)
+        );
+        
+        if (matchingEntries.length > 0) {
+          console.log(`Found ${matchingEntries.length} entries by checking exerciseId property inside entries`);
+          return matchingEntries;
+        }
+      }
+    }
+    
+    console.log(`No activity found for exercise ${exerciseId} after trying all lookup methods`);
     return [];
   };
 
   const timelineMarkers = generateTimelineMarkers();
+
+  // Add a specific function to refresh the timeline data
+  const refreshTimelineData = () => {
+    // Define API base URL
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const userId = mongoUserIdRef || studentId;
+    
+    console.log(`Manually refreshing timeline data for user ${userId}, assignment ${assignmentId}`);
+    
+    // Fetch fresh timeline data
+    fetch(`${API_BASE}/code/keystrokes/${userId}/${assignmentId}/timeline`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error(`Failed to fetch timeline: ${response.status}`);
+      }
+    })
+    .then(timelineData => {
+      console.log(`Refreshed timeline data, found ${timelineData.length} entries`);
+      
+      // Debug the actual data to see problem_index values
+      if (timelineData.length > 0) {
+        console.log("Sample entry problem_index:", timelineData[0].problem_index);
+        console.log("Sample entry exercise_id:", timelineData[0].exercise_id);
+      }
+      
+      // Process into coding activity format (simplified version)
+      const activity = {};
+      
+      // Initialize all exercises with empty arrays
+      if (exercises && exercises.length > 0) {
+        exercises.forEach(exercise => {
+          activity[exercise.id] = [];
+          activity[String(exercise.id)] = [];
+          
+          // Also initialize zero-based index arrays for problem_index data
+          const zeroBasedIndex = parseInt(exercise.id) - 1;
+          if (!isNaN(zeroBasedIndex) && zeroBasedIndex >= 0) {
+            activity[zeroBasedIndex] = [];
+            activity[String(zeroBasedIndex)] = [];
+          }
+        });
+      }
+      
+      // Process each entry in the timeline data
+      timelineData.forEach(item => {
+        const problemIndex = item.problem_index;
+        const exerciseId = item.exercise_id;
+        
+        console.log(`Processing entry: problem_index=${problemIndex}, exercise_id=${exerciseId}`);
+        
+        // Try to match to exercises
+        exercises.forEach(exercise => {
+          const exerciseNumber = parseInt(exercise.id);
+          const zeroBasedIndex = exerciseNumber - 1;
+          
+          // Check for direct match
+          const directMatch = 
+            (problemIndex !== undefined && (problemIndex === exercise.id || String(problemIndex) === String(exercise.id))) ||
+            (exerciseId !== undefined && (exerciseId === exercise.id || String(exerciseId) === String(exercise.id)));
+          
+          // Check for zero-based problem_index match
+          const zeroBasedMatch = 
+            (problemIndex !== undefined && (
+              problemIndex === zeroBasedIndex || 
+              String(problemIndex) === String(zeroBasedIndex)
+            ));
+            
+          if (directMatch || zeroBasedMatch) {
+            // Add to both string and number versions of the ID
+            const entry = {
+              id: (activity[exercise.id].length || 0) + 1,
+              timestamp: item.timestamp || new Date().toISOString(),
+              action: item.action_type || 'keystroke',
+              exerciseId: exercise.id,
+              code: item.code || '',
+              changes: item.changes || null
+            };
+            
+            // Add to appropriate keys
+            activity[exercise.id].push(entry);
+            activity[String(exercise.id)].push(entry);
+            
+            // If we matched using zero-based index, also store in that key
+            if (zeroBasedMatch) {
+              if (!activity[zeroBasedIndex]) activity[zeroBasedIndex] = [];
+              if (!activity[String(zeroBasedIndex)]) activity[String(zeroBasedIndex)] = [];
+              
+              activity[zeroBasedIndex].push(entry);
+              activity[String(zeroBasedIndex)].push(entry);
+              
+              console.log(`Added entry to zero-based index ${zeroBasedIndex} for exercise ${exercise.id}`);
+            }
+            
+            console.log(`Added entry for exercise ${exercise.id}${zeroBasedMatch ? ` (matched zero-based index ${zeroBasedIndex})` : ''}`);
+          }
+        });
+      });
+      
+      // Sort all entries by timestamp
+      Object.keys(activity).forEach(key => {
+        if (activity[key] && activity[key].length > 0) {
+          activity[key].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        }
+      });
+      
+      // Debug what we've processed
+      console.log("Processed activity keys:", Object.keys(activity).map(key => {
+        return {
+          key,
+          entries: activity[key] ? activity[key].length : 0
+        };
+      }));
+      
+      // Update state with fresh data
+      setCodingActivity(activity);
+      console.log(`Timeline refresh complete, processed ${Object.keys(activity).length} exercise keys`);
+    })
+    .catch(error => {
+      console.error("Error refreshing timeline:", error);
+      // Fall back to code history if timeline fetch fails
+      fetchCodeHistory(API_BASE, userId, assignmentId, exercises);
+    });
+  };
 
   if (error && !assignment) {
     return <div className="error-container">Error: {error}</div>;
   }
 
   if (!assignment || !submission) {
-    return null;
+    return <AssignmentSkeleton />;
   }
 
   return (
-    <div className="student-assignment">
+    <div className="student-assignment coding-container create-assignment-container">
+      <div className="back-button-container">
+        <button 
+          className="back-button"
+          onClick={handleBack}
+        >
+          ← Back to List
+        </button>
+      </div>
+
       <div className="assignment-header">
-        <h1>{assignment.title}</h1>
+        <h1 className="assignment-title">{assignment.title}</h1>
         <div className="assignment-meta">
           <span>Chapter: {assignment.chapter}</span>
           <span>Due: {formatDateTime(assignment.dueDate)}</span>
@@ -1079,7 +1597,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
         </div>
       </div>
 
-      <div className="student-info-panel">
+      <div className="student-info-panel table-container">
         <div className="student-details">
           <h3>Student Information</h3>
           <div className="info-grid">
@@ -1152,7 +1670,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
       </div>
 
       <div className="content-grid">
-        <div className="main-content-assignment">
+        <div className="main-content-assignment table-container">
           {activeTab === 'exercises' && (
             <div className="exercise-section">
               <div className="exercise-navigation">
@@ -1371,41 +1889,98 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                   const currentExerciseId = exercises[currentExerciseIndex].id;
                   const activity = getActivityForExercise(currentExerciseId);
                   
+                  // Log details about the activity we found
+                  console.log(`Timeline data for exercise ${currentExerciseId}: ${activity ? activity.length : 0} entries`);
                   if (activity && activity.length > 0) {
+                    console.log("First activity entry:", {
+                      timestamp: activity[0].timestamp,
+                      action: activity[0].action,
+                      code: activity[0].code ? activity[0].code.substring(0, 30) + "..." : null
+                    });
+                  }
+                  
+                  // Try to directly access the data using all possible key formats
+                  let directActivity = null;
+                  if (codingActivity[currentExerciseId]?.length > 0) {
+                    directActivity = codingActivity[currentExerciseId];
+                    console.log(`Direct access found ${directActivity.length} entries`);
+                  } else if (codingActivity[String(currentExerciseId)]?.length > 0) {
+                    directActivity = codingActivity[String(currentExerciseId)];
+                    console.log(`String key access found ${directActivity.length} entries`);
+                  } else if (!isNaN(parseInt(currentExerciseId)) && 
+                            codingActivity[parseInt(currentExerciseId)]?.length > 0) {
+                    directActivity = codingActivity[parseInt(currentExerciseId)];
+                    console.log(`Numeric key access found ${directActivity.length} entries`);
+                  }
+                  
+                  // Use either the activity from the getter function or direct access
+                  const effectiveActivity = 
+                    (activity && activity.length > 0) ? activity : 
+                    (directActivity && directActivity.length > 0) ? directActivity : 
+                    [];
+                  
+                  if (effectiveActivity.length > 0) {
+                    // Calculate a safe timeline position
+                    const safePosition = Math.min(timelinePosition, effectiveActivity.length - 1);
+                    
                     return (
-                      <>
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max={activity.length - 1} 
-                          value={timelinePosition >= activity.length ? activity.length - 1 : timelinePosition} 
-                          onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
-                          className="timeline-slider"
-                        />
-                        <div className="timeline-markers">
-                          {activity.map((item, idx) => (
+                  <>
+                <input 
+                  type="range" 
+                  min="0" 
+                          max={effectiveActivity.length - 1} 
+                          value={safePosition}
+                  onChange={(e) => setTimelinePosition(parseInt(e.target.value))} 
+                  className="timeline-slider"
+                />
+                <div className="timeline-markers">
+                          {effectiveActivity.map((item, idx) => (
                             <div 
                               key={idx}
-                              className={`timeline-marker ${item.action} ${idx === timelinePosition ? 'active' : ''}`}
-                              style={{left: `${(idx / (activity.length - 1)) * 100}%`}}
-                              onClick={() => setTimelinePosition(idx)}
+                              className={`timeline-marker ${item.action} ${idx === safePosition ? 'active' : ''}`}
+                              style={{left: `${(idx / (effectiveActivity.length - 1)) * 100}%`}}
+                      onClick={() => setTimelinePosition(idx)}
                               title={`${new Date(item.timestamp).toLocaleTimeString()} - ${item.action}`}
-                            >
-                              <span className="marker-tooltip">
+                    >
+                      <span className="marker-tooltip">
                                 {new Date(item.timestamp).toLocaleTimeString()}
-                                <br/>
+                        <br/>
                                 {item.action}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                  </>
                     );
                   } else {
+                    // Force fetch code history if we have no timeline data
+                    if (!checkedCodeHistory) {
+                      console.log("No timeline data found, checking code history...");
+                      setCheckedCodeHistory(true);
+                      // Try to load code history on next render
+                      setTimeout(() => {
+                        fetchCodeHistory(
+                          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000', 
+                          mongoUserIdRef || studentId,  
+                          assignmentId, 
+                          exercises
+                        );
+                      }, 100);
+                    }
+                    
                     return (
                       <div className="empty-state">
                         <p>No timeline data available for this exercise</p>
                         <p className="debug-info">Exercise ID: {currentExerciseId}</p>
+                        
+                        <button 
+                          className="refresh-button"
+                          onClick={() => {
+                            refreshTimelineData();
+                          }}
+                        >
+                          Refresh Timeline Data
+                        </button>
                       </div>
                     );
                   }
@@ -1419,9 +1994,9 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                 if (activity && activity.length > 0 && timelinePosition < activity.length) {
                   const currentItem = activity[timelinePosition];
                   return (
-                    <>
-                      <div className="timeline-info">
-                        <div className="current-position-info">
+                <>
+              <div className="timeline-info">
+                <div className="current-position-info">
                           <span>Time: {new Date(currentItem.timestamp).toLocaleTimeString()}</span>
                           <span>Action: {currentItem.action}</span>
                         </div>
@@ -1441,16 +2016,26 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                           >
                             Next Change
                           </button>
+                          <button 
+                            onClick={refreshTimelineData}
+                            className="refresh-button"
+                          >
+                            Refresh
+                          </button>
                         </div>
-                      </div>
+              </div>
 
-                      <div className="code-display">
-                        <pre>
-                          <code>
-                            {currentItem.code || exercises[currentExerciseIndex].code || "// No code available"}
-                          </code>
-                        </pre>
-                      </div>
+              <div className="code-display">
+                <pre>
+                  <code>
+                    {currentItem.code ? 
+                      // Handle newlines in the code properly
+                      currentItem.code.split('\\n').join('\n') :
+                      (exercises[currentExerciseIndex].code || "// No code available")
+                    }
+                  </code>
+                </pre>
+              </div>
                       
                       {/* Display code changes if available */}
                       {timelinePosition > 0 && (
@@ -1560,13 +2145,53 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
               <h3>AI Chat History - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
               
               <div className="chat-container">
-                {exercises[currentExerciseIndex] && 
-                 aiChatHistory[exercises[currentExerciseIndex].id] ? (
-                  aiChatHistory[exercises[currentExerciseIndex].id].map((message) => (
+                {exercises[currentExerciseIndex] && (() => {
+                  const currentExercise = exercises[currentExerciseIndex];
+                  const exerciseId = currentExercise.id;
+                  
+                  // Try multiple formats of the ID to find chat history
+                  let chatMessages = null;
+                  
+                  // Try exact match first
+                  if (aiChatHistory[exerciseId] && aiChatHistory[exerciseId].length > 0) {
+                    chatMessages = aiChatHistory[exerciseId];
+                  }
+                  // Try string format
+                  else if (aiChatHistory[String(exerciseId)] && aiChatHistory[String(exerciseId)].length > 0) {
+                    chatMessages = aiChatHistory[String(exerciseId)];
+                  }
+                  // Try numeric format if possible
+                  else if (!isNaN(parseInt(exerciseId)) && 
+                           aiChatHistory[parseInt(exerciseId)] && 
+                           aiChatHistory[parseInt(exerciseId)].length > 0) {
+                    chatMessages = aiChatHistory[parseInt(exerciseId)];
+                  }
+                  // Try zero-based index as a last resort
+                  else if (!isNaN(parseInt(exerciseId)) && 
+                           aiChatHistory[parseInt(exerciseId) - 1] && 
+                           aiChatHistory[parseInt(exerciseId) - 1].length > 0) {
+                    chatMessages = aiChatHistory[parseInt(exerciseId) - 1];
+                  }
+                  
+                  // Try to find a match across all history keys
+                  if (!chatMessages) {
+                    for (const key in aiChatHistory) {
+                      if (aiChatHistory[key] && aiChatHistory[key].length > 0 &&
+                          (key === String(exerciseId) || 
+                           (!isNaN(parseInt(key)) && !isNaN(parseInt(exerciseId)) && parseInt(key) === parseInt(exerciseId)) ||
+                           (!isNaN(parseInt(key)) && !isNaN(parseInt(exerciseId)) && parseInt(key) === parseInt(exerciseId) - 1))) {
+                        chatMessages = aiChatHistory[key];
+                        break;
+                      }
+                    }
+                  }
+                
+                  if (chatMessages && chatMessages.length > 0) {
+                    return chatMessages.map((message) => (
                   <div key={message.id} className={`chat-message ${message.role}`}>
                     <div className="message-header">
                       <span className="message-sender">
-                        {message.role === 'student' ? 'Student' : 'AI Assistant'}
+                            {message.role === 'student' || message.role === 'user' ? 'Student' : 'AI Assistant'}
                       </span>
                       <span className="message-time">
                         {new Date(message.timestamp).toLocaleTimeString()}
@@ -1576,10 +2201,187 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
                       {message.content}
                     </div>
                   </div>
-                  ))
-                ) : (
-                  <div className="empty-state">No AI chat history available for this exercise</div>
-                )}
+                    ));
+                  } else {
+                    return (
+                      <div className="empty-state">
+                        <p>No AI chat history available for this exercise</p>
+                        <div className="debug-info">
+                          <p>Exercise ID: {exerciseId} (type: {typeof exerciseId})</p>
+                          <p>Available exercise IDs in chat history: {Object.keys(aiChatHistory).join(", ")}</p>
+                          <details>
+                            <summary>Check data types</summary>
+                            <p>Exercise ID type: {typeof exerciseId}</p>
+                            <p>Chat history keys types: {Object.keys(aiChatHistory).map(key => `${key}(${typeof key})`).join(", ")}</p>
+                          </details>
+                          <div className="debug-buttons">
+                            <button onClick={() => {
+                              // ดึงข้อมูลแชทใหม่โดยตรงจาก API
+                              const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                              const userId = mongoUserIdRef || studentId;
+                              
+                              console.log(`Retry: Fetching chat history for user ${userId}, assignment ${assignmentId}, exercise ${exerciseId}`);
+                              
+                              // แสดง URL และพารามิเตอร์ที่ใช้
+                              const urlStr = `${API_BASE}/ai/chat-history-simple?user_id=${encodeURIComponent(userId)}&assignment_id=${encodeURIComponent(assignmentId)}&exercise_id=${encodeURIComponent(exerciseId)}`;
+                              console.log(`API URL: ${urlStr}`);
+                              
+                              // ใช้ fetch พร้อม timeout
+                              const controller = new AbortController();
+                              const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                              
+                              fetch(urlStr, {
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                signal: controller.signal
+                              })
+                              .then(response => {
+                                clearTimeout(timeout);
+                                if (!response.ok) {
+                                  throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+                                }
+                                return response.json();
+                              })
+                              .then(data => {
+                                console.log("Chat history response:", data);
+                                
+                                if (data.success && data.results && data.results.length > 0) {
+                                  // ดึงข้อมูลเฉพาะ exercise ที่ต้องการ
+                                  const relevantHistories = data.results.filter(h => 
+                                    h.exercise_id && (
+                                      String(h.exercise_id) === String(exerciseId) ||
+                                      (parseInt(h.exercise_id) === parseInt(exerciseId) && !isNaN(parseInt(exerciseId)))
+                                    )
+                                  );
+                                  
+                                  if (relevantHistories.length > 0) {
+                                    // สร้าง chat history ใหม่
+                                    const newHistory = {};
+                                    
+                                    // Process all matching histories
+                                    relevantHistories.forEach(history => {
+                                      const messages = history.messages || [];
+                                      
+                                      // Format messages
+                                      const formattedMessages = messages.map((msg, idx) => ({
+                                        id: `manual-${idx}`,
+                                        timestamp: msg.timestamp || new Date().toISOString(),
+                                        role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
+                                        content: msg.content || ''
+                                      }));
+                                      
+                                      // Store under all common key formats
+                                      newHistory[history.exercise_id] = formattedMessages;
+                                      newHistory[String(history.exercise_id)] = formattedMessages;
+                                      
+                                      if (!isNaN(parseInt(history.exercise_id))) {
+                                        newHistory[parseInt(history.exercise_id)] = formattedMessages;
+                                      }
+                                    });
+                                    
+                                    // Update state with all found chat histories
+                                    setAiChatHistory(newHistory);
+                                    console.log("Updated chat history state:", newHistory);
+                                  } else {
+                                    console.log(`No exact match for exercise ID ${exerciseId}. Showing all chat histories.`);
+                                    
+                                    // Create a combined history with all messages
+                                    const combinedHistory = {};
+                                    
+                                    // Process all histories
+                                    data.results.forEach(history => {
+                                      if (!history.exercise_id || !history.messages) return;
+                                      
+                                      const formattedMessages = history.messages.map((msg, idx) => ({
+                                        id: `all-${history.exercise_id}-${idx}`,
+                                        timestamp: msg.timestamp || new Date().toISOString(),
+                                        role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
+                                        content: msg.content || ''
+                                      }));
+                                      
+                                      // Store under all formats
+                                      combinedHistory[history.exercise_id] = formattedMessages;
+                                      combinedHistory[String(history.exercise_id)] = formattedMessages;
+                                      
+                                      if (!isNaN(parseInt(history.exercise_id))) {
+                                        combinedHistory[parseInt(history.exercise_id)] = formattedMessages;
+                                      }
+                                      
+                                      // Also store under current exercise ID to make it visible
+                                      combinedHistory[exerciseId] = formattedMessages;
+                                      combinedHistory[String(exerciseId)] = formattedMessages;
+                                      if (!isNaN(parseInt(exerciseId))) {
+                                        combinedHistory[parseInt(exerciseId)] = formattedMessages;
+                                      }
+                                    });
+                                    
+                                    setAiChatHistory(combinedHistory);
+                                    console.log("Updated with combined chat history:", combinedHistory);
+                                  }
+                                } else {
+                                  console.error("No chat history found in response");
+                                }
+                              })
+                              .catch(error => {
+                                clearTimeout(timeout);
+                                console.error("Error fetching chat history:", error);
+                              });
+                            }}>
+                              Retry with string conversion
+                            </button>
+                            
+                            <button onClick={() => {
+                              // ทดสอบการเชื่อมต่อกับ API
+                              const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                              console.log("Testing API connection to:", API_BASE);
+                              
+                              // ทดสอบ endpoint โดยตรงที่ root URL
+                              fetch(`${API_BASE}/health-check`, {
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' },
+                                mode: 'cors',  // ระบุ CORS mode ชัดเจน
+                              })
+                              .then(response => response.json())
+                              .then(data => {
+                                console.log("Health check response:", data);
+                                alert(`API Health check: ${JSON.stringify(data)}`);
+                              })
+                              .catch(error => {
+                                console.error("Error testing API:", error);
+                                alert(`Error testing API: ${error.message}`);
+                              });
+                            }}>
+                              Test API Connection
+                            </button>
+                            
+                            <button onClick={() => {
+                              // ทดสอบ AI API endpoint โดยตรง
+                              const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                              console.log("Testing AI API endpoint:", API_BASE);
+                              
+                              fetch(`${API_BASE}/ai/test`, {
+                                method: 'GET',
+                                mode: 'cors',  // ระบุ CORS mode ชัดเจน
+                              })
+                              .then(response => response.json())
+                              .then(data => {
+                                console.log("AI API test result:", data);
+                                alert(`AI API test result: ${JSON.stringify(data)}`);
+                              })
+                              .catch(error => {
+                                console.error("Error testing AI API:", error);
+                                alert(`Error testing AI API: ${error.message}`);
+                              });
+                            }}>
+                              Test AI API
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
             </div>
           )}
@@ -1654,7 +2456,7 @@ const StudentAssignment = ({ studentId, assignmentId }) => {
           )}
         </div>
 
-        <div className="feedback-container">
+        <div className="feedback-container table-container">
           <h3>Grading & Feedback</h3>
           
           {submission.status !== 'graded' ? (

@@ -6,13 +6,16 @@ import AssignmentDetail from '@/components/assignment/assignment-detail';
 const AssignmentTable = ({ 
   loading: initialLoading = false,
   showCreateButton = false,
-  onCreateAssignment = null
+  onCreateAssignment = null,
+  data: externalData = null,
+  searchTerm = ''
 }) => {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(externalData || []);
   const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'dueDate', direction: 'asc' });
+  const [filteredData, setFilteredData] = useState([]);
 
   // Function to handle sorting
   const onSort = (key) => {
@@ -31,24 +34,57 @@ const AssignmentTable = ({
     return '';
   };
 
-  // Sort data
-  const sortedData = [...data].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? -1 : 1;
+  // Update filtered data when data or search term changes
+  useEffect(() => {
+    let filtered = [...data];
+    
+    // Apply search filter if searchTerm exists
+    if (searchTerm && searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(assignment => {
+        return (
+          (assignment.title && assignment.title.toLowerCase().includes(term)) ||
+          (assignment.chapter && assignment.chapter.toLowerCase().includes(term))
+        );
+      });
     }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? 1 : -1;
-    }
-    return 0;
-  });
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+    
+    setFilteredData(filtered);
+  }, [data, searchTerm, sortConfig]);
 
   // Handle row click
   const handleRowClick = (assignment) => {
     setSelectedAssignment(assignment);
   };
 
-  // Fetch assignments
+  // Fetch assignments if external data is not provided
   useEffect(() => {
+    // If external data is provided, use it
+    if (externalData) {
+      setData(externalData);
+      return;
+    }
+    
     const fetchAssignments = async () => {
       setLoading(true);
       try {
@@ -76,7 +112,7 @@ const AssignmentTable = ({
     };
 
     fetchAssignments();
-  }, []);
+  }, [externalData]);
 
   // If an assignment is selected, show the detail view
   if (selectedAssignment) {
@@ -137,14 +173,14 @@ const AssignmentTable = ({
           </tr>
         </thead>
         <tbody>
-          {sortedData.length === 0 && !loading ? (
+          {filteredData.length === 0 && !loading ? (
             <tr>
               <td colSpan="5" className="empty-message">
-                No assignments found
+                {searchTerm ? `No assignments found matching "${searchTerm}"` : 'No assignments found'}
               </td>
             </tr>
           ) : (
-            sortedData.map((assignment, index) => (
+            filteredData.map((assignment, index) => (
               <tr 
                 key={assignment.id} 
                 className={index % 2 === 1 ? 'alternate' : ''} 
@@ -155,7 +191,7 @@ const AssignmentTable = ({
                 <td>{assignment.chapter}</td>
                 <td>{formatDate(assignment.dueDate)}</td>
                 <td>
-                  <span className="pending-badge">{assignment.pending} Pending</span>
+                  <span className="pending-badge">{assignment.pending || 0} Pending</span>
                 </td>
                 <td>{assignment.points} Points</td>
               </tr>

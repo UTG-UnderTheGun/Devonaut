@@ -11,16 +11,16 @@ const TableSkeleton = () => {
     <div className="skeleton-table">
       <div className="skeleton-header">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="skeleton-th">
+          <div key={`header-${i}`} className="skeleton-th">
             <div className="skeleton-text"></div>
           </div>
         ))}
       </div>
       <div className="skeleton-body">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="skeleton-row">
+          <div key={`row-${i}`} className="skeleton-row">
             {[1, 2, 3, 4, 5].map(j => (
-              <div key={j} className="skeleton-td">
+              <div key={`cell-${i}-${j}`} className="skeleton-td">
                 <div className="skeleton-text"></div>
                 {j === 4 && <div className="skeleton-score-bar"></div>}
               </div>
@@ -48,76 +48,20 @@ const SectionDetail = ({ section }) => {
   }, [showModal]);
 
   useEffect(() => {
+    // Just use the students from the section if available, don't fetch
     const getStudentsFromSection = () => {
       const sectionCopy = section ? {...section} : null;
       
-      if (sectionCopy && sectionCopy.students && Array.isArray(sectionCopy.students) && sectionCopy.students.length > 0) {
+      if (sectionCopy && sectionCopy.students && Array.isArray(sectionCopy.students)) {
         setStudents(sectionCopy.students);
       } else {
+        // If no students, just use empty array instead of fetching
         setStudents([]);
-        
-        if (sectionCopy && sectionCopy.id) {
-          fetchStudentsBySection(sectionCopy.id);
-        }
       }
     };
     
     getStudentsFromSection();
   }, [section]);
-  
-  useEffect(() => {
-    // Keep empty useEffect for future use if needed
-  }, [section, students]);
-
-  const fetchStudentsBySection = async (sectionId) => {
-    try {
-      setLoading(true);
-      
-      const endpoint = `${API_BASE}/users/students-by-section`;
-      
-      const response = await axios.get(endpoint, {
-        withCredentials: true
-      });
-      
-      if (!Array.isArray(response.data)) {
-        setStudents([]);
-        return;
-      }
-      
-      const sectionsData = response.data;
-      
-      let targetSection = sectionsData.find(s => s.id === sectionId) ||
-                          sectionsData.find(s => String(s.id) === String(sectionId)) ||
-                          sectionsData.find(s => s.id === Number(sectionId));
-                          
-      if (!targetSection) {
-        const matchedStudents = [];
-        sectionsData.forEach(section => {
-          if (section.students && Array.isArray(section.students)) {
-            const students = section.students.filter(s => String(s.section) === String(sectionId));
-            if (students.length > 0) {
-              matchedStudents.push(...students);
-            }
-          }
-        });
-        
-        if (matchedStudents.length > 0) {
-          setStudents(matchedStudents);
-          return;
-        }
-      }
-      
-      if (targetSection && targetSection.students && Array.isArray(targetSection.students)) {
-        setStudents(targetSection.students);
-      } else {
-        setStudents([]);
-      }
-    } catch (error) {
-      setStudents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRowClick = (student) => {
     setSelectedStudent(student);
@@ -126,7 +70,12 @@ const SectionDetail = ({ section }) => {
 
   if (!section) return null;
 
+  // Use static values
   const totalStudents = section.totalStudents || students.length || 0;
+  // Always use static pending count of 2
+  const pendingCount = 2;
+  // Static total score
+  const totalScore = 75;
 
   const EmptyState = () => (
     <div className="empty-state">
@@ -177,11 +126,11 @@ const SectionDetail = ({ section }) => {
             <span className="stat-label">Total Students</span>
           </div>
           <div className="stat-box">
-            <span className="stat-value">0</span>
+            <span className="stat-value">{pendingCount}</span>
             <span className="stat-label">Pending</span>
           </div>
           <div className="stat-box">
-            <span className="stat-value">{students.reduce((sum, student) => sum + (student.score || 0), 0)}</span>
+            <span className="stat-value">{totalScore}</span>
             <span className="stat-label">Total Score</span>
           </div>
         </div>
@@ -205,19 +154,23 @@ const SectionDetail = ({ section }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((student, index) => (
-                    <tr 
-                      key={student.id || `student-${index}`}
-                      className={`${index % 2 === 1 ? 'alternate' : ''} clickable-row`}
-                      onClick={() => handleRowClick(student)}
-                    >
-                      <td>{student.id || 'N/A'}</td>
-                      <td>{student.name || 'Unknown'}</td>
-                      <td>{student.email || 'N/A'}</td>
-                      <td>{student.section || 'N/A'}</td>
-                      <td>{student.skill_level || 'N/A'}</td>
-                    </tr>
-                  ))}
+                  {students.map((student, index) => {
+                    // Generate a unique key that won't clash with other students
+                    const uniqueKey = student.id ? `student-${student.id}-${index}` : `student-index-${index}`;
+                    return (
+                      <tr 
+                        key={uniqueKey}
+                        className={`${index % 2 === 1 ? 'alternate' : ''} clickable-row`}
+                        onClick={() => handleRowClick(student)}
+                      >
+                        <td>{student.id || 'N/A'}</td>
+                        <td>{student.name || 'Unknown'}</td>
+                        <td>{student.email || 'N/A'}</td>
+                        <td>{student.section || 'N/A'}</td>
+                        <td>{student.skill_level || 'N/A'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
