@@ -27,6 +27,8 @@
   }
 }
 
+/* Removed progress steps styles */
+/*
 .progress-steps {
   display: flex;
   align-items: center;
@@ -68,6 +70,7 @@
 .progress-line.active {
   background: #7C3AED;
 }
+*/
 
 .form-group {
   margin-bottom: 30px;

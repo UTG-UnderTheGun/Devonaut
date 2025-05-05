@@ -239,14 +239,6 @@ export default function Login() {
   return (
     <div className="container">
       <main className="signin-card">
-        <div className="progress-steps">
-          <div className="step active">1</div>
-          <div className="progress-line active"></div>
-          <div className="step inactive">2</div>
-          <div className="progress-line"></div>
-          <div className="step inactive">3</div>
-        </div>
-
         {showTULogin ? (
           <form onSubmit={tuSignin}>
             <div className="tu-icon-container">
