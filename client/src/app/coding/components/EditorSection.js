@@ -1213,10 +1213,12 @@ const EditorSection = ({
               Run
             </button>
           </div>
+          {/* Hidden import/export/reset section - not used yet 
           <div className="import-section">
             <StorageManager onImport={handleImportWrapper} currentProblemIndex={currentProblemIndex} testType={testType} />
             <button onClick={handleResetAll} className="icon-button" title="Reset">Reset</button>
           </div>
+          */}
           {!showEmptyState && problems && problems.length > 0 && problems[0].title && (
             <div className="navigation-section">
               <span className="problem-count">
