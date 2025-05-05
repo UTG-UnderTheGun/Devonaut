@@ -798,16 +798,48 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
         ]
       };
 
+      // Debug logging
+      console.log("Preparing to submit grade for submission:", {
+        submissionId: submission.id || submission._id,
+        assignmentId: assignmentId,
+        score: Number(score),
+      });
+      
+      // Check if submission has a valid ID
+      if (!submission.id && !submission._id) {
+        console.error("Submission is missing both 'id' and '_id' fields:", submission);
+        alert("Cannot submit grade: submission ID is missing");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Use either id or _id, converting _id if it's an object
+      let submissionId = submission.id;
+      if (!submissionId && submission._id) {
+        submissionId = typeof submission._id === 'object' 
+          ? submission._id.toString() 
+          : submission._id;
+      }
+
       // Send grading data to API
-      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/grade/${submission.id}`, {
+      console.log(`Submitting to endpoint: ${API_BASE}/assignments/${assignmentId}/grade/${submissionId}`);
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/grade/${submissionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(gradingData),
       });
 
+      // Check for HTTP errors
       if (!response.ok) {
-        throw new Error(`Failed to submit grade: ${response.status}`);
+        let errorDetail = `${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.detail || errorDetail;
+        } catch (e) {
+          console.error("Could not parse error response:", e);
+        }
+        throw new Error(`Failed to submit grade: ${errorDetail}`);
       }
 
       const result = await response.json();
