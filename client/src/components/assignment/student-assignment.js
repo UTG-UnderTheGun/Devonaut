@@ -1896,26 +1896,10 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
                            aiChatHistory[parseInt(exerciseId)].length > 0) {
                     chatMessages = aiChatHistory[parseInt(exerciseId)];
                   }
-                  // Try zero-based index as a last resort
-                  else if (!isNaN(parseInt(exerciseId)) && 
-                           aiChatHistory[parseInt(exerciseId) - 1] && 
-                           aiChatHistory[parseInt(exerciseId) - 1].length > 0) {
-                    chatMessages = aiChatHistory[parseInt(exerciseId) - 1];
-                  }
                   
-                  // Try to find a match across all history keys
-                  if (!chatMessages) {
-                    for (const key in aiChatHistory) {
-                      if (aiChatHistory[key] && aiChatHistory[key].length > 0 &&
-                          (key === String(exerciseId) || 
-                           (!isNaN(parseInt(key)) && !isNaN(parseInt(exerciseId)) && parseInt(key) === parseInt(exerciseId)) ||
-                           (!isNaN(parseInt(key)) && !isNaN(parseInt(exerciseId)) && parseInt(key) === parseInt(exerciseId) - 1))) {
-                        chatMessages = aiChatHistory[key];
-                        break;
-                      }
-                    }
-                  }
-                
+                  // REMOVED: Don't try to fetch chat history from other exercises
+                  // This was causing chat history from other problems to appear
+                  
                   if (chatMessages && chatMessages.length > 0) {
                     return chatMessages.map((message) => (
                   <div key={message.id} className={`chat-message ${message.role}`}>
@@ -1935,7 +1919,7 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
                   } else {
                     return (
                       <div className="empty-state">
-                        <p>No AI chat history available for this exercise</p>
+                        <p>นักเรียนไม่มีประวัติการถาม AI ในข้อนี้</p>
                         <div className="debug-info">
                           <p>Exercise ID: {exerciseId} (type: {typeof exerciseId})</p>
                           <p>Available exercise IDs in chat history: {Object.keys(aiChatHistory).join(", ")}</p>
@@ -2014,40 +1998,19 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
                                     setAiChatHistory(newHistory);
                                     console.log("Updated chat history state:", newHistory);
                                   } else {
-                                    console.log(`No exact match for exercise ID ${exerciseId}. Showing all chat histories.`);
+                                    console.log(`No exact match for exercise ID ${exerciseId}. Not displaying history from other exercises.`);
+                                    // Create empty history for this exercise to prevent showing others
+                                    const newHistory = {...aiChatHistory};
                                     
-                                    // Create a combined history with all messages
-                                    const combinedHistory = {};
+                                    // Store empty array under all possible formats of the exercise ID
+                                    newHistory[exerciseId] = [];
+                                    newHistory[String(exerciseId)] = [];
+                                    if (!isNaN(parseInt(exerciseId))) {
+                                      newHistory[parseInt(exerciseId)] = [];
+                                    }
                                     
-                                    // Process all histories
-                                    data.results.forEach(history => {
-                                      if (!history.exercise_id || !history.messages) return;
-                                      
-                                      const formattedMessages = history.messages.map((msg, idx) => ({
-                                        id: `all-${history.exercise_id}-${idx}`,
-                                        timestamp: msg.timestamp || new Date().toISOString(),
-                                        role: msg.role === 'user' ? 'student' : (msg.role === 'student' ? 'student' : msg.role),
-                                        content: msg.content || ''
-                                      }));
-                                      
-                                      // Store under all formats
-                                      combinedHistory[history.exercise_id] = formattedMessages;
-                                      combinedHistory[String(history.exercise_id)] = formattedMessages;
-                                      
-                                      if (!isNaN(parseInt(history.exercise_id))) {
-                                        combinedHistory[parseInt(history.exercise_id)] = formattedMessages;
-                                      }
-                                      
-                                      // Also store under current exercise ID to make it visible
-                                      combinedHistory[exerciseId] = formattedMessages;
-                                      combinedHistory[String(exerciseId)] = formattedMessages;
-                                      if (!isNaN(parseInt(exerciseId))) {
-                                        combinedHistory[parseInt(exerciseId)] = formattedMessages;
-                                      }
-                                    });
-                                    
-                                    setAiChatHistory(combinedHistory);
-                                    console.log("Updated with combined chat history:", combinedHistory);
+                                    setAiChatHistory(newHistory);
+                                    console.log("Updated chat history with empty entry for this exercise:", newHistory);
                                   }
                                 } else {
                                   console.error("No chat history found in response");
