@@ -4,343 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './student-assignment.css';
 
-// Mock data to use when API calls fail
-const mockAssignment = {
-  id: 'assign123',
-  title: 'Python Programming Assignment',
-  chapter: 'Chapter 6: Control Structures',
-  dueDate: '2025-02-14T23:59:00',
-  points: 50,
-  created_by: 'teacher1',
-  exercises: [
-    {
-      id: 1,
-      title: 'การคำนวณและการแสดงผลตัวแปร',
-      description: 'โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?',
-      type: 'output',
-      points: 5,
-      code: "x = 3\ny = 5\na = x + y * (5 + 1)\nb = y + 16 // x\nprint(x, a, b)"
-    },
-    {
-      id: 2,
-      title: 'การรับอินพุตและฟอร์แมตสตริง',
-      description: 'โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร? สมมติว่าผู้ใช้ป้อนค่า 1 และ 5 ตามลำดับ',
-      type: 'output',
-      points: 5,
-      code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nprint(f'{x+10*5:.2f}', end='-')\nx = 3\nprint(f'{x+y**2:.2f}')"
-    },
-    {
-      id: 11,
-      title: 'การคำนวณสมการทางคณิตศาสตร์',
-      description: 'เติมโค้ดในช่องว่างเพื่อคำนวณสมการ z = (x+1)²/2(y-1)³',
-      type: 'fill',
-      points: 10,
-      code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nz = ____"
-    },
-    {
-      id: 12,
-      title: 'พื้นที่และเส้นรอบวงของวงกลม',
-      description: 'เขียนโปรแกรมเพื่อคำนวณหาพื้นที่ของวงกลม (πr²) และเส้นรอบวง (2πr) โดยกำหนดให้ π มีค่าเท่ากับ 3.14 ต้องใช้ Named Constants และแสดงผลลัพธ์เป็นทศนิยม 3 ตำแหน่ง',
-      type: 'coding',
-      points: 15,
-      code: "# เขียนโค้ดของคุณที่นี่"
-    }
-  ]
-};
-
-const mockSubmission = {
-  id: 'sub456',
-  assignment_id: 'assign123',
-  user_id: 'student123',
-  username: 'Wuttiphut Devonaut',
-  section: '760001',
-  status: 'pending',
-  submitted_at: '2025-02-04T21:34:00',
-  answers: {
-    1: "3 33 8",
-    2: "51.00-28.00",
-    11: "(x+1)**2/(2*(y-1)**3)",
-    12: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\ncircumference = 2 * PI * r\nprint(f'Area: {area:.3f}')\nprint(f'Circumference: {circumference:.3f}')"
-  },
-  comments: []
-};
-
-const mockCodeHistory = [
-  {
-    id: 'hist1',
-    user_id: 'student123',
-    problem_index: 'assign123',
-    action_type: 'run',
-    code: "x = 3\ny = 5\na = x + y * (5 + 1)\nb = y + 16 // x\nprint(x, a, b)",
-    created_at: '2025-02-04T20:30:00'
-  },
-  {
-    id: 'hist2',
-    user_id: 'student123',
-    problem_index: 'assign123',
-    action_type: 'run',
-    code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nprint(f'{x+10*5:.2f}', end='-')\nx = 3\nprint(f'{x+y**2:.2f}')",
-    created_at: '2025-02-04T20:45:00'
-  },
-  {
-    id: 'hist3',
-    user_id: 'student123',
-    problem_index: 'assign123',
-    action_type: 'run',
-    code: "x = int(input('Enter x: '))\ny = int(input('Enter y: '))\nz = (x+1)**2/(2*(y-1)**3)",
-    created_at: '2025-02-04T21:00:00'
-  },
-  {
-    id: 'hist4',
-    user_id: 'student123',
-    problem_index: 'assign123',
-    action_type: 'run',
-    code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\ncircumference = 2 * PI * r\nprint(f'Area: {area:.3f}')\nprint(f'Circumference: {circumference:.3f}')",
-    created_at: '2025-02-04T21:20:00'
-  },
-  {
-    id: 'hist5',
-    user_id: 'student123',
-    problem_index: 'assign123',
-    action_type: 'submission',
-    code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\ncircumference = 2 * PI * r\nprint(f'Area: {area:.3f}')\nprint(f'Circumference: {circumference:.3f}')",
-    created_at: '2025-02-04T21:34:00'
-  }
-];
-
-const mockKeystrokeHistory = [
-  {
-    day: '2025-02-01',
-    count: 12,
-    action_type: 'keystroke',
-    problem_index: 'assign123'
-  },
-  {
-    day: '2025-02-02',
-    count: 5,
-    action_type: 'run',
-    problem_index: 'assign123'
-  },
-  {
-    day: '2025-02-03',
-    count: 8,
-    action_type: 'keystroke',
-    problem_index: 'assign123'
-  },
-  {
-    day: '2025-02-04',
-    count: 15,
-    action_type: 'run',
-    problem_index: 'assign123'
-  },
-  {
-    day: '2025-02-04',
-    count: 1,
-    action_type: 'submission',
-    problem_index: 'assign123'
-  }
-];
-
-// Mock data for exercises
-const mockExercises = [
-  {
-    id: 1,
-    title: 'การคำนวณพื้นที่วงกลม',
-    description: 'เขียนโปรแกรมคำนวณพื้นที่วงกลม โดยรับค่ารัศมีจากผู้ใช้ และแสดงผลพื้นที่เป็นทศนิยม 2 ตำแหน่ง',
-    type: 'coding',
-    points: 10,
-    code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(f'Area: {area:.2f}')"
-  },
-  {
-    id: 2,
-    title: 'การแสดงผลลัพธ์',
-    description: 'โปรแกรมต่อไปนี้จะแสดงผลลัพธ์อะไร?',
-    type: 'output',
-    points: 5,
-    code: "x = 5\ny = 3\nprint(x + y * 2)\nprint((x + y) * 2)"
-  },
-  {
-    id: 3,
-    title: 'การเติมคำในช่องว่าง',
-    description: 'เติมโค้ดในช่องว่างเพื่อให้โปรแกรมทำงานได้ถูกต้อง',
-    type: 'fill',
-    points: 8,
-    code: "def calculate_average(numbers):\n    total = ____\n    for num in numbers:\n        total += num\n    return total / ____"
-  }
-];
-
-// Mock data for student answers
-const mockAnswers = {
-  1: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(f'Area: {area:.2f}')",
-  2: "11\n16",
-  3: "0\nlen(numbers)"
-};
-
-// Mock data for AI chat history by exercise
-const mockAiChatHistory = {
-  1: [
-    {
-      id: 1,
-      timestamp: '2024-02-20T10:30:00',
-      role: 'student',
-      content: 'ช่วยอธิบายการคำนวณพื้นที่วงกลมหน่อยครับ'
-    },
-    {
-      id: 2,
-      timestamp: '2024-02-20T10:30:15',
-      role: 'ai',
-      content: 'พื้นที่วงกลมคำนวณจากสูตร πr² โดยที่ π มีค่าประมาณ 3.14 และ r คือรัศมีของวงกลม'
-    },
-    {
-      id: 3,
-      timestamp: '2024-02-20T10:35:00',
-      role: 'student',
-      content: 'แล้วการแสดงผลทศนิยม 2 ตำแหน่งทำยังไงครับ?'
-    },
-    {
-      id: 4,
-      timestamp: '2024-02-20T10:35:10',
-      role: 'ai',
-      content: 'ใช้ f-string กับ format specifier เช่น f\'{number:.2f}\' จะแสดงทศนิยม 2 ตำแหน่ง'
-    }
-  ],
-  2: [
-    {
-      id: 5,
-      timestamp: '2024-02-20T10:40:00',
-      role: 'student',
-      content: 'ลำดับการคำนวณในโจทย์นี้เป็นยังไงครับ?'
-    },
-    {
-      id: 6,
-      timestamp: '2024-02-20T10:40:15',
-      role: 'ai',
-      content: 'ในบรรทัดแรก x + y * 2 จะคำนวณ y * 2 ก่อน แล้วค่อยบวกกับ x ส่วนบรรทัดที่สอง (x + y) * 2 จะคำนวณในวงเล็บก่อน แล้วค่อยคูณ 2'
-    },
-    {
-      id: 7,
-      timestamp: '2024-02-20T10:45:00',
-      role: 'student',
-      content: 'การคำนวณค่าเฉลี่ยต้องเริ่มต้น total ด้วยอะไรครับ?'
-    },
-    {
-      id: 8,
-      timestamp: '2024-02-20T10:45:10',
-      role: 'ai',
-      content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
-    }
-  ],
-  3: [
-    {
-      id: 9,
-      timestamp: '2024-02-20T10:50:00',
-      role: 'student',
-      content: 'การคำนวณค่าเฉลี่ยต้องเริ่มต้น total ด้วยอะไรครับ?'
-    },
-    {
-      id: 10,
-      timestamp: '2024-02-20T10:50:10',
-      role: 'ai',
-      content: 'ต้องเริ่มต้น total ด้วย 0 เพื่อให้สามารถบวกค่าเข้าไปทีละตัวได้ และหารด้วยจำนวนตัวเลขทั้งหมด (len(numbers))'
-    }
-  ]
-};
-
-// Mock data for coding activity by exercise
-const mockCodingActivity = {
-  1: [
-    {
-      id: 1,
-      timestamp: '2024-02-20T10:25:00',
-      action: 'start',
-      exerciseId: 1
-    },
-    {
-      id: 2,
-      timestamp: '2024-02-20T10:28:00',
-      action: 'run',
-      exerciseId: 1,
-      code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(area)"
-    },
-    {
-      id: 3,
-      timestamp: '2024-02-20T10:30:00',
-      action: 'chat',
-      exerciseId: 1
-    },
-    {
-      id: 4,
-      timestamp: '2024-02-20T10:32:00',
-      action: 'edit',
-      exerciseId: 1,
-      code: "PI = 3.14\nr = float(input('Enter radius: '))\narea = PI * r * r\nprint(f'Area: {area:.2f}')"
-    },
-    {
-      id: 5,
-      timestamp: '2024-02-20T10:33:00',
-      action: 'submit',
-      exerciseId: 1
-    }
-  ],
-  2: [
-    {
-      id: 6,
-      timestamp: '2024-02-20T10:35:00',
-      action: 'start',
-      exerciseId: 2
-    },
-    {
-      id: 7,
-      timestamp: '2024-02-20T10:37:00',
-      action: 'run',
-      exerciseId: 2,
-      code: "x = 5\ny = 3\nprint(x + y * 2)\nprint((x + y) * 2)"
-    },
-    {
-      id: 8,
-      timestamp: '2024-02-20T10:40:00',
-      action: 'chat',
-      exerciseId: 2
-    },
-    {
-      id: 9,
-      timestamp: '2024-02-20T10:42:00',
-      action: 'submit',
-      exerciseId: 2
-    }
-  ],
-  3: [
-    {
-      id: 10,
-      timestamp: '2024-02-20T10:43:00',
-      action: 'start',
-      exerciseId: 3
-    },
-    {
-      id: 11,
-      timestamp: '2024-02-20T10:44:00',
-      action: 'edit',
-      exerciseId: 3,
-      code: "def calculate_average(numbers):\n    total = 0\n    for num in numbers:\n        total += num\n    return total / len(numbers)"
-    },
-    {
-      id: 12,
-      timestamp: '2024-02-20T10:45:00',
-      action: 'chat',
-      exerciseId: 3
-    },
-    {
-      id: 13,
-      timestamp: '2024-02-20T10:46:00',
-      action: 'submit',
-      exerciseId: 3
-    }
-  ]
-};
-
-// Replace mockAiChatHistory with empty initial state
-const initialAiChatHistory = {};
-
 // Skeleton loading component
 const AssignmentSkeleton = () => {
   return (
@@ -406,6 +69,38 @@ const AssignmentSkeleton = () => {
   );
 };
 
+// เพิ่มฟังก์ชันใหม่สำหรับดึง code history ของนักเรียน
+const fetchCodeHistoryForStudent = async (API_BASE, userId, assignmentId, exercisesList) => {
+  try {
+    console.log(`Fetching code history for user ${userId}, assignment ${assignmentId}`);
+    
+    // สร้างคิวรี่พารามิเตอร์
+    const params = new URLSearchParams();
+    if (assignmentId) {
+      params.append('assignment_id', assignmentId);
+    }
+    
+    // ใช้ endpoint ใหม่ที่เพิ่งสร้าง
+    const response = await fetch(`${API_BASE}/code/code-history/by-user/${userId}?${params.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch code history: ${response.status}`);
+    }
+    
+    const historyData = await response.json();
+    console.log(`Found ${historyData.length} code history entries for user ${userId}`);
+    
+    return historyData;
+  } catch (error) {
+    console.error("Error fetching code history:", error);
+    return [];
+  }
+};
+
 const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate }) => {
   const router = useRouter();
   const [assignment, setAssignment] = useState(null);
@@ -457,8 +152,7 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
           console.log(`Exercise ${idx+1} (ID: ${ex.id}) - Type: ${ex.type}`);
         });
       } else {
-        setExercises(mockExercises); // Fallback to mock if no exercises
-        console.warn("No exercises found in assignment data, using mock data");
+        console.warn("No exercises found in assignment data");
       }
       
       // First, look up the user by student_id to get the MongoDB user_id
@@ -486,6 +180,12 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
         // Continue with original ID
       }
       
+      // ดึง code history ของนักเรียนก่อน
+      console.log(`Fetching code history for user ${mongoUserId} and assignment ${assignmentId}`);
+      const codeHistoryData = await fetchCodeHistoryForStudent(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
+      setCodeHistory(codeHistoryData);
+      console.log(`Code history loaded successfully: ${codeHistoryData.length} entries`);
+      
       // Fetch student submission using the MongoDB user_id
       try {
         const submissionResponse = await fetch(`${API_BASE}/assignments/${assignmentId}/submission/${mongoUserId}`, {
@@ -499,7 +199,7 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
           setSubmission(submissionData);
           console.log("Submission loaded successfully:", submissionData);
           
-          // ดึงคำตอบจาก submission โดยตรง ง่ายๆ
+          // ดึงคำตอบจาก submission โดยตรง
           if (submissionData.answers) {
             console.log("RAW SUBMISSION ANSWERS:", submissionData.answers);
             setAnswers(submissionData.answers);
@@ -524,9 +224,17 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
         }
       } catch (submissionError) {
         console.error("Error fetching submission:", submissionError);
-        // Use mock data as fallback
-        setSubmission(mockSubmission);
-        setAnswers(mockAnswers);
+        setSubmission({
+          id: null,
+          assignment_id: assignmentId,
+          user_id: mongoUserId,
+          username: "Unknown Student",
+          section: "Unknown",
+          status: "pending",
+          submitted_at: null,
+          answers: {},
+          comments: []
+        });
       }
       
       // Try to fetch detailed keystroke timeline first
@@ -629,81 +337,7 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
         } else {
           // If timeline API fails, try to fetch individual keystroke data
           console.log("Keystroke timeline API failed, trying to fetch raw keystroke data");
-          try {
-            const rawKeystrokesResponse = await fetch(
-              `${API_BASE}/code/keystrokes/${mongoUserId}/${assignmentId}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-            });
-            
-            if (rawKeystrokesResponse.ok) {
-              const keystrokesData = await rawKeystrokesResponse.json();
-              console.log("Raw keystrokes loaded successfully:", keystrokesData);
-              
-              // Process raw keystrokes into coding activity format
-              const activity = {};
-              
-              if (assignmentData.exercises && assignmentData.exercises.length > 0) {
-                assignmentData.exercises.forEach(exercise => {
-                  // Filter keystrokes for this exercise - with better matching
-                  const exerciseKeystrokes = keystrokesData.filter(item => {
-                    // Check problem_index match
-                    const problemIndexMatch = 
-                      (item.problem_index === exercise.id) || 
-                      (item.problem_index !== null && parseInt(item.problem_index) === parseInt(exercise.id)) ||
-                      (String(item.problem_index) === String(exercise.id));
-                    
-                    // Check exercise_id match as fallback
-                    const exerciseIdMatch = item.exercise_id && 
-                      (item.exercise_id === exercise.id || 
-                       String(item.exercise_id) === String(exercise.id));
-                       
-                    return problemIndexMatch || exerciseIdMatch;
-                  });
-                  
-                  console.log(`Found ${exerciseKeystrokes.length} keystrokes for exercise ${exercise.id}`);
-                  
-                  if (exerciseKeystrokes.length > 0) {
-                    // Sort by timestamp
-                    exerciseKeystrokes.sort((a, b) => {
-                      return new Date(a.timestamp) - new Date(b.timestamp);
-                    });
-                    
-                    // Map to the format expected by the UI
-                    activity[exercise.id] = exerciseKeystrokes.map((item, index) => ({
-                      id: index + 1,
-                      timestamp: item.timestamp,
-                      action: item.action_type || 'keystroke',
-                exerciseId: exercise.id,
-                code: item.code || ''
-              }));
-                    console.log(`Processed ${exerciseKeystrokes.length} keystrokes for exercise ${exercise.id}`);
-                  } else {
-                    console.log(`No keystrokes found for exercise ${exercise.id}`);
-                    activity[exercise.id] = [];
-                  }
-            });
-                
-            setCodingActivity(activity);
-                console.log("Processed raw keystrokes into coding activity:", activity);
-                
-                // Check if we have at least some data
-                const hasData = Object.values(activity).some(arr => arr.length > 0);
-                if (!hasData) {
-                  console.log("No keystroke data found for any exercise, falling back to code history");
-                  await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
-                }
-          }
-        } else {
-              // If raw keystrokes API fails too, fall back to code history
-              console.log("Raw keystrokes API failed, falling back to code history");
-              await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
-            }
-          } catch (rawKeystrokeError) {
-            console.error("Error fetching raw keystrokes:", rawKeystrokeError);
-            await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
-          }
+          await fetchCodeHistory(API_BASE, mongoUserId, assignmentId, assignmentData.exercises);
         }
       } catch (keystrokeTimelineError) {
         console.error("Error fetching keystroke timeline:", keystrokeTimelineError);
@@ -736,71 +370,12 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
           setKeystrokeHistory(formattedKeystrokeData);
           console.log("Keystroke analytics transformed successfully:", formattedKeystrokeData);
         } else {
-          // Fallback to old API
-          console.log("New keystroke analytics API failed, falling back to old API");
-          try {
-            const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-            });
-            
-            if (keystrokeResponse.ok) {
-              const keystrokeData = await keystrokeResponse.json();
-              
-              // Transform the data into the format expected by the UI
-              const formattedKeystrokeData = keystrokeData.map(item => ({
-                day: item.day,
-                count: item.count,
-                action_type: item.action_type,
-                problem_index: item.problem_index,
-                exercise_id: item.exercise_id
-              }));
-              
-              setKeystrokeHistory(formattedKeystrokeData);
-              console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
-            } else {
-              console.warn("Failed to fetch keystroke history, using mock data");
-              setKeystrokeHistory(mockKeystrokeHistory);
-            }
-          } catch (oldKeystrokeError) {
-            console.error("Error fetching old keystroke history:", oldKeystrokeError);
-            setKeystrokeHistory(mockKeystrokeHistory);
-          }
+          console.warn("Failed to fetch keystroke analytics");
+          setKeystrokeHistory([]);
         }
       } catch (keystrokeAnalyticsError) {
         console.error("Error fetching keystroke analytics:", keystrokeAnalyticsError);
-        
-        // Fallback to old analytics API
-      try {
-        const keystrokeResponse = await fetch(`${API_BASE}/code/code-analytics/access-patterns?user_id=${mongoUserId}&assignment_id=${assignmentId}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        
-        if (keystrokeResponse.ok) {
-          const keystrokeData = await keystrokeResponse.json();
-          
-          // Transform the data into the format expected by the UI
-          const formattedKeystrokeData = keystrokeData.map(item => ({
-            day: item.day,
-            count: item.count,
-            action_type: item.action_type,
-            problem_index: item.problem_index,
-            exercise_id: item.exercise_id
-          }));
-          
-          setKeystrokeHistory(formattedKeystrokeData);
-          console.log("Keystroke history loaded successfully:", formattedKeystrokeData);
-        } else {
-          console.warn("Failed to fetch keystroke history, using mock data");
-      setKeystrokeHistory(mockKeystrokeHistory);
-        }
-      } catch (keystrokeError) {
-        console.error("Error fetching keystroke history:", keystrokeError);
-        setKeystrokeHistory(mockKeystrokeHistory);
-        }
+        setKeystrokeHistory([]);
       }
       
       // Fetch AI chat history
@@ -812,11 +387,11 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
         
         // Fetch chat history from API
         const chatHistoryResponse = await fetch(`${API_BASE}/ai/chat-history?${params.toString()}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-            });
-            
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+              
         if (chatHistoryResponse.ok) {
           const chatHistoryData = await chatHistoryResponse.json();
           console.log("Raw chat history data:", chatHistoryData);
@@ -910,15 +485,15 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
       setError(err.message);
       console.error('Error fetching assignment data:', err);
       
-      // Fallback to mock data - remove mock chat history
-      setAssignment(mockAssignment);
-      setSubmission(mockSubmission);
-      setCodeHistory(mockCodeHistory);
-      setKeystrokeHistory(mockKeystrokeHistory);
-      setAiChatHistory({}); // Use empty instead of mock
-      setExercises(mockExercises);
-      setAnswers(mockAnswers);
-      setCodingActivity(mockCodingActivity);
+      // Create empty placeholder data
+      setAssignment(null);
+      setSubmission(null);
+      setCodeHistory([]);
+      setKeystrokeHistory([]);
+      setAiChatHistory({});
+      setExercises([]);
+      setAnswers({});
+      setCodingActivity({});
     }
   };
   
@@ -1272,15 +847,63 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
     }
   };
 
-  // Helper to format datetime
+  // แก้ไขฟังก์ชันการจัดรูปแบบวันที่เวลาให้เป็นเวลาไทย
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+      // สร้าง date object จาก UTC
+      const utcDate = new Date(dateString);
+      
+      // บวกเพิ่ม 7 ชั่วโมงสำหรับเวลาไทย (GMT+7)
+      const thaiDate = new Date(utcDate.getTime() + (7 * 60 * 60 * 1000));
+      
+      // ใช้ locale string เพื่อจัดรูปแบบให้เป็นวันที่และเวลาแบบไทย
+      const formattedDate = 
+        thaiDate.getDate().toString().padStart(2, '0') + "/" +
+        (thaiDate.getMonth() + 1).toString().padStart(2, '0') + "/" +
+        (thaiDate.getFullYear() + 543) + " " + // แปลงเป็นปี พ.ศ. โดยบวก 543
+        thaiDate.getHours().toString().padStart(2, '0') + ":" +
+        thaiDate.getMinutes().toString().padStart(2, '0') + ":" +
+        thaiDate.getSeconds().toString().padStart(2, '0');
+        
+      return formattedDate;
     } catch (e) {
       console.error("Error formatting date:", e);
       return String(dateString);
+    }
+  };
+
+  // แก้ไขฟังก์ชันการจัดรูปแบบเวลาให้เป็นเวลาไทย
+  const formatTime = (date) => {
+    if (!date) return 'N/A';
+    try {
+      // แปลงเป็นเวลาไทย (GMT+7)
+      return new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(date);
+    } catch (e) {
+      console.error("Error formatting time:", e);
+      return 'N/A';
+    }
+  };
+
+  // เพิ่มฟังก์ชันแปลงค่าเวลาดิบเป็นเวลาไทยโดยตรง
+  const formatRawTime = (timeString) => {
+    if (!timeString) return 'N/A';
+    try {
+      // แปลงโดยตรงโดยการบวกเวลาเพิ่ม 7 ชั่วโมงสำหรับ timezone ไทย (GMT+7)
+      const utcDate = new Date(timeString);
+      const thaiDate = new Date(utcDate.getTime() + (7 * 60 * 60 * 1000)); // บวก 7 ชั่วโมง
+      
+      // จัดรูปแบบเป็น HH:MM:SS แบบ 24 ชั่วโมง
+      return thaiDate.toTimeString().split(' ')[0];
+    } catch (e) {
+      console.error("Error formatting raw time:", e);
+      return String(timeString);
     }
   };
 
@@ -1354,88 +977,156 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
     }
   };
 
-  // Add a utility function to normalize ID lookups
+  // แก้ไขฟังก์ชัน getActivityForExercise เพื่อรวมข้อมูลจาก code_history และ keystroke
   const getActivityForExercise = (exerciseId) => {
-    if (!exerciseId || !codingActivity) {
-      console.log(`No activity data available - exerciseId: ${exerciseId}, codingActivity exists: ${!!codingActivity}`);
+    if (!exerciseId) {
+      console.log(`No exercise ID provided`);
       return [];
     }
     
     console.log(`Looking for activity for exercise ${exerciseId} (${typeof exerciseId})`);
-    console.log(`Available activity keys: ${Object.keys(codingActivity).join(', ')}`);
     
-    // Try all possible matching methods
+    // ค้นหา timeline activity จาก codingActivity
+    let timelineEntries = [];
     
+    // Try all possible matching methods for timeline data
     // Direct lookup first
     if (codingActivity[exerciseId] && codingActivity[exerciseId].length > 0) {
-      console.log(`Found ${codingActivity[exerciseId].length} entries with direct match on key: ${exerciseId}`);
-      return codingActivity[exerciseId];
+      console.log(`Found ${codingActivity[exerciseId].length} timeline entries with direct match on key: ${exerciseId}`);
+      timelineEntries = codingActivity[exerciseId];
     }
-    
     // Try string conversion
-    const strId = String(exerciseId);
-    if (codingActivity[strId] && codingActivity[strId].length > 0) {
-      console.log(`Found ${codingActivity[strId].length} entries with string key: ${strId}`);
-      return codingActivity[strId];
+    else if (codingActivity[String(exerciseId)] && codingActivity[String(exerciseId)].length > 0) {
+      console.log(`Found ${codingActivity[String(exerciseId)].length} timeline entries with string key: ${String(exerciseId)}`);
+      timelineEntries = codingActivity[String(exerciseId)];
     }
-    
     // Try numeric conversion if possible
+    else {
     const numId = parseInt(exerciseId);
     if (!isNaN(numId)) {
       if (codingActivity[numId] && codingActivity[numId].length > 0) {
-        console.log(`Found ${codingActivity[numId].length} entries with numeric key: ${numId}`);
-        return codingActivity[numId];
+          console.log(`Found ${codingActivity[numId].length} timeline entries with numeric key: ${numId}`);
+          timelineEntries = codingActivity[numId];
       }
-      
-      // Check for zero-based index (problem_index might be 0-based while exercise IDs are 1-based)
+        // Check for zero-based index
+        else {
       const zeroBasedIndex = numId - 1;
       if (zeroBasedIndex >= 0 && codingActivity[zeroBasedIndex] && codingActivity[zeroBasedIndex].length > 0) {
-        console.log(`Found ${codingActivity[zeroBasedIndex].length} entries with zero-based index: ${zeroBasedIndex}`);
-        return codingActivity[zeroBasedIndex];
-      }
-    }
-    
-    // Look for keys that might be strings with the same value
-    for (const key of Object.keys(codingActivity)) {
-      // Compare as strings
-      if (String(key) === strId && codingActivity[key].length > 0) {
-        console.log(`Found ${codingActivity[key].length} entries with string comparison on key: ${key}`);
-        return codingActivity[key];
-      }
-      
-      // Compare numerically if both are numbers
-      const keyNum = parseInt(key);
-      if (!isNaN(keyNum) && !isNaN(numId) && keyNum === numId && codingActivity[key].length > 0) {
-        console.log(`Found ${codingActivity[key].length} entries with numeric comparison on key: ${key}`);
-        return codingActivity[key];
-      }
-      
-      // Check for zero-based index match (when problem_index in DB is 0-based)
-      if (!isNaN(keyNum) && !isNaN(numId) && keyNum === numId - 1 && codingActivity[key].length > 0) {
-        console.log(`Found ${codingActivity[key].length} entries with zero-based index match: key=${key}, exercise=${numId}`);
-        return codingActivity[key];
-      }
-    }
-    
-    // Last resort: check if any of the timeline items have matching exerciseId property
-    for (const key of Object.keys(codingActivity)) {
-      const entries = codingActivity[key];
-      if (entries && entries.length > 0) {
-        const matchingEntries = entries.filter(entry => 
-          entry.exerciseId === exerciseId || 
-          String(entry.exerciseId) === strId || 
-          (entry.exerciseId !== undefined && !isNaN(parseInt(entry.exerciseId)) && parseInt(entry.exerciseId) === numId)
-        );
-        
-        if (matchingEntries.length > 0) {
-          console.log(`Found ${matchingEntries.length} entries by checking exerciseId property inside entries`);
-          return matchingEntries;
+            console.log(`Found ${codingActivity[zeroBasedIndex].length} timeline entries with zero-based index: ${zeroBasedIndex}`);
+            timelineEntries = codingActivity[zeroBasedIndex];
+          }
         }
       }
     }
     
-    console.log(`No activity found for exercise ${exerciseId} after trying all lookup methods`);
-    return [];
+    console.log(`Found ${timelineEntries.length} total timeline entries for exercise ${exerciseId}`);
+    
+    // รวม code history เข้ากับ timeline data
+    let historyEntries = [];
+    if (codeHistory && codeHistory.length > 0) {
+      const exerciseNumber = parseInt(exerciseId);
+      
+      // กรองประวัติที่เกี่ยวข้องกับ exercise นี้
+      const relevantHistory = codeHistory.filter(entry => {
+        // Match by problem_index
+        if (entry.problem_index !== undefined) {
+          if (entry.problem_index === exerciseId || 
+              String(entry.problem_index) === String(exerciseId) ||
+              (!isNaN(exerciseNumber) && parseInt(entry.problem_index) === exerciseNumber)) {
+            return true;
+          }
+        }
+        
+        // Match by exercise_id
+        if (entry.exercise_id !== undefined) {
+          if (entry.exercise_id === exerciseId || 
+              String(entry.exercise_id) === String(exerciseId)) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
+      
+      console.log(`Found ${relevantHistory.length} relevant code history entries for exercise ${exerciseId}`);
+      
+      // แปลง code history ให้อยู่ในรูปแบบเดียวกับ timeline entry
+      historyEntries = relevantHistory.map((item, idx) => {
+        // ถ้ามี action_type ใช้ action_type เลย
+        let actionType = item.action_type || 'unknown';
+        
+        // ตรวจสอบ is_submission ด้วย
+        if (item.is_submission) {
+          actionType = 'submission';
+        }
+        // ถ้ายังไม่มี action_type หรือเป็น access แต่มี output ให้เป็น run
+        else if (actionType === 'unknown' || (actionType === 'access' && item.output)) {
+          actionType = 'run';
+        }
+        
+        return {
+          id: `history-${idx}`,
+          timestamp: item.created_at || new Date().toISOString(),
+          action: actionType,
+          exerciseId: exerciseId,
+          code: item.code || '',
+          output: item.output || '',
+          error: item.error || ''
+        };
+      });
+      
+      // เพิ่ม debug
+      console.log(`Code history actions breakdown:`);
+      const actionCounts = {};
+      historyEntries.forEach(entry => {
+        actionCounts[entry.action] = (actionCounts[entry.action] || 0) + 1;
+      });
+      console.log(actionCounts);
+    }
+    
+    // รวม entries จาก timeline และ code history
+    const allEntries = [...timelineEntries, ...historyEntries];
+    
+    // ถ้ามี entry ซ้ำกัน (ทั้ง keystroke และ code_history) ให้ deduplicate
+    const uniqueTimestamps = new Set();
+    const uniqueEntries = allEntries.filter(entry => {
+      const timestampStr = new Date(entry.timestamp).getTime().toString();
+      if (uniqueTimestamps.has(timestampStr)) {
+        return false;
+      }
+      uniqueTimestamps.add(timestampStr);
+      return true;
+    });
+    
+    // เรียงลำดับตาม timestamp
+    uniqueEntries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    // แสดงจำนวนข้อมูลแต่ละประเภท
+    const activityTypes = {};
+    uniqueEntries.forEach(entry => {
+      activityTypes[entry.action] = (activityTypes[entry.action] || 0) + 1;
+    });
+    
+    console.log(`Final activity count: ${uniqueEntries.length} entries (${timelineEntries.length} from timeline, ${historyEntries.length} from history)`);
+    console.log('Activity types breakdown:', activityTypes);
+    
+    // เพิ่มค่า display_time, thai_timestamp, และ raw_time_thai สำหรับการแสดงผลเวลาที่เป็นเวลาไทย
+    const entriesWithThaiTime = uniqueEntries.map(entry => {
+      // แปลงเวลาเป็นเวลาไทยโดยบวกเพิ่ม 7 ชั่วโมง
+      const utcDate = new Date(entry.timestamp);
+      const thaiDate = new Date(utcDate.getTime() + (7 * 60 * 60 * 1000));
+      const thaiTimeString = thaiDate.toTimeString().split(' ')[0];
+      
+      return {
+        ...entry,
+        display_time: formatTime(thaiDate),
+        raw_time_thai: thaiTimeString,
+        // เพิ่ม thai_timestamp เพื่อใช้แทน timestamp ดั้งเดิม
+        thai_timestamp: thaiDate.toISOString()
+      };
+    });
+    
+    return entriesWithThaiTime.length > 0 ? entriesWithThaiTime : [];
   };
 
   const timelineMarkers = generateTimelineMarkers();
@@ -1495,6 +1186,11 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
         
         console.log(`Processing entry: problem_index=${problemIndex}, exercise_id=${exerciseId}`);
         
+        // แปลงเวลาเป็นเวลาไทย (GMT+7) โดยการบวกเพิ่ม 7 ชั่วโมง
+        const utcDate = new Date(item.timestamp);
+        const thaiDate = new Date(utcDate.getTime() + (7 * 60 * 60 * 1000));
+        const thaiTimeString = thaiDate.toTimeString().split(' ')[0];
+        
         // Try to match to exercises
         exercises.forEach(exercise => {
           const exerciseNumber = parseInt(exercise.id);
@@ -1517,6 +1213,8 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
             const entry = {
               id: (activity[exercise.id].length || 0) + 1,
               timestamp: item.timestamp || new Date().toISOString(),
+              thai_timestamp: thaiDate.toISOString(),  // เพิ่ม thai_timestamp
+              raw_time_thai: thaiTimeString,          // เพิ่ม raw_time_thai
               action: item.action_type || 'keystroke',
               exerciseId: exercise.id,
               code: item.code || '',
@@ -1939,16 +1637,16 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
                               key={idx}
                               className={`timeline-marker ${item.action} ${idx === safePosition ? 'active' : ''}`}
                               style={{left: `${(idx / (effectiveActivity.length - 1)) * 100}%`}}
-                      onClick={() => setTimelinePosition(idx)}
-                              title={`${new Date(item.timestamp).toLocaleTimeString()} - ${item.action}`}
-                    >
-                      <span className="marker-tooltip">
-                                {new Date(item.timestamp).toLocaleTimeString()}
-                        <br/>
+                              onClick={() => setTimelinePosition(idx)}
+                              title={`${item.raw_time_thai || formatRawTime(item.timestamp)} - ${item.action}`}
+                            >
+                              <span className="marker-tooltip">
+                                {item.raw_time_thai || formatRawTime(item.timestamp)}
+                                <br/>
                                 {item.action}
-                      </span>
-                    </div>
-                  ))}
+                              </span>
+                            </div>
+                          ))}
                 </div>
                   </>
                     );
@@ -1997,7 +1695,7 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
                 <>
               <div className="timeline-info">
                 <div className="current-position-info">
-                          <span>Time: {new Date(currentItem.timestamp).toLocaleTimeString()}</span>
+                          <span>Time: {currentItem.raw_time_thai || formatRawTime(currentItem.timestamp)}</span>
                           <span>Action: {currentItem.action}</span>
                         </div>
                         
@@ -2409,49 +2107,149 @@ const StudentAssignment = ({ studentId, assignmentId, onBack, onSubmissionUpdate
               </div>
 
               <h3>Coding Activity - {exercises[currentExerciseIndex]?.title || 'Exercise'}</h3>
-              {keystrokeHistory && keystrokeHistory.length > 0 ? (
-                <div className="activity-visualization">
-                  <div className="activity-heatmap">
-                    {keystrokeHistory.map((day, idx) => (
-                      <div key={idx} className="activity-day">
-                        <div className="day-header">{day.day}</div>
-                        <div 
-                          className="activity-level" 
-                          style={{
-                            height: `${Math.min(100, day.count * 3)}px`,
-                            backgroundColor: `rgba(124, 58, 237, ${Math.min(1, day.count/20)})`
-                          }}
-                        >
-                          <span className="activity-count">{day.count}</span>
+              
+              {(() => {
+                const currentExercise = exercises[currentExerciseIndex];
+                const exerciseId = currentExercise?.id;
+                
+                // Get activity data for current exercise
+                const exerciseActivity = getActivityForExercise(exerciseId);
+                
+                // Calculate statistics
+                const stats = {
+                  totalKeystrokes: 0,
+                  firstActivity: null,
+                  lastActivity: null,
+                  timeSpent: 0,
+                  activityByType: {}
+                };
+                
+                if (exerciseActivity && exerciseActivity.length > 0) {
+                  // Sort activities by timestamp and use Thai time
+                  const sortedActivities = [...exerciseActivity].sort((a, b) => 
+                    new Date(a.thai_timestamp || a.timestamp) - new Date(b.thai_timestamp || b.timestamp)
+                  );
+                  
+                  // ใช้ thai_timestamp หรือแปลงเป็นเวลาไทยก่อนแสดงผล
+                  if (sortedActivities.length > 0) {
+                    // ใช้เวลาเริ่มต้นและสิ้นสุดที่เป็น UTC (ไม่บวกเวลาเพิ่ม เพราะจะบวกเพิ่มตอนแสดงผล)
+                    stats.firstActivity = new Date(sortedActivities[0].timestamp);
+                    stats.lastActivity = new Date(sortedActivities[sortedActivities.length - 1].timestamp);
+                   
+                    // Calculate time spent (in minutes) using the original times (not Thai times)
+                    stats.timeSpent = Math.max(1, Math.round(
+                      (stats.lastActivity - stats.firstActivity) / (1000 * 60)
+                    ));
+                    
+                    // สร้างเวลาไทยแบบตรงๆ เพื่อการแสดงผล
+                    // คำนวณเวลาไทยสำหรับแสดงผล โดยบวกเพิ่ม 7 ชั่วโมง (GMT+7)
+                    const firstDate = new Date(stats.firstActivity.getTime() + (7 * 60 * 60 * 1000));
+                    const lastDate = new Date(stats.lastActivity.getTime() + (7 * 60 * 60 * 1000));
+                    
+                    // จัดรูปแบบเป็น HH:MM:SS
+                    stats.firstActivityThai = 
+                      firstDate.getHours().toString().padStart(2, '0') + ":" +
+                      firstDate.getMinutes().toString().padStart(2, '0') + ":" +
+                      firstDate.getSeconds().toString().padStart(2, '0');
+                      
+                    stats.lastActivityThai = 
+                      lastDate.getHours().toString().padStart(2, '0') + ":" +
+                      lastDate.getMinutes().toString().padStart(2, '0') + ":" +
+                      lastDate.getSeconds().toString().padStart(2, '0');
+                  }
+                  
+                  // Count activities by type
+                  sortedActivities.forEach(activity => {
+                    const type = activity.action || 'unknown';
+                    stats.activityByType[type] = (stats.activityByType[type] || 0) + 1;
+                    
+                    if (type === 'keystroke') {
+                      stats.totalKeystrokes++;
+                    }
+                  });
+                }
+                
+                // เพิ่มฟังก์ชันแปลงค่าเวลาดิบเป็นเวลาไทยแบบตรงๆ (สำหรับ Time Spent)
+                const getThaiTimeString = (date) => {
+                  if (!date) return 'N/A';
+                  try {
+                    // บวกเพิ่ม 7 ชั่วโมงเป็นเวลาไทย (GMT+7)
+                    const thaiDate = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+                    
+                    // จัดรูปแบบเป็น HH:MM:SS
+                    const hours = thaiDate.getHours().toString().padStart(2, '0');
+                    const minutes = thaiDate.getMinutes().toString().padStart(2, '0');
+                    const seconds = thaiDate.getSeconds().toString().padStart(2, '0');
+                    
+                    return `${hours}:${minutes}:${seconds}`;
+                  } catch (e) {
+                    console.error("Error formatting Thai time:", e);
+                    return 'N/A';
+                  }
+                };
+                
+                return (
+                  <div className="activity-dashboard">
+                    <div className="activity-stats-grid">
+                      <div className="stat-card">
+                        <h4>Time Spent</h4>
+                        <div className="stat-value">
+                          {stats.timeSpent > 0 ? `${stats.timeSpent} minutes` : 'N/A'}
                         </div>
-                        <div className="activity-type">{typeof day.action_type === 'object' ? JSON.stringify(day.action_type) : day.action_type}</div>
+                        {stats.firstActivityThai && stats.lastActivityThai && (
+                          <div className="stat-detail">
+                            From {stats.firstActivityThai} to {stats.lastActivityThai}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                      
+                      <div className="stat-card">
+                        <h4>Total Keystrokes</h4>
+                        <div className="stat-value">{stats.totalKeystrokes}</div>
+                        <div className="stat-detail">
+                          {stats.activityByType['keystroke'] && stats.timeSpent > 0 ? 
+                            `${Math.round(stats.activityByType['keystroke'] / stats.timeSpent)} keystrokes/minute` : 
+                            'N/A'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="activity-timeline">
+                      <h4>Activity Timeline</h4>
+                      {exerciseActivity && exerciseActivity.length > 0 ? (
+                        <div className="timeline-container">
+                          {exerciseActivity.map((activity, idx) => (
+                            <div key={idx} className="timeline-event">
+                              <div className="event-time">
+                                {activity.raw_time_thai || formatRawTime(activity.timestamp)}
+                              </div>
+                              <div className={`event-type ${activity.action}`}>
+                                {activity.action}
+                              </div>
+                              <div className="event-content">
+                                {activity.code && (
+                                  <div className="event-code">
+                                    <pre><code>{activity.code.length > 300 ? 
+                                      activity.code.substring(0, 300) + "..." : 
+                                      activity.code}</code></pre>
+                                  </div>
+                                )}
+                                {activity.output && (
+                                  <div className="event-output">
+                                    <strong>Output:</strong> {activity.output}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-state">No activity recorded for this exercise</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="activity-summary">
-                    <div className="summary-item">
-                      <label>Total Code Runs</label>
-                      <span>{codeHistory.filter(h => h.action_type === 'run').length}</span>
-                    </div>
-                    <div className="summary-item">
-                      <label>Total Submissions</label>
-                      <span>{codeHistory.filter(h => h.action_type === 'submission').length}</span>
-                    </div>
-                    <div className="summary-item">
-                      <label>Average Time Between Runs</label>
-                      <span>
-                        {codeHistory.length > 1 ? 
-                          Math.round((new Date(codeHistory[codeHistory.length-1]?.created_at || new Date()) - 
-                                    new Date(codeHistory[0]?.created_at || new Date())) / 
-                                    (codeHistory.length * 60000)) + ' min' : 
-                          'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="empty-state">No keystroke activity data available</div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
