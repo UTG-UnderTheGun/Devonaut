@@ -35,8 +35,9 @@ const TableSkeleton = () => {
 const SectionDetail = ({ section }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (showModal) {
@@ -48,19 +49,59 @@ const SectionDetail = ({ section }) => {
   }, [showModal]);
 
   useEffect(() => {
-    // Just use the students from the section if available, don't fetch
-    const getStudentsFromSection = () => {
-      const sectionCopy = section ? {...section} : null;
-      
-      if (sectionCopy && sectionCopy.students && Array.isArray(sectionCopy.students)) {
-        setStudents(sectionCopy.students);
-      } else {
-        // If no students, just use empty array instead of fetching
+    const fetchStudentsBySection = async () => {
+      if (!section || !section.id) {
         setStudents([]);
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        
+        // First try to get students from the users/students-by-section endpoint
+        const response = await axios.get(`${API_BASE}/users/students-by-section`, {
+          withCredentials: true,
+        });
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Find the matching section in the response
+          const sectionData = response.data.find(
+            (s) => s.id === section.id || s._id === section.id
+          );
+          
+          if (sectionData && sectionData.students && Array.isArray(sectionData.students)) {
+            setStudents(sectionData.students);
+          } else {
+            // If section not found, set empty array
+            setStudents([]);
+          }
+        } else {
+          // Fallback to using students from section prop if available
+          if (section.students && Array.isArray(section.students)) {
+            setStudents(section.students);
+          } else {
+            setStudents([]);
+          }
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching students by section:', err);
+        setError('Failed to load students. Please try again later.');
+        
+        // Fallback to using students from section prop if available
+        if (section && section.students && Array.isArray(section.students)) {
+          setStudents(section.students);
+        } else {
+          setStudents([]);
+        }
+      } finally {
+        setLoading(false);
       }
     };
     
-    getStudentsFromSection();
+    fetchStudentsBySection();
   }, [section]);
 
   const handleRowClick = (student) => {
@@ -70,8 +111,8 @@ const SectionDetail = ({ section }) => {
 
   if (!section) return null;
 
-  // Use static values
-  const totalStudents = section.totalStudents || students.length || 0;
+  // Calculate values based on students data
+  const totalStudents = students.length;
   // Always use static pending count of 2
   const pendingCount = 2;
   // Static total score
@@ -140,6 +181,8 @@ const SectionDetail = ({ section }) => {
           <div className="table-wrapper">
             {loading ? (
               <TableSkeleton />
+            ) : error ? (
+              <div className="error-message">{error}</div>
             ) : students.length === 0 ? (
               <EmptyState />
             ) : (

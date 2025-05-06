@@ -296,24 +296,25 @@ async def get_student_submission(
         if user.get("role") != "teacher" and user_id != student_id:
             raise HTTPException(status_code=403, detail="You can only view your own submissions")
         
-        # Try to find submission by ID first
+        print(f"Looking for submission with assignment_id={assignment_id}, student_id={student_id}")
+        
+        # Try to find submission by user_id
         query = {
             "assignment_id": assignment_id,
             "user_id": student_id
         }
         
-        print(f"Searching for submission with query: {query}")
-        
         # Get the submission
         submission = await request.app.mongodb["assignment_submissions"].find_one(query)
         
         if not submission:
-            print(f"No submission found for assignment_id={assignment_id}, student_id={student_id}")
-            # Try alternative query with string IDs
+            print(f"No submission found with query: {query}")
+            # Try alternative query with student_id in different field
             alt_query = {
                 "assignment_id": assignment_id,
-                "user_id": student_id
+                "student_id": student_id  # Some might store student_id directly
             }
+            print(f"Trying alternative query: {alt_query}")
             submission = await request.app.mongodb["assignment_submissions"].find_one(alt_query)
             
             if not submission:
@@ -322,11 +323,18 @@ async def get_student_submission(
                     content={"detail": "Submission not found"}
                 )
         
-        # Convert ObjectId to string
-        if "_id" in submission:
-            submission["_id"] = str(submission["_id"])
+        # Ensure submission has an ID field for the frontend
+        if submission:
+            # Convert ObjectId to string
+            if "_id" in submission:
+                submission["_id"] = str(submission["_id"])
+                
+                # Make sure submission has an ID field
+                if "id" not in submission:
+                    submission["id"] = submission["_id"]  # Use _id as id if missing
+            
+            print(f"Found submission: ID={submission.get('id')}, _id={submission.get('_id')}")
         
-        print(f"Found submission: {submission}")
         return submission
     except Exception as e:
         print(f"Error getting student submission: {str(e)}")
@@ -359,14 +367,55 @@ async def grade_submission(
         if assignment["created_by"] != user_id:
             raise HTTPException(status_code=403, detail="You can only grade submissions for your own assignments")
         
-        # Find the submission
+        # Log debugging info
+        print(f"Grading submission with ID: {submission_id}, assignment: {assignment_id}")
+        
+        # Try multiple ways to find the submission
+        submission = None
+        
+        # First try with id field
         submission = await request.app.mongodb["assignment_submissions"].find_one({
             "id": submission_id,
             "assignment_id": assignment_id
         })
         
+        # If not found, try with _id field (could be string or ObjectId)
         if not submission:
-            raise HTTPException(status_code=404, detail="Submission not found")
+            try:
+                from bson.objectid import ObjectId
+                # Try with _id as ObjectId
+                if ObjectId.is_valid(submission_id):
+                    submission = await request.app.mongodb["assignment_submissions"].find_one({
+                        "_id": ObjectId(submission_id),
+                        "assignment_id": assignment_id
+                    })
+            except Exception as e:
+                print(f"Error converting to ObjectId: {str(e)}")
+        
+        # Last resort: try direct string match on _id
+        if not submission:
+            submission = await request.app.mongodb["assignment_submissions"].find_one({
+                "_id": submission_id,
+                "assignment_id": assignment_id
+            })
+            
+        # If still not found, try without assignment_id constraint
+        if not submission:
+            any_submission = await request.app.mongodb["assignment_submissions"].find_one({
+                "$or": [
+                    {"id": submission_id},
+                    {"_id": submission_id}
+                ]
+            })
+            if any_submission:
+                print(f"Found submission with ID but wrong assignment_id: {any_submission.get('assignment_id', 'unknown')}")
+                # Use this submission anyway if it's the only one we found
+                submission = any_submission
+            else:
+                print(f"No submission found with ID: {submission_id} in any assignment")
+                raise HTTPException(status_code=404, detail=f"Submission not found with ID: {submission_id}")
+        
+        print(f"Found submission: {submission}")
         
         # Update the submission with grade and feedback
         update_data = {
@@ -391,43 +440,92 @@ async def grade_submission(
                 }
                 comments.append(comment)
             
-            update_data["comments"] = comments
+            # If comments already exist, append to them
+            if "comments" in submission and isinstance(submission["comments"], list):
+                update_data["comments"] = submission["comments"] + comments
+            else:
+                update_data["comments"] = comments
+        
+        # Determine the right ID field to use for the update
+        from bson.objectid import ObjectId
+        
+        filter_query = {}
+        if "_id" in submission:
+            if isinstance(submission["_id"], ObjectId):
+                filter_query = {"_id": submission["_id"]}
+            else:
+                # Try to convert to ObjectId if it's a string
+                try:
+                    if ObjectId.is_valid(submission["_id"]):
+                        filter_query = {"_id": ObjectId(submission["_id"])}
+                    else:
+                        filter_query = {"_id": submission["_id"]}
+                except:
+                    filter_query = {"_id": submission["_id"]}
+        elif "id" in submission:
+            filter_query = {"id": submission["id"]}
+        else:
+            # Last resort, try both
+            filter_query = {"$or": [{"_id": submission_id}, {"id": submission_id}]}
+        
+        print(f"Update filter query: {filter_query}")
         
         # Update in database
         result = await request.app.mongodb["assignment_submissions"].update_one(
-            {"id": submission_id},
+            filter_query,
             {"$set": update_data}
         )
         
         if result.modified_count == 0:
-            raise HTTPException(status_code=500, detail="Failed to update submission")
+            print(f"Failed to update submission. Match count: {result.matched_count}, Modified count: {result.modified_count}")
+            
+            # Try one more time with a broader query
+            if result.matched_count == 0:
+                print("Trying broader query as last resort")
+                result = await request.app.mongodb["assignment_submissions"].update_one(
+                    {"$or": [
+                        {"_id": submission_id},
+                        {"id": submission_id},
+                        {"_id": ObjectId(submission_id) if ObjectId.is_valid(submission_id) else None}
+                    ]},
+                    {"$set": update_data}
+                )
+                
+            if result.modified_count == 0:
+                raise HTTPException(status_code=500, detail="Failed to update submission")
         
         # Update assignment stats
-        await request.app.mongodb["assignments"].update_one(
-            {"_id": ObjectId(assignment_id)},
-            {
-                "$inc": {"stats.pending_review": -1},
-                "$set": {"updated_at": datetime.now()}
-            }
-        )
-        
-        # Recalculate average score
-        pipeline = [
-            {"$match": {"assignment_id": assignment_id, "status": "graded"}},
-            {"$group": {"_id": None, "avg_score": {"$avg": "$score"}}}
-        ]
-        avg_result = await request.app.mongodb["assignment_submissions"].aggregate(pipeline).to_list(length=1)
-        
-        if avg_result:
+        try:
             await request.app.mongodb["assignments"].update_one(
                 {"_id": ObjectId(assignment_id)},
-                {"$set": {"stats.average_score": avg_result[0]["avg_score"]}}
+                {
+                    "$inc": {"stats.pending_review": -1},
+                    "$set": {"updated_at": datetime.now()}
+                }
             )
+            
+            # Recalculate average score
+            pipeline = [
+                {"$match": {"assignment_id": assignment_id, "status": "graded"}},
+                {"$group": {"_id": None, "avg_score": {"$avg": "$score"}}}
+            ]
+            avg_result = await request.app.mongodb["assignment_submissions"].aggregate(pipeline).to_list(length=1)
+            
+            if avg_result:
+                await request.app.mongodb["assignments"].update_one(
+                    {"_id": ObjectId(assignment_id)},
+                    {"$set": {"stats.average_score": avg_result[0]["avg_score"]}}
+                )
+        except Exception as statsErr:
+            # Don't fail the whole operation if stats update fails
+            print(f"Warning: Failed to update assignment stats: {str(statsErr)}")
         
         return {
             "success": True,
             "message": "Submission graded successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error grading submission: {str(e)}")
         raise HTTPException(

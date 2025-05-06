@@ -1062,3 +1062,57 @@ async def import_keystrokes(
         print(f"Error importing keystroke data: {str(e)}")
         return {"success": False, "error": str(e)}
 
+@router.get("/code-history/by-user/{user_id}")
+async def get_code_history_by_user(
+    request: Request,
+    user_id: str,
+    problem_index: int = None,
+    exercise_id: str = None,
+    assignment_id: str = None,
+    limit: int = 1000,
+    skip: int = 0,
+    current_user=Depends(get_current_user),
+):
+    """
+    Get code execution history for a specific user (admin/teacher only)
+    """
+    try:
+        admin_user, admin_id = current_user
+        
+        # Only allow admins or teachers to view other users' data
+        is_admin = admin_user.get("role") == "admin"
+        is_teacher = admin_user.get("role") == "teacher"
+        
+        if not (is_admin or is_teacher) and user_id != admin_id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this data")
+            
+        # Build query
+        query = {"user_id": user_id}
+        if problem_index is not None:
+            query["problem_index"] = problem_index
+        if exercise_id is not None:
+            query["exercise_id"] = exercise_id
+        if assignment_id is not None:
+            query["assignment_id"] = assignment_id
+            
+        # Get history from MongoDB - sort by created_at in ascending order to get chronological history
+        cursor = request.app.mongodb["code_history"].find(query).sort("created_at", 1).skip(skip).limit(limit)
+        
+        # Convert to list
+        history = await cursor.to_list(length=limit)
+        
+        # Convert ObjectId to string and format timestamps
+        for item in history:
+            item["_id"] = str(item["_id"])
+            # Handle created_at in consistent format
+            if "created_at" in item and item["created_at"]:
+                try:
+                    if isinstance(item["created_at"], datetime):
+                        item["created_at"] = item["created_at"].isoformat()
+                except Exception as e:
+                    print(f"Error formatting timestamp: {e}")
+            
+        return history
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
