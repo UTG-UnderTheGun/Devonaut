@@ -14,7 +14,7 @@ const DashboardSkeleton = () => {
       </div>
       
       {/* Main content skeleton */}
-      <div className="main-content">
+      <div className="main-content-dashboard">
         <div className="table-container skeleton-table-container">
           <div className="table-header">
             <div className="header-content">

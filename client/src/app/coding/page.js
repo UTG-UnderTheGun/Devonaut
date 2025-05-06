@@ -723,7 +723,7 @@ export default function CodingPage() {
 
   return (
     <div className="coding-container">
-      <div className="main-content">
+      <div className="main-content-coding">
         <DescriptionPanel
           {...descriptionProps}
           exercise_id={getCurrentProblemId()}

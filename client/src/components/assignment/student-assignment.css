@@ -258,6 +258,7 @@
   flex: 1;
 }
 
+/* Main content for student assignment page - specific class to avoid conflicts */
 .main-content-assignment {
   max-width: 1150px;
   margin: 20px auto;

@@ -3,7 +3,7 @@
 const CodingSkeleton = () => {
   return (
     <div className="coding-container">
-      <div className="main-content">
+      <div className="main-content-coding">
         {/* Description Panel Skeleton */}
         <div className="description-panel skeleton">
           <div className="panel-header">
