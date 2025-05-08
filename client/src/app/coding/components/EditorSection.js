@@ -1085,20 +1085,23 @@ const EditorSection = ({
         messageText = `Can you explain this code?\n\`\`\`python\n${selectedText}\n\`\`\``;
     }
 
-    // Create message event
-    const message = {
-      id: Date.now(),
-      text: messageText,
-      isUser: true,
-      timestamp: new Date()
-    };
-
-    // Switch to AI tab with the message
-    const switchEvent = new CustomEvent('switch-description-tab', {
-      detail: { 
-        tab: 'ASK AI',
-        pendingMessage: message
+    // Create and dispatch the add-chat-message event
+    const chatEvent = new CustomEvent('add-chat-message', {
+      detail: {
+        id: Date.now(),
+        text: messageText,
+        isUser: true,
+        timestamp: new Date(),
+        source: 'context-menu',
+        exercise_id: problems[currentProblemIndex]?.id,
+        assignment_id: assignmentId
       }
+    });
+    window.dispatchEvent(chatEvent);
+
+    // Switch to AI tab
+    const switchEvent = new CustomEvent('switch-description-tab', {
+      detail: { tab: 'ASK AI' }
     });
     window.dispatchEvent(switchEvent);
   };

@@ -11,7 +11,7 @@
   overflow: hidden;
 }
 
-.main-content {
+.main-content-coding {
   display: flex;
   gap: 0.5rem;
   padding: 0.5rem;
@@ -22,7 +22,7 @@
 }
 
 /* Make sure the coding-container has proper height */
-.coding-container .main-content {
+.coding-container .main-content-coding {
   margin-top: 40px;
   height: calc(100vh - 41px); /* Precise height calculation */
   padding: 0.25rem 0.5rem;

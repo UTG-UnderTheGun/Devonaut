@@ -7,6 +7,7 @@
   flex-direction: column;
 }
 
+/* Main content specific to homepage - using more specific class name to avoid conflicts */
 .homepage-main-content {
   max-width: 800px;
   margin: 120px auto 0;

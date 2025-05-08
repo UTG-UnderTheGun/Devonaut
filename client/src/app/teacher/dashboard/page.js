@@ -744,7 +744,7 @@ const TeacherDashboard = () => {
     }
 
     return (
-      <main className="main-content">
+      <main className="main-content-dashboard">
         <div className="table-container">
           <div className="table-header">
             <div className="header-content">
