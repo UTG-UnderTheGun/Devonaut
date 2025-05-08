@@ -473,11 +473,29 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
     );
   };
 
-  // Add event listener for code explanation
+  // Listen for messages from context menu
+  useEffect(() => {
+    const handleContextMenuMessage = (event) => {
+      const message = event.detail;
+      if (message && message.source === 'context-menu') {
+        // Use the handleSubmit function to process the message
+        const syntheticEvent = { preventDefault: () => {} };
+        setNewMessage(message);
+        handleSendMessage();
+      }
+    };
+
+    window.addEventListener('add-chat-message', handleContextMenuMessage);
+    return () => window.removeEventListener('add-chat-message', handleContextMenuMessage);
+  }, [handleSendMessage]);
+
+  // Original handleExplainCode effect
   useEffect(() => {
     const handleExplainCode = async (event) => {
+      const message = event.detail;
+
+      // Check if we've reached the question limit
       if (questionsRemaining <= 0) {
-        // Notify user they've reached the limit
         const errorMessage = {
           id: chat.length + 1,
           text: "You've reached your question limit. Please contact support for more questions.",
@@ -485,14 +503,10 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
           timestamp: new Date()
         };
         setChat(prev => [...prev, errorMessage]);
-
-        // Save to localStorage with exercise-specific key if available
         const chatKey = getChatStorageKey();
         localStorage.setItem(chatKey, JSON.stringify([...chat, errorMessage]));
         return;
       }
-
-      const message = event.detail;
 
       // Add user message and save to localStorage
       const updatedChat = [...chat, message];
@@ -506,16 +520,27 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
       try {
         setIsTyping(true);
 
-        // Include exercise_id in the request if available
+        // Include exercise_id and assignment_id in the request
         const requestBody = {
           user_id,
           prompt: message.text
         };
 
-        if (exercise_id) {
+        // Use exercise_id from message if available (from context menu)
+        if (message.exercise_id) {
+          requestBody.exercise_id = message.exercise_id;
+        } else if (exercise_id) {
           requestBody.exercise_id = exercise_id;
         }
 
+        // Use assignment_id from message if available (from context menu)
+        if (message.assignment_id) {
+          requestBody.assignment_id = message.assignment_id;
+        } else if (assignmentId) {
+          requestBody.assignment_id = assignmentId;
+        }
+
+        console.log(`Sending chat request with exercise_id: ${requestBody.exercise_id}, assignment_id: ${requestBody.assignment_id}`);
         const response = await fetch(`${API_BASE_URL}/ai/chat`, {
           method: 'POST',
           headers: {
@@ -530,7 +555,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
         }
 
         // Refresh questions remaining after successful API call
-        fetchQuestionsRemaining();
+        await fetchQuestionsRemaining();
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -611,7 +636,7 @@ const AIChatInterface = ({ user_id, exercise_id }) => {
 
     window.addEventListener('add-chat-message', handleExplainCode);
     return () => window.removeEventListener('add-chat-message', handleExplainCode);
-  }, [chat, user_id, questionsRemaining, exercise_id]);
+  }, [chat, user_id, questionsRemaining, exercise_id, assignmentId]);
 
   return (
     <div className="chat-interface">
