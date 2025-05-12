@@ -588,7 +588,12 @@ const EditorSection = ({
     // Save code with the correct type and index
     const key = `code-${currentType}-${currentProblemIndex}`;
     localStorage.setItem(key, value);
-    console.log(`Saving code for problem ${currentProblemIndex} with key ${key}`);
+    
+    // Also save in problem-code-{index} format for better compatibility
+    const problemCodeKey = `problem-code-${currentProblemIndex}`;
+    localStorage.setItem(problemCodeKey, value);
+    
+    console.log(`Saving code for problem ${currentProblemIndex} with keys ${key} and ${problemCodeKey}`);
 
     // For coding exercises, store in answers as well with proper index (index+1)
     if (currentType === 'code' || currentType === 'coding') {

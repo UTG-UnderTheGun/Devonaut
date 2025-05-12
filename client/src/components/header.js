@@ -208,9 +208,8 @@ const Header = () => {
             // For fill exercises, get fill-specific answers
             const fillAnswers = {};
             Object.entries(answers).forEach(([key, value]) => {
-              if (key.startsWith(`blank-${exerciseId}-`) || 
-                  key.startsWith(`blank-${index}-`) ||
-                  key.startsWith(`blank-${index + 1}-`)) {
+              // Only include blanks that exactly match this exercise ID
+              if (key.startsWith(`blank-${exerciseId}-`)) {
                 fillAnswers[key] = value;
               }
             });
@@ -249,8 +248,9 @@ const Header = () => {
         Object.keys(answers).forEach(key => {
           if (key.startsWith('blank-')) {
             const parts = key.split('-');
-            if (parts.length >= 2) {
+            if (parts.length >= 3) {
               const exerciseId = parts[1];
+              // Only process blanks that belong to this specific exercise
               if (!formattedAnswers[exerciseId]) {
                 formattedAnswers[exerciseId] = {};
               }
@@ -269,6 +269,27 @@ const Header = () => {
             console.log(`Setting output answer for exercise ${key}`);
           }
         });
+      }
+      
+      // Special handling for exercise 1 if it's missing
+      if (!formattedAnswers["1"] && !formattedAnswers[1]) {
+        // Try to find code for the first exercise (index 0)
+        const possibleKeys = [
+          "code-code-0",
+          "problem-code-0",
+          "editor-code-code-0",
+          "editorCode-0",
+          "coding-1"
+        ];
+        
+        for (const key of possibleKeys) {
+          const storedCode = localStorage.getItem(key) || answers[key];
+          if (storedCode && storedCode.trim() !== '') {
+            formattedAnswers[1] = storedCode;
+            console.log(`Found missing code for exercise 1 in key ${key}`);
+            break;
+          }
+        }
       }
       
       // Final check: verify if a current exercise ID exists and has an answer
